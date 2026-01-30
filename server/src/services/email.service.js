@@ -474,16 +474,9 @@ const formatCurrency = (amount) => {
   }).format(amount);
 };
 
+// Named exports
 export {
   sendEmail,
-  sendOrderConfirmation,
-  sendShippingNotification,
-  sendPartnerWelcome,
-  sendPayoutNotification,
-  sendPasswordReset
-};
-
-export default {
   sendOrderConfirmation,
   sendShippingNotification,
   sendPartnerWelcome,
