@@ -11,7 +11,7 @@
 import { query, transaction } from '../config/database.js';
 import { asyncHandler, AppError } from '../middleware/error.middleware.js';
 import multer from 'multer';
-import { parse } from 'csv-parse/sync';
+import Papa from 'papaparse';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -49,10 +49,11 @@ export const importPartners = asyncHandler(async (req, res) => {
   let records;
 
   try {
-    records = parse(csvContent, {
-      columns: true,
-      skip_empty_lines: true,
-      trim: true
+    const parsed = Papa.parse(csvContent, {
+    records = parsed.data;
+      header: true,
+      skipEmptyLines: true,
+      transformHeader: (h) => h.trim()
     });
   } catch (e) {
     throw new AppError('CSV-Parsing fehlgeschlagen: ' + e.message, 400);
@@ -203,10 +204,11 @@ export const importCustomers = asyncHandler(async (req, res) => {
   let records;
 
   try {
-    records = parse(csvContent, {
-      columns: true,
-      skip_empty_lines: true,
-      trim: true
+    const parsed = Papa.parse(csvContent, {
+    records = parsed.data;
+      header: true,
+      skipEmptyLines: true,
+      transformHeader: (h) => h.trim()
     });
   } catch (e) {
     throw new AppError('CSV-Parsing fehlgeschlagen: ' + e.message, 400);
@@ -324,10 +326,11 @@ export const importDownlines = asyncHandler(async (req, res) => {
   let records;
 
   try {
-    records = parse(csvContent, {
-      columns: true,
-      skip_empty_lines: true,
-      trim: true
+    const parsed = Papa.parse(csvContent, {
+    records = parsed.data;
+      header: true,
+      skipEmptyLines: true,
+      transformHeader: (h) => h.trim()
     });
   } catch (e) {
     throw new AppError('CSV-Parsing fehlgeschlagen: ' + e.message, 400);
