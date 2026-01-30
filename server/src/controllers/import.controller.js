@@ -29,16 +29,26 @@ export const upload = multer({
   }
 });
 
-// ============================================
-// IMPORT PARTNERS
-// ============================================
+/**
+ * Parse CSV content using PapaParse
+ */
+const parseCSV = (csvContent) => {
+  const result = Papa.parse(csvContent, {
+    header: true,
+    skipEmptyLines: true,
+    transformHeader: (h) => h.trim()
+  });
+  
+  if (result.errors && result.errors.length > 0) {
+    throw new Error(result.errors[0].message);
+  }
+  
+  return result.data;
+};
 
 /**
- * Import partners from CSV
- * POST /api/import/partners
- * 
- * CSV Format:
- * email,first_name,last_name,phone,company,vat_id,street,zip,city,country,upline_email,rank_level
+ * Import Partners/Affiliates from CSV
+ * Expected columns: email, first_name, last_name, phone, upline_email (optional)
  */
 export const importPartners = asyncHandler(async (req, res) => {
   if (!req.file) {
@@ -49,12 +59,7 @@ export const importPartners = asyncHandler(async (req, res) => {
   let records;
 
   try {
-    const parsed = Papa.parse(csvContent, {
-    records = parsed.data;
-      header: true,
-      skipEmptyLines: true,
-      transformHeader: (h) => h.trim()
-    });
+    records = parseCSV(csvContent);
   } catch (e) {
     throw new AppError('CSV-Parsing fehlgeschlagen: ' + e.message, 400);
   }
@@ -76,101 +81,65 @@ export const importPartners = asyncHandler(async (req, res) => {
   await transaction(async (client) => {
     for (let i = 0; i < records.length; i++) {
       const row = records[i];
-      const rowNum = i + 2; // +2 for header row and 0-index
+      const rowNum = i + 2;
 
       try {
-        // Validate required fields
         if (!row.email || !row.first_name || !row.last_name) {
-          results.errors.push(`Zeile ${rowNum}: E-Mail, Vorname und Nachname erforderlich`);
+          results.errors.push(`Zeile ${rowNum}: email, first_name, last_name erforderlich`);
           results.skipped++;
           continue;
         }
 
-        // Check if partner exists
-        const existingResult = await client.query(
+        // Check if partner already exists
+        const existing = await client.query(
           'SELECT id FROM users WHERE email = $1',
           [row.email.toLowerCase()]
         );
 
-        if (existingResult.rows.length > 0) {
-          emailToId.set(row.email.toLowerCase(), existingResult.rows[0].id);
-          results.errors.push(`Zeile ${rowNum}: Partner ${row.email} existiert bereits`);
+        if (existing.rows.length > 0) {
+          emailToId.set(row.email.toLowerCase(), existing.rows[0].id);
           results.skipped++;
           continue;
         }
 
         // Generate referral code
-        const referralCode = generateReferralCode(row.first_name, row.last_name);
-        
-        // Default password (should be changed on first login)
-        const tempPassword = generateTempPassword();
-        const hashedPassword = await bcrypt.hash(tempPassword, 12);
-
-        // Get rank ID
-        let rankId = 1;
-        if (row.rank_level) {
-          const rankResult = await client.query(
-            'SELECT id FROM ranks WHERE level = $1',
-            [parseInt(row.rank_level) || 1]
-          );
-          if (rankResult.rows.length > 0) {
-            rankId = rankResult.rows[0].id;
-          }
-        }
+        const referralCode = uuidv4().substring(0, 8).toUpperCase();
+        const hashedPassword = await bcrypt.hash('Welcome123!', 10);
 
         // Insert partner
-        const insertResult = await client.query(`
+        const result = await client.query(`
           INSERT INTO users (
-            id, email, password_hash, first_name, last_name, phone,
-            company, vat_id, street, zip, city, country,
-            role, status, referral_code, rank_id,
-            email_verified, created_at
-          ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-            'partner', 'active', $13, $14, true, CURRENT_TIMESTAMP
-          ) RETURNING id
+            email, password, first_name, last_name, phone,
+            referral_code, role, status
+          ) VALUES ($1, $2, $3, $4, $5, $6, 'partner', 'active')
+          RETURNING id
         `, [
-          uuidv4(),
           row.email.toLowerCase(),
           hashedPassword,
           row.first_name,
           row.last_name,
           row.phone || null,
-          row.company || null,
-          row.vat_id || null,
-          row.street || null,
-          row.zip || null,
-          row.city || null,
-          row.country || 'DE',
-          referralCode,
-          rankId
+          referralCode
         ]);
 
-        emailToId.set(row.email.toLowerCase(), insertResult.rows[0].id);
+        emailToId.set(row.email.toLowerCase(), result.rows[0].id);
         results.imported++;
-
-        // Store temp password in notes for admin
-        await client.query(`
-          INSERT INTO activity_log (user_id, action, details)
-          VALUES ($1, 'import_created', $2)
-        `, [insertResult.rows[0].id, JSON.stringify({ tempPassword, importedBy: req.user.id })]);
-
       } catch (e) {
         results.errors.push(`Zeile ${rowNum}: ${e.message}`);
         results.skipped++;
       }
     }
 
-    // Second pass: Set upline relationships
+    // Second pass: Set uplines
     for (const row of records) {
-      if (row.upline_email && row.email) {
+      if (row.upline_email) {
         const partnerId = emailToId.get(row.email.toLowerCase());
         const uplineId = emailToId.get(row.upline_email.toLowerCase());
 
         if (partnerId && uplineId) {
           await client.query(
-            'UPDATE users SET upline_id = $2 WHERE id = $1',
-            [partnerId, uplineId]
+            'UPDATE users SET upline_id = $1 WHERE id = $2',
+            [uplineId, partnerId]
           );
         }
       }
@@ -184,16 +153,9 @@ export const importPartners = asyncHandler(async (req, res) => {
   });
 });
 
-// ============================================
-// IMPORT CUSTOMERS
-// ============================================
-
 /**
- * Import customers from CSV
- * POST /api/import/customers
- * 
- * CSV Format:
- * email,first_name,last_name,phone,company,vat_id,street,zip,city,country
+ * Import Customers from CSV
+ * Expected columns: email, first_name, last_name, phone, street, zip, city, country
  */
 export const importCustomers = asyncHandler(async (req, res) => {
   if (!req.file) {
@@ -204,12 +166,7 @@ export const importCustomers = asyncHandler(async (req, res) => {
   let records;
 
   try {
-    const parsed = Papa.parse(csvContent, {
-    records = parsed.data;
-      header: true,
-      skipEmptyLines: true,
-      transformHeader: (h) => h.trim()
-    });
+    records = parseCSV(csvContent);
   } catch (e) {
     throw new AppError('CSV-Parsing fehlgeschlagen: ' + e.message, 400);
   }
@@ -235,37 +192,33 @@ export const importCustomers = asyncHandler(async (req, res) => {
         }
 
         // Check if customer exists
-        const existingResult = await client.query(
+        const existing = await client.query(
           'SELECT id FROM customers WHERE email = $1',
           [row.email.toLowerCase()]
         );
 
-        if (existingResult.rows.length > 0) {
+        if (existing.rows.length > 0) {
           // Update existing customer
           await client.query(`
             UPDATE customers SET
-              first_name = COALESCE(NULLIF($2, ''), first_name),
-              last_name = COALESCE(NULLIF($3, ''), last_name),
-              phone = COALESCE(NULLIF($4, ''), phone),
-              company = COALESCE(NULLIF($5, ''), company),
-              vat_id = COALESCE(NULLIF($6, ''), vat_id),
-              street = COALESCE(NULLIF($7, ''), street),
-              zip = COALESCE(NULLIF($8, ''), zip),
-              city = COALESCE(NULLIF($9, ''), city),
-              country = COALESCE(NULLIF($10, ''), country),
-              updated_at = CURRENT_TIMESTAMP
-            WHERE id = $1
+              first_name = COALESCE($1, first_name),
+              last_name = COALESCE($2, last_name),
+              phone = COALESCE($3, phone),
+              street = COALESCE($4, street),
+              zip = COALESCE($5, zip),
+              city = COALESCE($6, city),
+              country = COALESCE($7, country),
+              updated_at = NOW()
+            WHERE id = $8
           `, [
-            existingResult.rows[0].id,
-            row.first_name,
-            row.last_name,
-            row.phone,
-            row.company,
-            row.vat_id,
-            row.street,
-            row.zip,
-            row.city,
-            row.country
+            row.first_name || null,
+            row.last_name || null,
+            row.phone || null,
+            row.street || null,
+            row.zip || null,
+            row.city || null,
+            row.country || 'DE',
+            existing.rows[0].id
           ]);
           results.updated++;
         } else {
@@ -273,18 +226,13 @@ export const importCustomers = asyncHandler(async (req, res) => {
           await client.query(`
             INSERT INTO customers (
               email, first_name, last_name, phone,
-              company, vat_id, street, zip, city, country,
-              is_registered, created_at
-            ) VALUES (
-              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false, CURRENT_TIMESTAMP
-            )
+              street, zip, city, country
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
           `, [
             row.email.toLowerCase(),
             row.first_name || '',
             row.last_name || '',
             row.phone || null,
-            row.company || null,
-            row.vat_id || null,
             row.street || null,
             row.zip || null,
             row.city || null,
@@ -301,21 +249,121 @@ export const importCustomers = asyncHandler(async (req, res) => {
 
   res.json({
     success: true,
-    message: `Import abgeschlossen: ${results.imported} neu, ${results.updated} aktualisiert, ${results.skipped} übersprungen`,
+    message: `Import abgeschlossen: ${results.imported} neu, ${results.updated} aktualisiert`,
     results
   });
 });
 
-// ============================================
-// IMPORT DOWNLINES
-// ============================================
+/**
+ * Import Products from CSV
+ * Expected columns: sku, name, description, price, category, stock
+ */
+export const importProducts = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    throw new AppError('Keine CSV-Datei hochgeladen', 400);
+  }
+
+  const csvContent = req.file.buffer.toString('utf-8');
+  let records;
+
+  try {
+    records = parseCSV(csvContent);
+  } catch (e) {
+    throw new AppError('CSV-Parsing fehlgeschlagen: ' + e.message, 400);
+  }
+
+  const results = {
+    total: records.length,
+    imported: 0,
+    updated: 0,
+    skipped: 0,
+    errors: []
+  };
+
+  await transaction(async (client) => {
+    for (let i = 0; i < records.length; i++) {
+      const row = records[i];
+      const rowNum = i + 2;
+
+      try {
+        if (!row.sku || !row.name || !row.price) {
+          results.errors.push(`Zeile ${rowNum}: sku, name, price erforderlich`);
+          results.skipped++;
+          continue;
+        }
+
+        const price = parseFloat(row.price);
+        if (isNaN(price)) {
+          results.errors.push(`Zeile ${rowNum}: Ungültiger Preis`);
+          results.skipped++;
+          continue;
+        }
+
+        // Check if product exists
+        const existing = await client.query(
+          'SELECT id FROM products WHERE sku = $1',
+          [row.sku]
+        );
+
+        if (existing.rows.length > 0) {
+          // Update existing
+          await client.query(`
+            UPDATE products SET
+              name = $1,
+              description = COALESCE($2, description),
+              price = $3,
+              category = COALESCE($4, category),
+              stock = COALESCE($5, stock),
+              updated_at = NOW()
+            WHERE id = $6
+          `, [
+            row.name,
+            row.description || null,
+            price,
+            row.category || 'general',
+            row.stock ? parseInt(row.stock) : null,
+            existing.rows[0].id
+          ]);
+          results.updated++;
+        } else {
+          // Create slug
+          const slug = row.name.toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/(^-|-$)/g, '');
+
+          await client.query(`
+            INSERT INTO products (
+              sku, name, slug, description, price, 
+              category, stock, status
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'active')
+          `, [
+            row.sku,
+            row.name,
+            slug + '-' + Date.now(),
+            row.description || '',
+            price,
+            row.category || 'general',
+            row.stock ? parseInt(row.stock) : 0
+          ]);
+          results.imported++;
+        }
+      } catch (e) {
+        results.errors.push(`Zeile ${rowNum}: ${e.message}`);
+        results.skipped++;
+      }
+    }
+  });
+
+  res.json({
+    success: true,
+    message: `Import abgeschlossen: ${results.imported} neu, ${results.updated} aktualisiert`,
+    results
+  });
+});
 
 /**
- * Import/Update downline structure
- * POST /api/import/downlines
- * 
- * CSV Format:
- * partner_email,upline_email
+ * Import Downline Structure from CSV
+ * Expected columns: partner_email, upline_email
  */
 export const importDownlines = asyncHandler(async (req, res) => {
   if (!req.file) {
@@ -326,12 +374,7 @@ export const importDownlines = asyncHandler(async (req, res) => {
   let records;
 
   try {
-    const parsed = Papa.parse(csvContent, {
-    records = parsed.data;
-      header: true,
-      skipEmptyLines: true,
-      transformHeader: (h) => h.trim()
-    });
+    records = parseCSV(csvContent);
   } catch (e) {
     throw new AppError('CSV-Parsing fehlgeschlagen: ' + e.message, 400);
   }
@@ -355,83 +398,35 @@ export const importDownlines = asyncHandler(async (req, res) => {
           continue;
         }
 
-        // Get partner ID
-        const partnerResult = await client.query(
+        // Find partner
+        const partner = await client.query(
           'SELECT id FROM users WHERE email = $1',
           [row.partner_email.toLowerCase()]
         );
 
-        if (partnerResult.rows.length === 0) {
-          results.errors.push(`Zeile ${rowNum}: Partner ${row.partner_email} nicht gefunden`);
+        if (partner.rows.length === 0) {
+          results.errors.push(`Zeile ${rowNum}: Partner nicht gefunden: ${row.partner_email}`);
           results.skipped++;
           continue;
         }
 
-        // Get upline ID
-        const uplineResult = await client.query(
+        // Find upline
+        const upline = await client.query(
           'SELECT id FROM users WHERE email = $1',
           [row.upline_email.toLowerCase()]
         );
 
-        if (uplineResult.rows.length === 0) {
-          results.errors.push(`Zeile ${rowNum}: Upline ${row.upline_email} nicht gefunden`);
+        if (upline.rows.length === 0) {
+          results.errors.push(`Zeile ${rowNum}: Upline nicht gefunden: ${row.upline_email}`);
           results.skipped++;
           continue;
         }
 
-        // Prevent circular references
-        const partnerId = partnerResult.rows[0].id;
-        const uplineId = uplineResult.rows[0].id;
-
-        if (partnerId === uplineId) {
-          results.errors.push(`Zeile ${rowNum}: Partner kann nicht eigener Upline sein`);
-          results.skipped++;
-          continue;
-        }
-
-        // Check for circular reference (upline chain shouldn't contain partner)
-        let currentUpline = uplineId;
-        let depth = 0;
-        let isCircular = false;
-
-        while (currentUpline && depth < 50) {
-          const uplineCheck = await client.query(
-            'SELECT upline_id FROM users WHERE id = $1',
-            [currentUpline]
-          );
-          
-          if (uplineCheck.rows.length === 0 || !uplineCheck.rows[0].upline_id) {
-            break;
-          }
-
-          if (uplineCheck.rows[0].upline_id === partnerId) {
-            isCircular = true;
-            break;
-          }
-
-          currentUpline = uplineCheck.rows[0].upline_id;
-          depth++;
-        }
-
-        if (isCircular) {
-          results.errors.push(`Zeile ${rowNum}: Zirkuläre Referenz erkannt`);
-          results.skipped++;
-          continue;
-        }
-
-        // Update upline
+        // Update partner's upline
         await client.query(
-          'UPDATE users SET upline_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
-          [partnerId, uplineId]
+          'UPDATE users SET upline_id = $1 WHERE id = $2',
+          [upline.rows[0].id, partner.rows[0].id]
         );
-
-        // Update upline's direct partner count
-        await client.query(`
-          UPDATE users SET direct_partners_count = (
-            SELECT COUNT(*) FROM users WHERE upline_id = $1 AND status = 'active'
-          ) WHERE id = $1
-        `, [uplineId]);
-
         results.updated++;
       } catch (e) {
         results.errors.push(`Zeile ${rowNum}: ${e.message}`);
@@ -442,65 +437,38 @@ export const importDownlines = asyncHandler(async (req, res) => {
 
   res.json({
     success: true,
-    message: `Import abgeschlossen: ${results.updated} aktualisiert, ${results.skipped} übersprungen`,
+    message: `Import abgeschlossen: ${results.updated} Strukturen aktualisiert`,
     results
   });
 });
 
-// ============================================
-// EXPORT TEMPLATES
-// ============================================
-
 /**
- * Download CSV template for partners
- * GET /api/import/templates/partners
+ * Download CSV Template
  */
-export const getPartnersTemplate = asyncHandler(async (req, res) => {
-  const csv = 'email,first_name,last_name,phone,company,vat_id,street,zip,city,country,upline_email,rank_level\n' +
-    'max.mustermann@example.com,Max,Mustermann,+49123456789,Mustermann GmbH,DE123456789,Musterstr. 1,12345,Berlin,DE,sponsor@example.com,1\n' +
-    'maria.muster@example.com,Maria,Muster,+49987654321,,,Testweg 2,54321,München,DE,max.mustermann@example.com,1';
+export const downloadTemplate = asyncHandler(async (req, res) => {
+  const { type } = req.params;
+
+  const templates = {
+    partners: 'email,first_name,last_name,phone,upline_email\njohn@example.com,John,Doe,+49123456789,sponsor@example.com',
+    customers: 'email,first_name,last_name,phone,street,zip,city,country\ncustomer@example.com,Max,Mustermann,+49123456789,Musterstraße 1,12345,Berlin,DE',
+    products: 'sku,name,description,price,category,stock\nPROD-001,Produktname,Beschreibung,99.99,wasserfilter,100',
+    downlines: 'partner_email,upline_email\nnew-partner@example.com,sponsor@example.com'
+  };
+
+  if (!templates[type]) {
+    throw new AppError('Ungültiger Template-Typ', 400);
+  }
 
   res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename="partner-import-template.csv"');
-  res.send(csv);
+  res.setHeader('Content-Disposition', `attachment; filename="${type}-template.csv"`);
+  res.send(templates[type]);
 });
 
-/**
- * Download CSV template for customers
- * GET /api/import/templates/customers
- */
-export const getCustomersTemplate = asyncHandler(async (req, res) => {
-  const csv = 'email,first_name,last_name,phone,company,vat_id,street,zip,city,country\n' +
-    'kunde@example.com,Hans,Kunde,+49123456789,Firma GmbH,DE123456789,Kundenstr. 1,12345,Hamburg,DE';
-
-  res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename="customer-import-template.csv"');
-  res.send(csv);
-});
-
-/**
- * Download CSV template for downlines
- * GET /api/import/templates/downlines
- */
-export const getDownlinesTemplate = asyncHandler(async (req, res) => {
-  const csv = 'partner_email,upline_email\n' +
-    'partner@example.com,sponsor@example.com';
-
-  res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename="downline-import-template.csv"');
-  res.send(csv);
-});
-
-// ============================================
-// HELPER FUNCTIONS
-// ============================================
-
-function generateReferralCode(firstName, lastName) {
-  const prefix = (firstName.charAt(0) + lastName.charAt(0)).toUpperCase();
-  const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-  return `${prefix}${random}`;
-}
-
-function generateTempPassword() {
-  return 'CLYR-' + Math.random().toString(36).substring(2, 10);
-}
+export default {
+  upload,
+  importPartners,
+  importCustomers,
+  importProducts,
+  importDownlines,
+  downloadTemplate
+};
