@@ -4,7 +4,7 @@
  */
 
 import express from 'express';
-import { authenticate, authorize } from '../middleware/auth.middleware.js';
+import { authenticate, isAdmin } from '../middleware/auth.middleware.js';
 import { asyncHandler } from '../middleware/error.middleware.js';
 import creditNoteService from '../services/creditnote.service.js';
 
@@ -18,7 +18,7 @@ router.use(authenticate);
 // ============================================
 
 // Get all credit notes
-router.get('/', authorize('admin', 'accounting'), asyncHandler(async (req, res) => {
+router.get('/', isAdmin, asyncHandler(async (req, res) => {
   const { status, customerId, startDate, endDate, page, limit } = req.query;
   const result = await creditNoteService.getCreditNotes({
     status, customerId, startDate, endDate, page, limit
@@ -27,7 +27,7 @@ router.get('/', authorize('admin', 'accounting'), asyncHandler(async (req, res) 
 }));
 
 // Get credit note by ID
-router.get('/:id', authorize('admin', 'accounting'), asyncHandler(async (req, res) => {
+router.get('/:id', isAdmin, asyncHandler(async (req, res) => {
   const creditNote = await creditNoteService.getCreditNoteById(req.params.id);
   
   if (!creditNote) {
@@ -38,7 +38,7 @@ router.get('/:id', authorize('admin', 'accounting'), asyncHandler(async (req, re
 }));
 
 // Create credit note for an order
-router.post('/', authorize('admin'), asyncHandler(async (req, res) => {
+router.post('/', isAdmin, asyncHandler(async (req, res) => {
   const { orderId, reason, lineItems } = req.body;
   
   if (!orderId || !reason) {
@@ -53,7 +53,7 @@ router.post('/', authorize('admin'), asyncHandler(async (req, res) => {
 }));
 
 // Download credit note PDF
-router.get('/:id/pdf', authorize('admin', 'accounting'), asyncHandler(async (req, res) => {
+router.get('/:id/pdf', isAdmin, asyncHandler(async (req, res) => {
   const creditNote = await creditNoteService.getCreditNoteById(req.params.id);
   
   if (!creditNote) {
@@ -68,7 +68,7 @@ router.get('/:id/pdf', authorize('admin', 'accounting'), asyncHandler(async (req
 }));
 
 // Get credit notes for an order
-router.get('/order/:orderId', authorize('admin', 'accounting'), asyncHandler(async (req, res) => {
+router.get('/order/:orderId', isAdmin, asyncHandler(async (req, res) => {
   const creditNotes = await creditNoteService.getCreditNotesByOrder(req.params.orderId);
   res.json(creditNotes);
 }));

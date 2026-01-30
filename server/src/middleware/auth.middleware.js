@@ -154,3 +154,63 @@ export const isAdmin = (req, res, next) => {
   }
   next();
 };
+
+/**
+ * Authenticate customer (separate from partner/admin auth)
+ */
+export const authenticateCustomer = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ 
+        error: 'Nicht autorisiert',
+        message: 'Kein Token vorhanden' 
+      });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Check if it's a customer token
+    if (decoded.type !== 'customer') {
+      return res.status(401).json({ 
+        error: 'Nicht autorisiert',
+        message: 'Ungültiger Kundentoken' 
+      });
+    }
+
+    // Get customer from database
+    const result = await query(
+      `SELECT * FROM customers WHERE id = $1`,
+      [decoded.customerId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({ 
+        error: 'Nicht autorisiert',
+        message: 'Kunde nicht gefunden' 
+      });
+    }
+
+    req.customer = result.rows[0];
+    next();
+  } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ 
+        error: 'Token abgelaufen',
+        message: 'Bitte erneut anmelden' 
+      });
+    }
+    
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ 
+        error: 'Ungültiger Token',
+        message: 'Bitte erneut anmelden' 
+      });
+    }
+
+    console.error('Customer auth error:', error);
+    return res.status(500).json({ error: 'Server-Fehler' });
+  }
+};

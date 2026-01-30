@@ -4,7 +4,7 @@
  */
 
 import express from 'express';
-import { authenticate, authorize } from '../middleware/auth.middleware.js';
+import { authenticate, isAdmin } from '../middleware/auth.middleware.js';
 import { asyncHandler } from '../middleware/error.middleware.js';
 import vatReportService from '../services/vatreport.service.js';
 
@@ -12,7 +12,7 @@ const router = express.Router();
 
 // All routes require admin/accounting authentication
 router.use(authenticate);
-router.use(authorize('admin', 'accounting'));
+router.use(isAdmin);
 
 // ============================================
 // REPORT GENERATION
