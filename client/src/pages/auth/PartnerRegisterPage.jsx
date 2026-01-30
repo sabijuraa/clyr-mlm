@@ -4,19 +4,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import {
   User, Building, Upload, Check, ArrowRight, ArrowLeft,
-  Mail, Phone, MapPin, CreditCard, FileText, Shield,
-  Wallet, Clock, BookOpen, Users, TrendingUp, Award, Heart, Briefcase
+  Mail, Phone, MapPin, CreditCard, Shield,
+  Clock, BookOpen, Users, Award, Heart, Briefcase, GraduationCap, Package
 } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useBrand } from '../../context/BrandContext';
 import appConfig, { calculatePartnerFee, formatCurrency } from '../../config/app.config';
-import Button from '../../components/common/Button';
 import toast from 'react-hot-toast';
 
 const PartnerRegisterPage = () => {
   const { lang } = useLanguage();
-  const { companyName, logoUrl } = useBrand();
+  const { companyName } = useBrand();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   
@@ -47,7 +45,7 @@ const PartnerRegisterPage = () => {
   ];
 
   const benefits = [
-    { icon: TrendingUp, text: lang === 'de' ? 'Attraktives Einkommen' : 'Attractive Income' },
+    { icon: Briefcase, text: lang === 'de' ? 'Eigenes Business' : 'Own Business' },
     { icon: Clock, text: lang === 'de' ? 'Flexible Arbeitszeiten' : 'Flexible hours' },
     { icon: BookOpen, text: lang === 'de' ? 'Umfassende Schulungen' : 'Comprehensive training' },
     { icon: Users, text: lang === 'de' ? 'Persönlicher Support' : 'Personal support' },
@@ -81,10 +79,8 @@ const PartnerRegisterPage = () => {
     try {
       const formData = new FormData();
       
-      // Map form fields
       Object.entries(data).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
-          // Map acceptTerms to termsAccepted (backend expects this name)
           if (key === 'acceptTerms') {
             formData.append('termsAccepted', value ? 'true' : 'false');
           } else {
@@ -93,14 +89,12 @@ const PartnerRegisterPage = () => {
         }
       });
       
-      // Add files
       if (uploadedFiles.passport) formData.append('passport', uploadedFiles.passport);
       if (uploadedFiles.bankCard) formData.append('bankCard', uploadedFiles.bankCard);
       if (uploadedFiles.tradeLicense) formData.append('tradeLicense', uploadedFiles.tradeLicense);
 
       const { authAPI } = await import('../../services/api');
-      const response = await authAPI.register(formData);
-      console.log('Registration response:', response.data);
+      await authAPI.register(formData);
 
       toast.success(lang === 'de' 
         ? 'Registrierung erfolgreich! Sie können sich jetzt anmelden.' 
@@ -110,7 +104,6 @@ const PartnerRegisterPage = () => {
     } catch (error) {
       console.error('Registration error:', error);
       
-      // Show detailed error message from server
       if (error.response?.data?.details) {
         const errorMessages = error.response.data.details
           .map(e => e.message)
@@ -118,8 +111,6 @@ const PartnerRegisterPage = () => {
         toast.error(errorMessages || 'Registrierung fehlgeschlagen');
       } else if (error.response?.data?.message) {
         toast.error(error.response.data.message);
-      } else if (error.response?.data?.error) {
-        toast.error(error.response.data.error);
       } else {
         toast.error(lang === 'de' 
           ? 'Registrierung fehlgeschlagen. Bitte versuchen Sie es erneut.' 
@@ -130,34 +121,49 @@ const PartnerRegisterPage = () => {
     }
   };
 
+  const inputClass = (hasError) => `
+    w-full px-4 py-3.5 bg-slate-50 border-2 rounded-xl transition-all
+    focus:outline-none focus:bg-white focus:border-primary-400 focus:ring-4 focus:ring-primary-100
+    ${hasError ? 'border-red-400' : 'border-gray-200'}
+  `;
+
+  const inputWithIconClass = (hasError) => `
+    w-full pl-12 pr-4 py-3.5 bg-slate-50 border-2 rounded-xl transition-all
+    focus:outline-none focus:bg-white focus:border-primary-400 focus:ring-4 focus:ring-primary-100
+    ${hasError ? 'border-red-400' : 'border-gray-200'}
+  `;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-white">
+    <div className="min-h-screen bg-slate-50">
+      {/* Header - Always use clyr-logo.png */}
       <header className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <Link to="/" className="flex items-center gap-3">
-            <img src={logoUrl} alt={companyName} className="h-10 w-auto" />
-            <span className="font-bold text-xl text-teal-700 hidden sm:block">{companyName}</span>
+            <img src="/images/clyr-logo.png" alt={companyName} className="h-10 w-auto" />
           </Link>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid lg:grid-cols-3 gap-12">
+          
+          {/* Left Sidebar - NO COMMISSION RATES */}
           <div className="hidden lg:block">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               className="sticky top-8"
             >
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">
+              <h1 className="text-3xl font-bold text-secondary-700 mb-4">
                 {lang === 'de' ? 'Partner werden' : 'Become a Partner'}
               </h1>
-              <p className="text-gray-600 mb-8">
+              <p className="text-secondary-500 mb-8">
                 {lang === 'de' 
                   ? 'Starten Sie Ihre Karriere mit uns und bauen Sie Ihr eigenes Geschäft auf.'
                   : 'Start your career with us and build your own business.'}
               </p>
 
+              {/* Benefits - Charcoal cards */}
               <div className="space-y-4 mb-8">
                 {benefits.map((benefit, i) => (
                   <motion.div
@@ -165,79 +171,61 @@ const PartnerRegisterPage = () => {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.1 }}
-                    className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-100"
+                    className="flex items-center gap-3 p-4 bg-secondary-700 rounded-xl"
                   >
-                    <div className="w-10 h-10 rounded-lg bg-teal-100 flex items-center justify-center">
-                      <benefit.icon className="w-5 h-5 text-teal-600" />
+                    <div className="w-10 h-10 rounded-lg bg-secondary-600 flex items-center justify-center">
+                      <benefit.icon className="w-5 h-5 text-primary-400" />
                     </div>
-                    <span className="font-medium text-gray-900">{benefit.text}</span>
+                    <span className="font-medium text-white">{benefit.text}</span>
                   </motion.div>
                 ))}
               </div>
 
-              {/* Career Benefits Card - No Commission Rates */}
-              <div className="bg-gradient-to-br from-teal-600 to-teal-700 rounded-2xl p-6 text-white">
-                <h3 className="font-semibold text-lg mb-4">
+              {/* Career Benefits Card - NO COMMISSION RATES */}
+              <div className="bg-secondary-700 rounded-2xl p-6">
+                <h3 className="font-semibold text-lg mb-4 text-white">
                   {lang === 'de' ? 'Ihre Vorteile' : 'Your Benefits'}
                 </h3>
                 <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
-                      <Briefcase className="w-4 h-4" />
+                  {[
+                    { icon: Award, title: lang === 'de' ? '6 Karrierestufen' : '6 Career Levels', desc: lang === 'de' ? 'Wachsen Sie mit uns' : 'Grow with us' },
+                    { icon: Heart, title: lang === 'de' ? 'Premium Produkte' : 'Premium Products', desc: lang === 'de' ? 'Produkte die begeistern' : 'Products that inspire' },
+                    { icon: GraduationCap, title: lang === 'de' ? 'CLYR Academy' : 'CLYR Academy', desc: lang === 'de' ? 'Umfassende Schulungen' : 'Comprehensive training' },
+                    { icon: Users, title: lang === 'de' ? 'Starke Community' : 'Strong Community', desc: lang === 'de' ? 'Teil eines wachsenden Teams' : 'Part of a growing team' },
+                  ].map((item, idx) => (
+                    <div key={idx} className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-secondary-600 flex items-center justify-center flex-shrink-0">
+                        <item.icon className="w-4 h-4 text-primary-400" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-white">{item.title}</p>
+                        <p className="text-sm text-gray-400">{item.desc}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium">{lang === 'de' ? 'Eigenes Business' : 'Your Own Business'}</p>
-                      <p className="text-sm text-teal-200">{lang === 'de' ? 'Seien Sie Ihr eigener Chef' : 'Be your own boss'}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
-                      <Award className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="font-medium">{lang === 'de' ? '6 Karrierestufen' : '6 Career Levels'}</p>
-                      <p className="text-sm text-teal-200">{lang === 'de' ? 'Wachsen Sie mit uns' : 'Grow with us'}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
-                      <Heart className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="font-medium">{lang === 'de' ? 'Premium Produkte' : 'Premium Products'}</p>
-                      <p className="text-sm text-teal-200">{lang === 'de' ? 'Produkte die begeistern' : 'Products that inspire'}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
-                      <Users className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="font-medium">{lang === 'de' ? 'Starke Community' : 'Strong Community'}</p>
-                      <p className="text-sm text-teal-200">{lang === 'de' ? 'Teil eines wachsenden Teams' : 'Part of a growing team'}</p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
             </motion.div>
           </div>
 
+          {/* Main Form Area */}
           <div className="lg:col-span-2">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8"
             >
+              {/* Step Indicator - Charcoal active */}
               <div className="flex items-center justify-between mb-8">
                 {steps.map((s, i) => (
                   <div key={s.id} className="flex items-center">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold
-                      ${step >= s.id ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all
+                      ${step >= s.id ? 'bg-secondary-700 text-white' : 'bg-gray-100 text-gray-400'}`}>
                       {step > s.id ? <Check className="w-5 h-5" /> : s.id}
                     </div>
                     {i < steps.length - 1 && (
-                      <div className={`hidden sm:block w-16 h-1 mx-2 rounded
-                        ${step > s.id ? 'bg-teal-600' : 'bg-gray-200'}`} />
+                      <div className={`hidden sm:block w-16 h-1 mx-2 rounded transition-all
+                        ${step > s.id ? 'bg-secondary-700' : 'bg-gray-200'}`} />
                     )}
                   </div>
                 ))}
@@ -245,6 +233,8 @@ const PartnerRegisterPage = () => {
 
               <form onSubmit={handleSubmit(onSubmit)}>
                 <AnimatePresence mode="wait">
+                  
+                  {/* Step 1: Personal Info */}
                   {step === 1 && (
                     <motion.div
                       key="step1"
@@ -253,51 +243,46 @@ const PartnerRegisterPage = () => {
                       exit={{ opacity: 0, x: -20 }}
                       className="space-y-6"
                     >
-                      <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                      <h2 className="text-2xl font-bold text-secondary-700 mb-6">
                         {lang === 'de' ? 'Persönliche Daten' : 'Personal Information'}
                       </h2>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-secondary-700 mb-2">
                           {lang === 'de' ? 'Empfehlungscode' : 'Referral Code'}
                         </label>
                         <input
                           {...register('referralCode')}
-                          className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl
-                            focus:outline-none focus:bg-white focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
+                          className={inputClass(false)}
                           placeholder="ABC123"
                         />
                       </div>
 
                       <div className="grid md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className="block text-sm font-medium text-secondary-700 mb-2">
                             {lang === 'de' ? 'Vorname' : 'First Name'} <span className="text-red-500">*</span>
                           </label>
                           <input
                             {...register('firstName', { required: lang === 'de' ? 'Pflichtfeld' : 'Required' })}
-                            className={`w-full px-4 py-3 bg-gray-50 border-2 rounded-xl
-                              focus:outline-none focus:bg-white focus:border-teal-500 focus:ring-4 focus:ring-teal-100
-                              ${errors.firstName ? 'border-red-400' : 'border-gray-200'}`}
+                            className={inputClass(errors.firstName)}
                           />
                           {errors.firstName && <p className="mt-1 text-sm text-red-500">{errors.firstName.message}</p>}
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className="block text-sm font-medium text-secondary-700 mb-2">
                             {lang === 'de' ? 'Nachname' : 'Last Name'} <span className="text-red-500">*</span>
                           </label>
                           <input
                             {...register('lastName', { required: lang === 'de' ? 'Pflichtfeld' : 'Required' })}
-                            className={`w-full px-4 py-3 bg-gray-50 border-2 rounded-xl
-                              focus:outline-none focus:bg-white focus:border-teal-500 focus:ring-4 focus:ring-teal-100
-                              ${errors.lastName ? 'border-red-400' : 'border-gray-200'}`}
+                            className={inputClass(errors.lastName)}
                           />
                           {errors.lastName && <p className="mt-1 text-sm text-red-500">{errors.lastName.message}</p>}
                         </div>
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-secondary-700 mb-2">
                           {lang === 'de' ? 'E-Mail' : 'Email'} <span className="text-red-500">*</span>
                         </label>
                         <div className="relative">
@@ -308,16 +293,14 @@ const PartnerRegisterPage = () => {
                               required: lang === 'de' ? 'Pflichtfeld' : 'Required',
                               pattern: { value: /^\S+@\S+$/i, message: lang === 'de' ? 'Ungültige E-Mail' : 'Invalid email' }
                             })}
-                            className={`w-full pl-12 pr-4 py-3 bg-gray-50 border-2 rounded-xl
-                              focus:outline-none focus:bg-white focus:border-teal-500 focus:ring-4 focus:ring-teal-100
-                              ${errors.email ? 'border-red-400' : 'border-gray-200'}`}
+                            className={inputWithIconClass(errors.email)}
                           />
                         </div>
                         {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email.message}</p>}
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-secondary-700 mb-2">
                           {lang === 'de' ? 'Telefon' : 'Phone'} <span className="text-red-500">*</span>
                         </label>
                         <div className="relative">
@@ -325,9 +308,7 @@ const PartnerRegisterPage = () => {
                           <input
                             type="tel"
                             {...register('phone', { required: lang === 'de' ? 'Pflichtfeld' : 'Required' })}
-                            className={`w-full pl-12 pr-4 py-3 bg-gray-50 border-2 rounded-xl
-                              focus:outline-none focus:bg-white focus:border-teal-500 focus:ring-4 focus:ring-teal-100
-                              ${errors.phone ? 'border-red-400' : 'border-gray-200'}`}
+                            className={inputWithIconClass(errors.phone)}
                             placeholder="+49 123 456 7890"
                           />
                         </div>
@@ -335,7 +316,7 @@ const PartnerRegisterPage = () => {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-secondary-700 mb-2">
                           {lang === 'de' ? 'Passwort' : 'Password'} <span className="text-red-500">*</span>
                         </label>
                         <input
@@ -350,12 +331,10 @@ const PartnerRegisterPage = () => {
                                 : 'Password must contain uppercase, lowercase and a number'
                             }
                           })}
-                          className={`w-full px-4 py-3 bg-gray-50 border-2 rounded-xl
-                            focus:outline-none focus:bg-white focus:border-teal-500 focus:ring-4 focus:ring-teal-100
-                            ${errors.password ? 'border-red-400' : 'border-gray-200'}`}
+                          className={inputClass(errors.password)}
                         />
                         {errors.password && <p className="mt-1 text-sm text-red-500">{errors.password.message}</p>}
-                        <p className="mt-1 text-xs text-gray-500">
+                        <p className="mt-1 text-xs text-secondary-500">
                           {lang === 'de' 
                             ? 'Mind. 8 Zeichen, Groß- und Kleinbuchstaben, eine Zahl' 
                             : 'Min. 8 chars, uppercase, lowercase, one number'}
@@ -364,6 +343,7 @@ const PartnerRegisterPage = () => {
                     </motion.div>
                   )}
 
+                  {/* Step 2: Business Info */}
                   {step === 2 && (
                     <motion.div
                       key="step2"
@@ -372,45 +352,34 @@ const PartnerRegisterPage = () => {
                       exit={{ opacity: 0, x: -20 }}
                       className="space-y-6"
                     >
-                      <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                      <h2 className="text-2xl font-bold text-secondary-700 mb-6">
                         {lang === 'de' ? 'Geschäftsdaten' : 'Business Information'}
                       </h2>
 
                       <div className="grid md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className="block text-sm font-medium text-secondary-700 mb-2">
                             {lang === 'de' ? 'Firma (optional)' : 'Company (optional)'}
                           </label>
-                          <input
-                            {...register('company')}
-                            className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl
-                              focus:outline-none focus:bg-white focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
-                          />
+                          <input {...register('company')} className={inputClass(false)} />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className="block text-sm font-medium text-secondary-700 mb-2">
                             {lang === 'de' ? 'USt-IdNr. (optional)' : 'VAT ID (optional)'}
                           </label>
-                          <input
-                            {...register('vatId')}
-                            className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl
-                              focus:outline-none focus:bg-white focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
-                            placeholder="DE123456789"
-                          />
+                          <input {...register('vatId')} className={inputClass(false)} placeholder="DE123456789" />
                         </div>
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-secondary-700 mb-2">
                           {lang === 'de' ? 'Straße und Hausnummer' : 'Street Address'} <span className="text-red-500">*</span>
                         </label>
                         <div className="relative">
                           <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                           <input
                             {...register('street', { required: lang === 'de' ? 'Pflichtfeld' : 'Required' })}
-                            className={`w-full pl-12 pr-4 py-3 bg-gray-50 border-2 rounded-xl
-                              focus:outline-none focus:bg-white focus:border-teal-500 focus:ring-4 focus:ring-teal-100
-                              ${errors.street ? 'border-red-400' : 'border-gray-200'}`}
+                            className={inputWithIconClass(errors.street)}
                           />
                         </div>
                         {errors.street && <p className="mt-1 text-sm text-red-500">{errors.street.message}</p>}
@@ -418,37 +387,32 @@ const PartnerRegisterPage = () => {
 
                       <div className="grid grid-cols-3 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className="block text-sm font-medium text-secondary-700 mb-2">
                             {lang === 'de' ? 'PLZ' : 'Postal Code'} <span className="text-red-500">*</span>
                           </label>
                           <input
                             {...register('zip', { required: lang === 'de' ? 'Pflichtfeld' : 'Required' })}
-                            className={`w-full px-4 py-3 bg-gray-50 border-2 rounded-xl
-                              focus:outline-none focus:bg-white focus:border-teal-500 focus:ring-4 focus:ring-teal-100
-                              ${errors.zip ? 'border-red-400' : 'border-gray-200'}`}
+                            className={inputClass(errors.zip)}
                           />
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className="block text-sm font-medium text-secondary-700 mb-2">
                             {lang === 'de' ? 'Stadt' : 'City'} <span className="text-red-500">*</span>
                           </label>
                           <input
                             {...register('city', { required: lang === 'de' ? 'Pflichtfeld' : 'Required' })}
-                            className={`w-full px-4 py-3 bg-gray-50 border-2 rounded-xl
-                              focus:outline-none focus:bg-white focus:border-teal-500 focus:ring-4 focus:ring-teal-100
-                              ${errors.city ? 'border-red-400' : 'border-gray-200'}`}
+                            className={inputClass(errors.city)}
                           />
                         </div>
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-secondary-700 mb-2">
                           {lang === 'de' ? 'Land' : 'Country'} <span className="text-red-500">*</span>
                         </label>
                         <select
                           {...register('country', { required: true })}
-                          className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl
-                            focus:outline-none focus:bg-white focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
+                          className={inputClass(false)}
                         >
                           {Object.entries(appConfig.countries).map(([code, data]) => (
                             <option key={code} value={code}>{data.name}</option>
@@ -457,16 +421,14 @@ const PartnerRegisterPage = () => {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-secondary-700 mb-2">
                           IBAN <span className="text-red-500">*</span>
                         </label>
                         <div className="relative">
                           <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                           <input
                             {...register('iban', { required: lang === 'de' ? 'Pflichtfeld' : 'Required' })}
-                            className={`w-full pl-12 pr-4 py-3 bg-gray-50 border-2 rounded-xl
-                              focus:outline-none focus:bg-white focus:border-teal-500 focus:ring-4 focus:ring-teal-100
-                              ${errors.iban ? 'border-red-400' : 'border-gray-200'}`}
+                            className={inputWithIconClass(errors.iban)}
                             placeholder="DE89 3704 0044 0532 0130 00"
                           />
                         </div>
@@ -475,6 +437,7 @@ const PartnerRegisterPage = () => {
                     </motion.div>
                   )}
 
+                  {/* Step 3: Documents */}
                   {step === 3 && (
                     <motion.div
                       key="step3"
@@ -483,119 +446,60 @@ const PartnerRegisterPage = () => {
                       exit={{ opacity: 0, x: -20 }}
                       className="space-y-6"
                     >
-                      <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                      <h2 className="text-2xl font-bold text-secondary-700 mb-6">
                         {lang === 'de' ? 'Dokumente' : 'Documents'}
                       </h2>
 
-                      <div className="bg-teal-50 rounded-xl p-4 mb-6 border border-teal-100">
-                        <p className="text-sm text-teal-700">
+                      <div className="bg-secondary-700 rounded-xl p-4 mb-6">
+                        <p className="text-sm text-gray-300">
                           {lang === 'de' 
                             ? 'Bitte laden Sie die erforderlichen Dokumente hoch. Unterstützte Formate: JPG, PNG, PDF.'
                             : 'Please upload the required documents. Supported formats: JPG, PNG, PDF.'}
                         </p>
                       </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          {lang === 'de' ? 'Ausweis/Reisepass' : 'ID/Passport'} <span className="text-red-500">*</span>
-                        </label>
-                        <div className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer
-                          transition-all hover:border-teal-400 hover:bg-teal-50
-                          ${uploadedFiles.passport ? 'border-green-400 bg-green-50' : 'border-gray-300'}`}
-                        >
-                          <input
-                            type="file"
-                            accept="image/*,.pdf"
-                            onChange={(e) => handleFileUpload('passport', e)}
-                            className="hidden"
-                            id="passport-upload"
-                          />
-                          <label htmlFor="passport-upload" className="cursor-pointer">
-                            {uploadedFiles.passport ? (
-                              <div className="flex items-center justify-center gap-2 text-green-600">
-                                <Check className="w-6 h-6" />
-                                <span>{uploadedFiles.passport.name}</span>
-                              </div>
-                            ) : (
-                              <>
-                                <Upload className="w-10 h-10 mx-auto text-gray-400 mb-2" />
-                                <p className="text-gray-600">
-                                  {lang === 'de' ? 'Klicken oder Datei hierher ziehen' : 'Click or drag file here'}
-                                </p>
-                              </>
-                            )}
+                      {[
+                        { field: 'passport', label: lang === 'de' ? 'Ausweis/Reisepass' : 'ID/Passport', required: true },
+                        { field: 'bankCard', label: lang === 'de' ? 'Bankkarte' : 'Bank Card', required: false },
+                        { field: 'tradeLicense', label: lang === 'de' ? 'Gewerbeschein (optional)' : 'Trade License (optional)', required: false },
+                      ].map((doc) => (
+                        <div key={doc.field}>
+                          <label className="block text-sm font-medium text-secondary-700 mb-2">
+                            {doc.label} {doc.required && <span className="text-red-500">*</span>}
                           </label>
+                          <div className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all
+                            hover:border-primary-400 hover:bg-primary-50
+                            ${uploadedFiles[doc.field] ? 'border-green-400 bg-green-50' : 'border-gray-300'}`}
+                          >
+                            <input
+                              type="file"
+                              accept="image/*,.pdf"
+                              onChange={(e) => handleFileUpload(doc.field, e)}
+                              className="hidden"
+                              id={`${doc.field}-upload`}
+                            />
+                            <label htmlFor={`${doc.field}-upload`} className="cursor-pointer">
+                              {uploadedFiles[doc.field] ? (
+                                <div className="flex items-center justify-center gap-2 text-green-600">
+                                  <Check className="w-6 h-6" />
+                                  <span>{uploadedFiles[doc.field].name}</span>
+                                </div>
+                              ) : (
+                                <>
+                                  <Upload className="w-10 h-10 mx-auto text-gray-400 mb-2" />
+                                  <p className="text-secondary-500">
+                                    {lang === 'de' ? 'Klicken oder Datei hierher ziehen' : 'Click or drag file here'}
+                                  </p>
+                                </>
+                              )}
+                            </label>
+                          </div>
                         </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          {lang === 'de' ? 'Bankkarte' : 'Bank Card'}
-                        </label>
-                        <div className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer
-                          transition-all hover:border-teal-400 hover:bg-teal-50
-                          ${uploadedFiles.bankCard ? 'border-green-400 bg-green-50' : 'border-gray-300'}`}
-                        >
-                          <input
-                            type="file"
-                            accept="image/*,.pdf"
-                            onChange={(e) => handleFileUpload('bankCard', e)}
-                            className="hidden"
-                            id="bankcard-upload"
-                          />
-                          <label htmlFor="bankcard-upload" className="cursor-pointer">
-                            {uploadedFiles.bankCard ? (
-                              <div className="flex items-center justify-center gap-2 text-green-600">
-                                <Check className="w-6 h-6" />
-                                <span>{uploadedFiles.bankCard.name}</span>
-                              </div>
-                            ) : (
-                              <>
-                                <Upload className="w-10 h-10 mx-auto text-gray-400 mb-2" />
-                                <p className="text-gray-600">
-                                  {lang === 'de' ? 'Klicken oder Datei hierher ziehen' : 'Click or drag file here'}
-                                </p>
-                              </>
-                            )}
-                          </label>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          {lang === 'de' ? 'Gewerbeschein (optional)' : 'Trade License (optional)'}
-                        </label>
-                        <div className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer
-                          transition-all hover:border-teal-400 hover:bg-teal-50
-                          ${uploadedFiles.tradeLicense ? 'border-green-400 bg-green-50' : 'border-gray-300'}`}
-                        >
-                          <input
-                            type="file"
-                            accept="image/*,.pdf"
-                            onChange={(e) => handleFileUpload('tradeLicense', e)}
-                            className="hidden"
-                            id="license-upload"
-                          />
-                          <label htmlFor="license-upload" className="cursor-pointer">
-                            {uploadedFiles.tradeLicense ? (
-                              <div className="flex items-center justify-center gap-2 text-green-600">
-                                <Check className="w-6 h-6" />
-                                <span>{uploadedFiles.tradeLicense.name}</span>
-                              </div>
-                            ) : (
-                              <>
-                                <Upload className="w-10 h-10 mx-auto text-gray-400 mb-2" />
-                                <p className="text-gray-600">
-                                  {lang === 'de' ? 'Klicken oder Datei hierher ziehen' : 'Click or drag file here'}
-                                </p>
-                              </>
-                            )}
-                          </label>
-                        </div>
-                      </div>
+                      ))}
                     </motion.div>
                   )}
 
+                  {/* Step 4: Confirmation - NO COMMISSION RATES */}
                   {step === 4 && (
                     <motion.div
                       key="step4"
@@ -604,44 +508,46 @@ const PartnerRegisterPage = () => {
                       exit={{ opacity: 0, x: -20 }}
                       className="space-y-6"
                     >
-                      <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                      <h2 className="text-2xl font-bold text-secondary-700 mb-6">
                         {lang === 'de' ? 'Bestätigung' : 'Confirmation'}
                       </h2>
 
-                      <div className="bg-gray-50 rounded-2xl p-6 space-y-4">
+                      {/* Summary Card */}
+                      <div className="bg-slate-50 rounded-2xl p-6 space-y-4">
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Name</span>
-                          <span className="font-medium">{watch('firstName')} {watch('lastName')}</span>
+                          <span className="text-secondary-500">Name</span>
+                          <span className="font-medium text-secondary-700">{watch('firstName')} {watch('lastName')}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">{lang === 'de' ? 'E-Mail' : 'Email'}</span>
-                          <span className="font-medium">{watch('email')}</span>
+                          <span className="text-secondary-500">{lang === 'de' ? 'E-Mail' : 'Email'}</span>
+                          <span className="font-medium text-secondary-700">{watch('email')}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">{lang === 'de' ? 'Land' : 'Country'}</span>
-                          <span className="font-medium">{appConfig.countries[watch('country')]?.name}</span>
+                          <span className="text-secondary-500">{lang === 'de' ? 'Land' : 'Country'}</span>
+                          <span className="font-medium text-secondary-700">{appConfig.countries[watch('country')]?.name}</span>
                         </div>
                         <hr />
                         <div className="flex justify-between text-lg">
-                          <span className="font-semibold">{lang === 'de' ? 'Jahresgebühr' : 'Annual Fee'}</span>
-                          <span className="font-bold text-teal-600">{formatCurrency(partnerFee)}</span>
+                          <span className="font-semibold text-secondary-700">{lang === 'de' ? 'Jahresgebühr' : 'Annual Fee'}</span>
+                          <span className="font-bold text-secondary-700">{formatCurrency(partnerFee)}</span>
                         </div>
                       </div>
 
+                      {/* Terms */}
                       <div className="space-y-4">
                         <label className="flex items-start gap-3 cursor-pointer">
                           <input
                             type="checkbox"
                             {...register('acceptTerms', { required: true })}
-                            className="w-5 h-5 mt-0.5 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                            className="w-5 h-5 mt-0.5 rounded border-gray-300 text-secondary-700 focus:ring-primary-400"
                           />
-                          <span className="text-sm text-gray-600">
+                          <span className="text-sm text-secondary-500">
                             {lang === 'de' ? 'Ich akzeptiere die' : 'I accept the'}{' '}
-                            <Link to="/agb" target="_blank" className="text-teal-600 hover:underline">
+                            <Link to="/terms" target="_blank" className="text-secondary-700 hover:text-primary-500 font-medium">
                               {lang === 'de' ? 'Partnerbedingungen' : 'Partner Terms'}
                             </Link>{' '}
                             {lang === 'de' ? 'und' : 'and'}{' '}
-                            <Link to="/datenschutz" target="_blank" className="text-teal-600 hover:underline">
+                            <Link to="/privacy" target="_blank" className="text-secondary-700 hover:text-primary-500 font-medium">
                               {lang === 'de' ? 'Datenschutzerklärung' : 'Privacy Policy'}
                             </Link>
                           </span>
@@ -656,9 +562,9 @@ const PartnerRegisterPage = () => {
                           <input
                             type="checkbox"
                             {...register('acceptWithdrawal')}
-                            className="w-5 h-5 mt-0.5 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                            className="w-5 h-5 mt-0.5 rounded border-gray-300 text-secondary-700 focus:ring-primary-400"
                           />
-                          <span className="text-sm text-gray-600">
+                          <span className="text-sm text-secondary-500">
                             {lang === 'de' 
                               ? 'Ich verzichte ausdrücklich auf mein 14-tägiges Widerrufsrecht und möchte sofort starten'
                               : 'I expressly waive my 14-day right of withdrawal and want to start immediately'}
@@ -666,17 +572,20 @@ const PartnerRegisterPage = () => {
                         </label>
                       </div>
 
-                      <div className="bg-teal-50 rounded-2xl p-6 border border-teal-100">
+                      {/* Payment Info - Charcoal Card */}
+                      <div className="bg-secondary-700 rounded-2xl p-6">
                         <div className="flex items-center gap-3 mb-4">
-                          <Shield className="w-8 h-8 text-teal-600" />
+                          <div className="w-12 h-12 bg-secondary-600 rounded-xl flex items-center justify-center">
+                            <Shield className="w-6 h-6 text-primary-400" />
+                          </div>
                           <div>
-                            <p className="font-semibold text-gray-900">
+                            <p className="font-semibold text-white">
                               {lang === 'de' ? 'Sichere Zahlung' : 'Secure Payment'}
                             </p>
-                            <p className="text-sm text-gray-600">Powered by Stripe</p>
+                            <p className="text-sm text-gray-400">Powered by Stripe</p>
                           </div>
                         </div>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-gray-300">
                           {lang === 'de' 
                             ? 'Nach Absenden werden Sie zur sicheren Zahlungsseite weitergeleitet.'
                             : 'After submission, you will be redirected to the secure payment page.'}
@@ -686,38 +595,56 @@ const PartnerRegisterPage = () => {
                   )}
                 </AnimatePresence>
 
+                {/* Navigation Buttons - Charcoal */}
                 <div className="flex justify-between mt-10 pt-6 border-t border-gray-100">
                   {step > 1 ? (
-                    <Button type="button" variant="ghost" onClick={prevStep} icon={ArrowLeft}>
+                    <button
+                      type="button"
+                      onClick={prevStep}
+                      className="flex items-center gap-2 px-6 py-3 text-secondary-700 font-medium hover:text-primary-500 transition-colors"
+                    >
+                      <ArrowLeft className="w-5 h-5" />
                       {lang === 'de' ? 'Zurück' : 'Back'}
-                    </Button>
+                    </button>
                   ) : (
-                    <Link to="/">
-                      <Button type="button" variant="ghost" icon={ArrowLeft}>
-                        {lang === 'de' ? 'Zurück' : 'Back'}
-                      </Button>
+                    <Link to="/" className="flex items-center gap-2 px-6 py-3 text-secondary-700 font-medium hover:text-primary-500 transition-colors">
+                      <ArrowLeft className="w-5 h-5" />
+                      {lang === 'de' ? 'Zurück' : 'Back'}
                     </Link>
                   )}
 
                   {step < 4 ? (
-                    <Button type="button" onClick={nextStep} icon={ArrowRight} iconPosition="right">
-                      {lang === 'de' ? 'Weiter' : 'Next'}
-                    </Button>
-                  ) : (
-                    <Button 
-                      type="submit" 
-                      isLoading={isLoading}
-                      icon={Check}
+                    <button
+                      type="button"
+                      onClick={nextStep}
+                      className="flex items-center gap-2 px-8 py-3 bg-secondary-700 text-white font-semibold rounded-xl hover:bg-secondary-800 transition-all"
                     >
-                      {lang === 'de' ? 'Jetzt registrieren' : 'Register Now'} ({formatCurrency(partnerFee)})
-                    </Button>
+                      {lang === 'de' ? 'Weiter' : 'Next'}
+                      <ArrowRight className="w-5 h-5" />
+                    </button>
+                  ) : (
+                    <button 
+                      type="submit"
+                      disabled={isLoading}
+                      className="flex items-center gap-2 px-8 py-3 bg-secondary-700 text-white font-semibold rounded-xl hover:bg-secondary-800 transition-all disabled:opacity-50"
+                    >
+                      {isLoading ? (
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <Check className="w-5 h-5" />
+                          {lang === 'de' ? 'Jetzt registrieren' : 'Register Now'} ({formatCurrency(partnerFee)})
+                        </>
+                      )}
+                    </button>
                   )}
                 </div>
               </form>
 
-              <p className="mt-8 text-center text-gray-600">
+              {/* Login Link */}
+              <p className="mt-8 text-center text-secondary-500">
                 {lang === 'de' ? 'Bereits Partner?' : 'Already a partner?'}{' '}
-                <Link to="/login" className="text-teal-600 hover:text-teal-700 font-semibold">
+                <Link to="/login" className="text-secondary-700 hover:text-primary-500 font-semibold">
                   {lang === 'de' ? 'Jetzt anmelden' : 'Sign in now'}
                 </Link>
               </p>

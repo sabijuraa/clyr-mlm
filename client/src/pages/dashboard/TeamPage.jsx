@@ -75,10 +75,10 @@ const TeamPage = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-heading font-bold text-gray-900">
+          <h1 className="text-2xl font-heading font-bold text-secondary-700">
             {t('dashboard.menu.team')}
           </h1>
-          <p className="text-gray-600">Verwalten Sie Ihr Vertriebsteam</p>
+          <p className="text-secondary-500">Verwalten Sie Ihr Vertriebsteam</p>
         </div>
         <Button variant="secondary" icon={Download}>
           Team exportieren
@@ -132,7 +132,7 @@ const TeamPage = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl
-                focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:border-transparent"
             />
           </div>
           <div className="flex gap-2">
@@ -140,8 +140,8 @@ const TeamPage = () => {
               onClick={() => setViewMode('tree')}
               className={`px-4 py-2 rounded-xl font-medium transition-colors ${
                 viewMode === 'tree'
-                  ? 'bg-teal-100 text-teal-700'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-secondary-100 text-secondary-700'
+                  : 'bg-gray-100 text-secondary-500 hover:bg-gray-200'
               }`}
             >
               Baumansicht
@@ -150,8 +150,8 @@ const TeamPage = () => {
               onClick={() => setViewMode('list')}
               className={`px-4 py-2 rounded-xl font-medium transition-colors ${
                 viewMode === 'list'
-                  ? 'bg-teal-100 text-teal-700'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-secondary-100 text-secondary-700'
+                  : 'bg-gray-100 text-secondary-500 hover:bg-gray-200'
               }`}
             >
               Listenansicht
@@ -167,7 +167,7 @@ const TeamPage = () => {
         transition={{ delay: 0.1 }}
         className="bg-white rounded-2xl border border-gray-100 p-6"
       >
-        <h3 className="font-heading font-semibold text-lg text-gray-900 mb-6">
+        <h3 className="font-heading font-semibold text-lg text-secondary-700 mb-6">
           {t('dashboard.teamTree.title')}
         </h3>
         <TeamTree data={teamTree} isLoading={isLoading} />
@@ -178,15 +178,15 @@ const TeamPage = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="bg-teal-50 rounded-2xl p-6 border border-teal-100"
+        className="bg-slate-50 rounded-2xl p-6 border border-secondary-100"
       >
         <div className="flex items-start gap-3">
-          <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center flex-shrink-0">
-            <Lightbulb className="w-4 h-4 text-teal-600" />
+          <div className="w-8 h-8 rounded-full bg-secondary-100 flex items-center justify-center flex-shrink-0">
+            <Lightbulb className="w-4 h-4 text-primary-400" />
           </div>
           <div>
-            <h3 className="font-semibold text-teal-900 mb-1">Tipp zum Teamaufbau</h3>
-            <p className="text-teal-700 text-sm">
+            <h3 className="font-semibold text-secondary-700 mb-1">Tipp zum Teamaufbau</h3>
+            <p className="text-secondary-700 text-sm">
               Teilen Sie Ihren Empfehlungslink mit potenziellen Partnern. 
               Je aktiver Ihr Team ist, desto mehr Differenzprovisionen können Sie verdienen!
             </p>

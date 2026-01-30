@@ -59,10 +59,10 @@ const AdminDashboardPage = () => {
 
   const getStatusConfig = (status) => {
     const configs = {
-      completed: { label: 'Abgeschlossen', icon: CheckCircle, color: 'text-teal-600 bg-teal-100' },
-      processing: { label: 'In Bearbeitung', icon: Clock, color: 'text-teal-600 bg-teal-50' },
-      pending: { label: 'Ausstehend', icon: AlertCircle, color: 'text-gray-600 bg-gray-100' },
-      active: { label: 'Aktiv', icon: CheckCircle, color: 'text-teal-600 bg-teal-100' },
+      completed: { label: 'Abgeschlossen', icon: CheckCircle, color: 'text-primary-400 bg-secondary-100' },
+      processing: { label: 'In Bearbeitung', icon: Clock, color: 'text-primary-400 bg-slate-50' },
+      pending: { label: 'Ausstehend', icon: AlertCircle, color: 'text-secondary-500 bg-gray-100' },
+      active: { label: 'Aktiv', icon: CheckCircle, color: 'text-primary-400 bg-secondary-100' },
     };
     return configs[status] || configs.pending;
   };
@@ -72,12 +72,12 @@ const AdminDashboardPage = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-heading font-bold text-gray-900">
+          <h1 className="text-2xl font-heading font-bold text-secondary-700">
             Admin Dashboard
           </h1>
-          <p className="text-gray-600">Übersicht aller Geschäftsdaten</p>
+          <p className="text-secondary-500">Übersicht aller Geschäftsdaten</p>
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-500">
+        <div className="flex items-center gap-2 text-sm text-secondary-500">
           <Calendar className="w-4 h-4" />
           <span>Letzte Aktualisierung: {formatDate(new Date(), { hour: '2-digit', minute: '2-digit' })}</span>
         </div>
@@ -131,17 +131,17 @@ const AdminDashboardPage = () => {
           className="bg-white rounded-2xl border border-gray-100 p-6"
         >
           <div className="flex items-center justify-between mb-6">
-            <h3 className="font-heading font-semibold text-lg text-gray-900">
+            <h3 className="font-heading font-semibold text-lg text-secondary-700">
               Umsatzentwicklung
             </h3>
-            <select className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+            <select className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500">
               <option>Letzte 7 Tage</option>
               <option>Letzte 30 Tage</option>
               <option>Letzte 90 Tage</option>
             </select>
           </div>
           <div className="h-64 flex items-center justify-center bg-gray-50 rounded-xl">
-            <div className="text-center text-gray-500">
+            <div className="text-center text-secondary-500">
               <BarChart3 className="w-12 h-12 mx-auto mb-2 text-gray-300" />
               <p className="text-sm">Chart wird hier angezeigt</p>
             </div>
@@ -155,20 +155,20 @@ const AdminDashboardPage = () => {
           transition={{ delay: 0.3 }}
           className="bg-white rounded-2xl border border-gray-100 p-6"
         >
-          <h3 className="font-heading font-semibold text-lg text-gray-900 mb-6">
+          <h3 className="font-heading font-semibold text-lg text-secondary-700 mb-6">
             Bestellstatus
           </h3>
           <div className="space-y-4">
             {[
-              { label: 'Abgeschlossen', value: 678, total: 847, color: 'bg-teal-600' },
-              { label: 'In Bearbeitung', value: 89, total: 847, color: 'bg-teal-400' },
-              { label: 'Ausstehend', value: 56, total: 847, color: 'bg-teal-300' },
+              { label: 'Abgeschlossen', value: 678, total: 847, color: 'bg-secondary-700' },
+              { label: 'In Bearbeitung', value: 89, total: 847, color: 'bg-secondary-300' },
+              { label: 'Ausstehend', value: 56, total: 847, color: 'bg-secondary-200' },
               { label: 'Storniert', value: 24, total: 847, color: 'bg-gray-400' },
             ].map((item, idx) => (
               <div key={idx}>
                 <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-600">{item.label}</span>
-                  <span className="font-medium text-gray-900">{item.value}</span>
+                  <span className="text-secondary-500">{item.label}</span>
+                  <span className="font-medium text-secondary-700">{item.value}</span>
                 </div>
                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                   <div
@@ -192,10 +192,10 @@ const AdminDashboardPage = () => {
           className="bg-white rounded-2xl border border-gray-100 p-6"
         >
           <div className="flex items-center justify-between mb-6">
-            <h3 className="font-heading font-semibold text-lg text-gray-900">
+            <h3 className="font-heading font-semibold text-lg text-secondary-700">
               Letzte Bestellungen
             </h3>
-            <Link to="/admin/bestellungen">
+            <Link to="/admin/orders">
               <Button variant="ghost" size="sm" icon={ArrowRight} iconPosition="right">
                 Alle anzeigen
               </Button>
@@ -209,16 +209,16 @@ const AdminDashboardPage = () => {
               return (
                 <div key={order.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-teal-100 flex items-center justify-center">
-                      <Package className="w-5 h-5 text-teal-600" />
+                    <div className="w-10 h-10 rounded-lg bg-secondary-100 flex items-center justify-center">
+                      <Package className="w-5 h-5 text-primary-400" />
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">{order.id}</p>
-                      <p className="text-sm text-gray-500">{order.customer}</p>
+                      <p className="font-medium text-secondary-700">{order.id}</p>
+                      <p className="text-sm text-secondary-500">{order.customer}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-gray-900">{formatCurrency(order.amount)}</p>
+                    <p className="font-semibold text-secondary-700">{formatCurrency(order.amount)}</p>
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${statusConfig.color}`}>
                       <StatusIcon className="w-3 h-3" />
                       {statusConfig.label}
@@ -238,10 +238,10 @@ const AdminDashboardPage = () => {
           className="bg-white rounded-2xl border border-gray-100 p-6"
         >
           <div className="flex items-center justify-between mb-6">
-            <h3 className="font-heading font-semibold text-lg text-gray-900">
+            <h3 className="font-heading font-semibold text-lg text-secondary-700">
               Neue Partner
             </h3>
-            <Link to="/admin/partner">
+            <Link to="/admin/partners">
               <Button variant="ghost" size="sm" icon={ArrowRight} iconPosition="right">
                 Alle anzeigen
               </Button>
@@ -255,17 +255,17 @@ const AdminDashboardPage = () => {
               return (
                 <div key={partner.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-teal-600 
+                    <div className="w-10 h-10 rounded-full bg-secondary-700 
                       flex items-center justify-center text-white font-semibold text-sm">
                       {partner.name.split(' ').map(n => n[0]).join('')}
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">{partner.name}</p>
-                      <p className="text-sm text-gray-500">{partner.email}</p>
+                      <p className="font-medium text-secondary-700">{partner.name}</p>
+                      <p className="text-sm text-secondary-500">{partner.email}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-gray-500">{formatDate(partner.date)}</p>
+                    <p className="text-sm text-secondary-500">{formatDate(partner.date)}</p>
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${statusConfig.color}`}>
                       <StatusIcon className="w-3 h-3" />
                       {statusConfig.label}
@@ -283,29 +283,29 @@ const AdminDashboardPage = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6 }}
-        className="bg-gradient-to-r from-teal-700 to-teal-800 rounded-2xl p-6 text-white"
+        className="bg-gradient-to-r from-secondary-700 to-secondary-800 rounded-2xl p-6 text-white"
       >
         <h3 className="font-semibold text-lg mb-4">Schnellzugriff</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Link to="/admin/partner">
+          <Link to="/admin/partners">
             <div className="p-4 bg-white/10 rounded-xl hover:bg-white/20 transition-colors">
               <UserPlus className="w-6 h-6 mb-2" />
               <p className="font-medium">Partner verwalten</p>
             </div>
           </Link>
-          <Link to="/admin/bestellungen">
+          <Link to="/admin/orders">
             <div className="p-4 bg-white/10 rounded-xl hover:bg-white/20 transition-colors">
               <ShoppingBag className="w-6 h-6 mb-2" />
               <p className="font-medium">Bestellungen</p>
             </div>
           </Link>
-          <Link to="/admin/produkte">
+          <Link to="/admin/products">
             <div className="p-4 bg-white/10 rounded-xl hover:bg-white/20 transition-colors">
               <Package className="w-6 h-6 mb-2" />
               <p className="font-medium">Produkte</p>
             </div>
           </Link>
-          <Link to="/admin/einstellungen">
+          <Link to="/admin/settings">
             <div className="p-4 bg-white/10 rounded-xl hover:bg-white/20 transition-colors">
               <Settings className="w-6 h-6 mb-2" />
               <p className="font-medium">Einstellungen</p>

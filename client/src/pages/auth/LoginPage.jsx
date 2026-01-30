@@ -1,18 +1,17 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, Lock, ArrowRight, Eye, EyeOff, Droplets, Shield, Award } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Eye, EyeOff, Droplets, Shield, Award, Users, Heart, GraduationCap } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useBrand } from '../../context/BrandContext';
-import Button from '../../components/common/Button';
 import toast from 'react-hot-toast';
 
 const LoginPage = () => {
   const { t, lang } = useLanguage();
   const { login } = useAuth();
-  const { companyName, logoUrl } = useBrand();
+  const { companyName } = useBrand();
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -31,7 +30,6 @@ const LoginPage = () => {
     if (result.success) {
       toast.success(lang === 'de' ? 'Willkommen zurück!' : 'Welcome back!');
       
-      // Redirect based on user role
       if (result.user?.role === 'admin') {
         navigate(from || '/admin', { replace: true });
       } else {
@@ -46,25 +44,24 @@ const LoginPage = () => {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left Side - Form */}
-      <div className="flex-1 flex items-center justify-center p-8">
+      {/* Left Side - Form (White) */}
+      <div className="flex-1 flex items-center justify-center p-8 bg-white">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-md"
         >
-          {/* Logo */}
+          {/* Logo - Always use clyr-logo.png */}
           <Link to="/" className="flex items-center gap-3 mb-8">
-            <img src={logoUrl} alt={companyName} className="h-10 w-auto" />
-            <span className="font-bold text-xl text-teal-700">{companyName}</span>
+            <img src="/images/clyr-logo.png" alt={companyName} className="h-10 w-auto" />
           </Link>
 
-          {/* Header */}
+          {/* Header - Charcoal text */}
           <div className="mb-8">
-            <h1 className="text-3xl font-heading font-bold text-gray-900 mb-2">
+            <h1 className="text-3xl font-heading font-bold text-secondary-700 mb-2">
               {lang === 'de' ? 'Willkommen zurück' : 'Welcome back'}
             </h1>
-            <p className="text-gray-600">
+            <p className="text-secondary-500">
               {lang === 'de' ? 'Melden Sie sich in Ihrem Konto an' : 'Sign in to your account'}
             </p>
           </div>
@@ -73,7 +70,7 @@ const LoginPage = () => {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-secondary-700 mb-2">
                 {lang === 'de' ? 'E-Mail' : 'Email'}
               </label>
               <div className="relative">
@@ -84,8 +81,8 @@ const LoginPage = () => {
                     required: lang === 'de' ? 'E-Mail ist erforderlich' : 'Email is required',
                     pattern: { value: /^\S+@\S+$/i, message: lang === 'de' ? 'Ungültige E-Mail' : 'Invalid email' }
                   })}
-                  className={`w-full pl-12 pr-4 py-3 bg-gray-50 border-2 rounded-xl transition-all
-                    focus:outline-none focus:bg-white focus:border-teal-500 focus:ring-4 focus:ring-teal-100
+                  className={`w-full pl-12 pr-4 py-3.5 bg-slate-50 border-2 rounded-xl transition-all
+                    focus:outline-none focus:bg-white focus:border-primary-400 focus:ring-4 focus:ring-primary-100
                     ${errors.email ? 'border-red-400' : 'border-gray-200'}`}
                   placeholder="name@beispiel.de"
                 />
@@ -97,7 +94,7 @@ const LoginPage = () => {
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-secondary-700 mb-2">
                 {lang === 'de' ? 'Passwort' : 'Password'}
               </label>
               <div className="relative">
@@ -105,15 +102,15 @@ const LoginPage = () => {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   {...register('password', { required: lang === 'de' ? 'Passwort ist erforderlich' : 'Password is required' })}
-                  className={`w-full pl-12 pr-12 py-3 bg-gray-50 border-2 rounded-xl transition-all
-                    focus:outline-none focus:bg-white focus:border-teal-500 focus:ring-4 focus:ring-teal-100
+                  className={`w-full pl-12 pr-12 py-3.5 bg-slate-50 border-2 rounded-xl transition-all
+                    focus:outline-none focus:bg-white focus:border-primary-400 focus:ring-4 focus:ring-primary-100
                     ${errors.password ? 'border-red-400' : 'border-gray-200'}`}
                   placeholder="••••••••"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-secondary-700"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -129,53 +126,56 @@ const LoginPage = () => {
                 <input
                   type="checkbox"
                   {...register('rememberMe')}
-                  className="w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                  className="w-4 h-4 rounded border-gray-300 text-secondary-700 focus:ring-primary-400"
                 />
-                <span className="text-sm text-gray-600">
+                <span className="text-sm text-secondary-500">
                   {lang === 'de' ? 'Angemeldet bleiben' : 'Remember me'}
                 </span>
               </label>
-              <Link to="/passwort-vergessen" className="text-sm text-teal-600 hover:text-teal-700 font-medium">
+              <Link to="/forgot-password" className="text-sm text-secondary-700 hover:text-primary-500 font-medium">
                 {lang === 'de' ? 'Passwort vergessen?' : 'Forgot password?'}
               </Link>
             </div>
 
-            {/* Submit */}
-            <Button
+            {/* Submit - Charcoal button */}
+            <button
               type="submit"
-              size="lg"
-              className="w-full"
-              isLoading={isLoading}
-              icon={ArrowRight}
-              iconPosition="right"
+              disabled={isLoading}
+              className="w-full px-6 py-4 bg-secondary-700 text-white font-semibold rounded-xl hover:bg-secondary-800 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              {lang === 'de' ? 'Anmelden' : 'Sign in'}
-            </Button>
+              {isLoading ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  {lang === 'de' ? 'Anmelden' : 'Sign in'}
+                  <ArrowRight className="w-5 h-5" />
+                </>
+              )}
+            </button>
           </form>
 
           {/* Register Link */}
-          <p className="mt-8 text-center text-gray-600">
+          <p className="mt-8 text-center text-secondary-500">
             {lang === 'de' ? 'Noch kein Konto?' : "Don't have an account?"}{' '}
-            <Link to="/partner-werden" className="text-teal-600 hover:text-teal-700 font-semibold">
+            <Link to="/partner/register" className="text-secondary-700 hover:text-primary-500 font-semibold">
               {lang === 'de' ? 'Partner werden' : 'Become a partner'}
             </Link>
           </p>
 
           {/* Admin Setup Link */}
           <p className="mt-4 text-center">
-            <Link to="/admin-setup" className="text-xs text-gray-400 hover:text-gray-600">
+            <Link to="/admin-setup" className="text-xs text-gray-400 hover:text-secondary-500">
               {lang === 'de' ? 'Erstes Admin-Konto einrichten' : 'Set up first admin account'}
             </Link>
           </p>
         </motion.div>
       </div>
 
-      {/* Right Side - Image/Branding */}
-      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-teal-600 to-teal-800 
-        items-center justify-center p-12 relative overflow-hidden">
-        {/* Decorative Elements */}
-        <div className="absolute top-0 left-0 w-96 h-96 bg-white/10 rounded-full -translate-x-1/2 -translate-y-1/2" />
-        <div className="absolute bottom-0 right-0 w-64 h-64 bg-white/10 rounded-full translate-x-1/3 translate-y-1/3" />
+      {/* Right Side - Branding (Charcoal) - NO COMMISSION RATES */}
+      <div className="hidden lg:flex flex-1 bg-secondary-700 items-center justify-center p-12 relative overflow-hidden">
+        {/* Subtle Glow Effects */}
+        <div className="absolute top-0 left-0 w-96 h-96 bg-primary-400/10 rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl" />
+        <div className="absolute bottom-0 right-0 w-64 h-64 bg-primary-400/10 rounded-full translate-x-1/3 translate-y-1/3 blur-3xl" />
         
         <div className="relative z-10 text-center text-white max-w-lg">
           <motion.div
@@ -186,47 +186,41 @@ const LoginPage = () => {
             <h2 className="text-4xl font-heading text-white font-bold mb-6">
               {lang === 'de' ? 'Willkommen im Partner-Portal' : 'Welcome to the Partner Portal'}
             </h2>
-            <p className="text-xl text-white/80 mb-8">
+            <p className="text-xl text-gray-300 mb-10">
               {lang === 'de' 
-                ? 'Verwalten Sie Ihr Team, verfolgen Sie Ihre Provisionen und bauen Sie Ihr Geschäft mit unseren Premium-Wasserfilterlösungen auf.'
-                : 'Manage your team, track your commissions, and build your business with our premium water filtration solutions.'}
+                ? 'Verwalten Sie Ihr Team, verfolgen Sie Ihre Erfolge und bauen Sie Ihr Geschäft auf.'
+                : 'Manage your team, track your success, and build your business.'}
             </p>
             
             {/* Trust Icons */}
-            <div className="flex justify-center gap-8 mt-8 mb-8">
-              <div className="flex flex-col items-center">
-                <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center mb-2">
-                  <Droplets className="w-6 h-6" />
+            <div className="flex justify-center gap-6 mb-10">
+              {[
+                { icon: Droplets, label: lang === 'de' ? 'Premium Qualität' : 'Premium Quality' },
+                { icon: Shield, label: lang === 'de' ? 'Zertifiziert' : 'Certified' },
+                { icon: Award, label: lang === 'de' ? '2 Jahre Garantie' : '2 Year Warranty' },
+              ].map((item, idx) => (
+                <div key={idx} className="flex flex-col items-center">
+                  <div className="w-12 h-12 rounded-xl bg-secondary-600 flex items-center justify-center mb-2">
+                    <item.icon className="w-6 h-6 text-primary-400" />
+                  </div>
+                  <span className="text-sm text-gray-400">{item.label}</span>
                 </div>
-                <span className="text-sm text-white/70">Premium Qualität</span>
-              </div>
-              <div className="flex flex-col items-center">
-                <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center mb-2">
-                  <Shield className="w-6 h-6" />
-                </div>
-                <span className="text-sm text-white/70">TÜV Zertifiziert</span>
-              </div>
-              <div className="flex flex-col items-center">
-                <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center mb-2">
-                  <Award className="w-6 h-6" />
-                </div>
-                <span className="text-sm text-white/70">2 Jahre Garantie</span>
-              </div>
+              ))}
             </div>
             
-            <div className="grid grid-cols-3 gap-6 mt-12">
-              <div className="text-center">
-                <p className="text-4xl font-bold">36%</p>
-                <p className="text-white/70 text-sm">Max. Provision</p>
-              </div>
-              <div className="text-center">
-                <p className="text-4xl font-bold">2.5k+</p>
-                <p className="text-white/70 text-sm">Partner</p>
-              </div>
-              <div className="text-center">
-                <p className="text-4xl font-bold">€2M+</p>
-                <p className="text-white/70 text-sm">Ausgezahlt</p>
-              </div>
+            {/* Benefits - NO COMMISSION RATES */}
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { icon: Users, label: lang === 'de' ? 'Starke Community' : 'Strong Community' },
+                { icon: GraduationCap, label: lang === 'de' ? 'CLYR Academy' : 'CLYR Academy' },
+                { icon: Heart, label: lang === 'de' ? 'Premium Support' : 'Premium Support' },
+                { icon: Award, label: lang === 'de' ? '6 Karrierestufen' : '6 Career Levels' },
+              ].map((item, idx) => (
+                <div key={idx} className="bg-secondary-600 rounded-xl p-4 text-center">
+                  <item.icon className="w-6 h-6 text-primary-400 mx-auto mb-2" />
+                  <p className="text-sm text-gray-300">{item.label}</p>
+                </div>
+              ))}
             </div>
           </motion.div>
         </div>

@@ -25,7 +25,7 @@ const ReferralLinksPage = () => {
   const baseUrl = window.location.origin;
 
   const mainLink = `${baseUrl}?ref=${referralCode}`;
-  const partnerLink = `${baseUrl}/partner-werden?ref=${referralCode}`;
+  const partnerLink = `${baseUrl}/partner/register?ref=${referralCode}`;
 
   const handleCopy = async (link) => {
     const success = await copyToClipboard(link);
@@ -36,7 +36,7 @@ const ReferralLinksPage = () => {
 
   const productLinks = demoProducts.map(product => ({
     ...product,
-    link: `${baseUrl}/produkt/${product.slug}?ref=${referralCode}`,
+    link: `${baseUrl}/product/${product.slug}?ref=${referralCode}`,
     clicks: Math.floor(Math.random() * 100),
     conversions: Math.floor(Math.random() * 10)
   }));
@@ -45,10 +45,10 @@ const ReferralLinksPage = () => {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-heading font-bold text-gray-900">
+        <h1 className="text-2xl font-heading font-bold text-secondary-700">
           {t('dashboard.referral.title')}
         </h1>
-        <p className="text-gray-600">
+        <p className="text-secondary-500">
           Teilen Sie diese Links, um Provisionen zu verdienen
         </p>
       </div>
@@ -59,7 +59,7 @@ const ReferralLinksPage = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-br from-teal-600 to-teal-700 rounded-2xl p-6 text-white"
+          className="bg-gradient-to-br from-secondary-600 to-secondary-700 rounded-2xl p-6 text-white"
         >
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
@@ -150,12 +150,12 @@ const ReferralLinksPage = () => {
         transition={{ delay: 0.2 }}
         className="bg-white rounded-2xl border border-gray-100 p-6"
       >
-        <h3 className="font-semibold text-gray-900 mb-4">Ihr Empfehlungscode</h3>
+        <h3 className="font-semibold text-secondary-700 mb-4">Ihr Empfehlungscode</h3>
         <div className="flex items-center gap-4">
           <div className="px-6 py-4 bg-gray-100 rounded-xl">
             <span className="text-3xl font-mono font-bold text-gradient">{referralCode}</span>
           </div>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-secondary-500">
             <p>Teilen Sie diesen Code mit Kunden.</p>
             <p>Sie können ihn beim Checkout eingeben.</p>
           </div>
@@ -164,7 +164,7 @@ const ReferralLinksPage = () => {
 
       {/* Product Links */}
       <div>
-        <h2 className="text-xl font-heading font-semibold text-gray-900 mb-6">
+        <h2 className="text-xl font-heading font-semibold text-secondary-700 mb-6">
           Produktspezifische Links
         </h2>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -186,15 +186,15 @@ const ReferralLinksPage = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-teal-50 rounded-2xl p-6 border border-teal-100"
+        className="bg-slate-50 rounded-2xl p-6 border border-secondary-100"
       >
         <div className="flex items-start gap-3">
-          <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center flex-shrink-0">
-            <Lightbulb className="w-4 h-4 text-teal-600" />
+          <div className="w-8 h-8 rounded-full bg-secondary-100 flex items-center justify-center flex-shrink-0">
+            <Lightbulb className="w-4 h-4 text-primary-400" />
           </div>
           <div>
-            <h3 className="font-semibold text-teal-900 mb-3">Tipps für mehr Erfolg</h3>
-            <ul className="space-y-2 text-sm text-teal-700">
+            <h3 className="font-semibold text-secondary-700 mb-3">Tipps für mehr Erfolg</h3>
+            <ul className="space-y-2 text-sm text-secondary-700">
               <li>Teilen Sie produktspezifische Links in relevanten Gruppen</li>
               <li>Nutzen Sie den Partner-Link, wenn jemand Interesse am Geschäft zeigt</li>
               <li>Erstellen Sie QR-Codes für Ihre Visitenkarten</li>

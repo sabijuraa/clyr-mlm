@@ -56,10 +56,10 @@ const AdminPartnersPage = () => {
 
   const getStatusStyle = (status) => {
     const styles = {
-      active: 'text-teal-600 bg-teal-100',
-      pending: 'text-gray-600 bg-gray-100',
-      inactive: 'text-gray-500 bg-gray-100',
-      suspended: 'text-gray-500 bg-gray-100',
+      active: 'text-primary-400 bg-secondary-100',
+      pending: 'text-secondary-500 bg-gray-100',
+      inactive: 'text-secondary-500 bg-gray-100',
+      suspended: 'text-secondary-500 bg-gray-100',
     };
     return styles[status] || styles.pending;
   };
@@ -72,8 +72,8 @@ const AdminPartnersPage = () => {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-heading font-bold text-gray-900">Partner verwalten</h1>
-          <p className="text-gray-600">Übersicht aller Partner im System</p>
+          <h1 className="text-2xl font-heading font-bold text-secondary-700">Partner verwalten</h1>
+          <p className="text-secondary-500">Übersicht aller Partner im System</p>
         </div>
       </div>
 
@@ -87,13 +87,13 @@ const AdminPartnersPage = () => {
               placeholder="Suche nach Name, E-Mail oder Code..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500"
             />
           </div>
           <select
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-            className="px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+            className="px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500"
           >
             <option value="">Alle Status</option>
             <option value="pending">Ausstehend</option>
@@ -110,7 +110,7 @@ const AdminPartnersPage = () => {
         {partners.length === 0 ? (
           <div className="p-12 text-center">
             <Users className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Keine Partner gefunden</h3>
+            <h3 className="text-lg font-semibold text-secondary-700 mb-2">Keine Partner gefunden</h3>
           </div>
         ) : (
           <>
@@ -118,13 +118,13 @@ const AdminPartnersPage = () => {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Partner</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Code</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Rang</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase">Verkäufe</th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase">Verdient</th>
-                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase">Aktionen</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-secondary-500 uppercase">Partner</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-secondary-500 uppercase">Code</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-secondary-500 uppercase">Rang</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-secondary-500 uppercase">Status</th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-secondary-500 uppercase">Verkäufe</th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-secondary-500 uppercase">Verdient</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-secondary-500 uppercase">Aktionen</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -138,12 +138,12 @@ const AdminPartnersPage = () => {
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-teal-600 flex items-center justify-center text-white font-semibold text-sm">
+                          <div className="w-10 h-10 rounded-full bg-secondary-700 flex items-center justify-center text-white font-semibold text-sm">
                             {partner.first_name?.[0]}{partner.last_name?.[0]}
                           </div>
                           <div>
-                            <p className="font-medium text-gray-900">{partner.first_name} {partner.last_name}</p>
-                            <p className="text-sm text-gray-500">{partner.email}</p>
+                            <p className="font-medium text-secondary-700">{partner.first_name} {partner.last_name}</p>
+                            <p className="text-sm text-secondary-500">{partner.email}</p>
                           </div>
                         </div>
                       </td>
@@ -151,7 +151,7 @@ const AdminPartnersPage = () => {
                         <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">{partner.referral_code}</span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-teal-100 text-teal-700">
+                        <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-secondary-100 text-secondary-700">
                           {partner.rank_name}
                         </span>
                       </td>
@@ -161,7 +161,7 @@ const AdminPartnersPage = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right font-medium">{partner.own_sales_count}</td>
-                      <td className="px-6 py-4 text-right font-medium text-teal-600">
+                      <td className="px-6 py-4 text-right font-medium text-primary-400">
                         {formatCurrency(partner.total_earned || 0)}
                       </td>
                       <td className="px-6 py-4">
@@ -169,7 +169,7 @@ const AdminPartnersPage = () => {
                           {partner.status === 'pending' && (
                             <button
                               onClick={() => handleStatusChange(partner.id, 'active')}
-                              className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg"
+                              className="p-2 text-primary-400 hover:bg-slate-50 rounded-lg"
                               title="Aktivieren"
                             >
                               <UserCheck className="w-4 h-4" />
@@ -178,13 +178,13 @@ const AdminPartnersPage = () => {
                           {partner.status === 'active' && (
                             <button
                               onClick={() => handleStatusChange(partner.id, 'suspended')}
-                              className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                              className="p-2 text-secondary-500 hover:bg-gray-100 rounded-lg"
                               title="Sperren"
                             >
                               <UserX className="w-4 h-4" />
                             </button>
                           )}
-                          <button className="p-2 text-gray-600 hover:bg-teal-50 hover:text-teal-600 rounded-lg" title="Details">
+                          <button className="p-2 text-secondary-500 hover:bg-slate-50 hover:text-primary-400 rounded-lg" title="Details">
                             <Eye className="w-4 h-4" />
                           </button>
                         </div>
@@ -197,7 +197,7 @@ const AdminPartnersPage = () => {
 
             {pagination && pagination.totalPages > 1 && (
               <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-secondary-500">
                   Seite {pagination.page} von {pagination.totalPages}
                 </p>
                 <div className="flex gap-2">

@@ -105,14 +105,15 @@ export const authAPI = {
 // ============ PRODUCTS API ============
 
 export const productsAPI = {
+  // Public endpoints
   getAll: (params = {}) => 
     api.get('/products', { params }),
 
   getFeatured: (limit = 4) => 
     api.get('/products/featured', { params: { limit } }),
 
-  getBySlug: (slug) => 
-    api.get(`/products/${slug}`),
+  getNew: (limit = 4) => 
+    api.get('/products/new', { params: { limit } }),
 
   getCategories: () => 
     api.get('/products/categories'),
@@ -120,32 +121,62 @@ export const productsAPI = {
   getByCategory: (slug, params = {}) => 
     api.get(`/products/category/${slug}`, { params }),
 
-  // Admin
+  getBySlug: (slug) => 
+    api.get(`/products/slug/${slug}`),
+
+  getById: (id) => 
+    api.get(`/products/${id}`),
+
+  // Admin endpoints
+  getAllAdmin: (params = {}) => 
+    api.get('/products/admin/all', { params }),
+
+  getStats: () => 
+    api.get('/products/admin/stats'),
+
   create: (formData) => 
-    api.post('/products', formData, {
+    api.post('/products/admin', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     }),
 
   update: (id, formData) => 
-    api.put(`/products/${id}`, formData, {
+    api.put(`/products/admin/${id}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     }),
 
   delete: (id) => 
-    api.delete(`/products/${id}`),
+    api.delete(`/products/admin/${id}`),
 
-  updateStock: (id, stock) => 
-    api.patch(`/products/${id}/stock`, { stock })
+  toggleActive: (id) => 
+    api.patch(`/products/admin/${id}/toggle-active`),
+
+  toggleFeatured: (id) => 
+    api.patch(`/products/admin/${id}/toggle-featured`),
+
+  updateStock: (id, data) => 
+    api.patch(`/products/admin/${id}/stock`, data),
+
+  bulkUpdate: (productIds, updates) => 
+    api.post('/products/admin/bulk-update', { productIds, updates }),
+
+  uploadImage: (id, formData) => 
+    api.post(`/products/admin/${id}/image`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+
+  deleteImage: (id, imageIndex) => 
+    api.delete(`/products/admin/${id}/image/${imageIndex}`)
 };
 
 // ============ ORDERS API ============
 
 export const ordersAPI = {
+  // Public
   calculate: (items, country, hasVatId = false) => 
-    api.post('/orders/calculate-totals', { items, country, hasVatId }),
+    api.post('/orders/calculate', { items, country, hasVatId }),
 
   createPaymentIntent: (amount, metadata = {}) => 
-    api.post('/orders/payment-intent', { amount, metadata }),
+    api.post('/orders/create-payment-intent', { amount, metadata }),
 
   create: (orderData) => 
     api.post('/orders', orderData),
@@ -155,7 +186,7 @@ export const ordersAPI = {
 
   // Partner - referred orders
   getMyReferrals: (params = {}) => 
-    api.get('/orders/partner/referred', { params }),
+    api.get('/orders/my-referrals', { params }),
 
   // Admin
   getAll: (params = {}) => 
@@ -205,7 +236,7 @@ export const partnerAPI = {
     api.get('/partners/wallet'),
 
   requestPayout: (amount = null) => 
-    api.post('/partners/wallet/payout', { amount }),
+    api.post('/partners/payout-request', { amount }),
 
   getPayoutHistory: (params = {}) => 
     api.get('/partners/payouts', { params }),
@@ -221,7 +252,7 @@ export const partnerAPI = {
 
 export const commissionsAPI = {
   getMy: (params = {}) => 
-    api.get('/commissions/my', { params }),
+    api.get('/commissions', { params }),
 
   getSummary: () => 
     api.get('/commissions/summary'),
@@ -231,7 +262,7 @@ export const commissionsAPI = {
 
   // Admin
   getAll: (params = {}) => 
-    api.get('/commissions', { params }),
+    api.get('/commissions/all', { params }),
 
   getPending: () => 
     api.get('/commissions/pending'),
@@ -241,6 +272,136 @@ export const commissionsAPI = {
 
   processPayouts: (dryRun = false) => 
     api.post('/commissions/process-payouts', { dryRun })
+};
+
+// ============ PAYOUTS API ============
+
+export const payoutsAPI = {
+  // Partner
+  getMy: (params = {}) => 
+    api.get('/payouts/my', { params }),
+
+  request: () => 
+    api.post('/payouts/request'),
+
+  getDetails: (id) => 
+    api.get(`/payouts/${id}`),
+
+  downloadStatement: (id) => 
+    api.get(`/payouts/${id}/statement`, { responseType: 'blob' }),
+
+  // Admin
+  getPending: () => 
+    api.get('/payouts/admin/pending'),
+
+  getEligible: () => 
+    api.get('/payouts/admin/eligible'),
+
+  getStats: () => 
+    api.get('/payouts/admin/stats'),
+
+  approve: (id) => 
+    api.post(`/payouts/admin/${id}/approve`),
+
+  cancel: (id, reason) => 
+    api.post(`/payouts/admin/${id}/cancel`, { reason }),
+
+  complete: (id) => 
+    api.post(`/payouts/admin/${id}/complete`),
+
+  process: () => 
+    api.post('/payouts/admin/process'),
+
+  runCycle: () => 
+    api.post('/payouts/admin/run-cycle')
+};
+
+// ============ SUBSCRIPTIONS API ============
+
+export const subscriptionsAPI = {
+  // Customer
+  getMy: () => 
+    api.get('/subscriptions/my'),
+
+  cancel: (id) => 
+    api.post(`/subscriptions/${id}/cancel`),
+
+  pause: (id) => 
+    api.post(`/subscriptions/${id}/pause`),
+
+  resume: (id) => 
+    api.post(`/subscriptions/${id}/resume`),
+
+  // Admin
+  getAll: (params = {}) => 
+    api.get('/subscriptions/admin/all', { params }),
+
+  getDue: () => 
+    api.get('/subscriptions/admin/due'),
+
+  getStats: () => 
+    api.get('/subscriptions/admin/stats'),
+
+  runRenewals: () => 
+    api.post('/subscriptions/admin/run-renewals')
+};
+
+// ============ ACADEMY API ============
+
+export const academyAPI = {
+  // Partner
+  getContent: () => 
+    api.get('/academy'),
+
+  getProgress: () => 
+    api.get('/academy/progress'),
+
+  getContentItem: (slug) => 
+    api.get(`/academy/content/${slug}`),
+
+  updateProgress: (contentId, progress) => 
+    api.post(`/academy/progress/${contentId}`, { progress }),
+
+  markComplete: (contentId) => 
+    api.post(`/academy/complete/${contentId}`),
+
+  // Admin
+  getAllContent: () => 
+    api.get('/academy/admin/all'),
+
+  createContent: (data) => 
+    api.post('/academy/admin/content', data),
+
+  updateContent: (id, data) => 
+    api.put(`/academy/admin/content/${id}`, data),
+
+  deleteContent: (id) => 
+    api.delete(`/academy/admin/content/${id}`),
+
+  getPartnerProgress: (partnerId) => 
+    api.get(`/academy/admin/partner/${partnerId}/progress`)
+};
+
+// ============ STOCK API ============
+
+export const stockAPI = {
+  getLevels: () => 
+    api.get('/stock/levels'),
+
+  getAlerts: () => 
+    api.get('/stock/alerts'),
+
+  getMovements: (productId, params = {}) => 
+    api.get(`/stock/movements/${productId}`, { params }),
+
+  adjust: (productId, quantity, type, notes) => 
+    api.post(`/stock/adjust/${productId}`, { quantity, type, notes }),
+
+  updateThreshold: (productId, threshold) => 
+    api.patch(`/stock/threshold/${productId}`, { threshold }),
+
+  bulkImport: (items) => 
+    api.post('/stock/bulk-import', { items })
 };
 
 // ============ ADMIN API ============

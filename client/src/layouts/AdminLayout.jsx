@@ -18,13 +18,19 @@ import {
   Shield,
   ArrowLeft,
   Settings,
-  ChevronDown
+  ChevronDown,
+  FileText,
+  Layout,
+  Layers,
+  Upload,
+  Calculator,
+  CreditCard
 } from 'lucide-react';
 
 const AdminLayout = () => {
   const { user, logout } = useAuth();
   const { t, lang, toggle } = useLanguage();
-  const { companyName, logoUrl } = useBrand();
+  const { companyName } = useBrand();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -34,16 +40,24 @@ const AdminLayout = () => {
     navigate('/login');
   };
 
+  // Updated routes with new pages
   const navItems = [
     { label: t('admin.menu.dashboard'), icon: LayoutDashboard, path: '/admin' },
-    { label: t('admin.menu.partners'), icon: Users, path: '/admin/partner' },
-    { label: t('admin.menu.orders'), icon: ShoppingBag, path: '/admin/bestellungen' },
-    { label: t('admin.menu.products'), icon: Package, path: '/admin/produkte' },
-    { label: 'Einstellungen', icon: Settings, path: '/admin/einstellungen' },
+    { label: t('admin.menu.partners'), icon: Users, path: '/admin/partners' },
+    { label: t('admin.menu.orders'), icon: ShoppingBag, path: '/admin/orders' },
+    { label: t('admin.menu.products'), icon: Package, path: '/admin/products' },
+    { label: 'Varianten', icon: Layers, path: '/admin/variants' },
+    { label: t('admin.menu.commissions'), icon: Wallet, path: '/admin/commissions' },
+    { label: 'Rechnungen', icon: FileText, path: '/admin/invoices' },
+    { label: 'Gutschriften', icon: CreditCard, path: '/admin/credit-notes' },
+    { label: 'USt-Berichte', icon: Calculator, path: '/admin/vat-reports' },
+    { label: 'Daten-Import', icon: Upload, path: '/admin/imports' },
+    { label: 'Website-Inhalt', icon: Layout, path: '/admin/cms' },
+    { label: 'Settings', icon: Settings, path: '/admin/settings' },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       {/* Mobile Overlay */}
       <AnimatePresence>
         {sidebarOpen && (
@@ -51,28 +65,28 @@ const AdminLayout = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+            className="fixed inset-0 bg-secondary-900/50 z-40 lg:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
       </AnimatePresence>
 
-      {/* Sidebar */}
-      <aside className={`fixed top-0 left-0 h-full w-72 bg-gradient-to-b from-teal-800 to-teal-900 z-50 
+      {/* Sidebar - Charcoal gradient */}
+      <aside className={`fixed top-0 left-0 h-full w-72 bg-gradient-to-b from-secondary-700 to-secondary-800 z-50 
         transform transition-transform duration-300 lg:translate-x-0 
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="p-6 border-b border-teal-700">
+          <div className="p-6 border-b border-secondary-600">
             <NavLink to="/admin" className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-xl bg-teal-600 
-                flex items-center justify-center shadow-lg shadow-teal-500/30">
-                <Shield className="w-6 h-6 text-white" />
+              <div className="w-11 h-11 rounded-xl bg-secondary-600 
+                flex items-center justify-center shadow-lg shadow-secondary-700/30">
+                <Shield className="w-6 h-6 text-primary-400" />
               </div>
               <div>
                 <span className="text-white font-heading text-lg font-bold block">Admin</span>
-                <span className="text-teal-400 text-xs">{companyName}</span>
+                <span className="text-primary-400 text-xs">{companyName}</span>
               </div>
             </NavLink>
           </div>
@@ -89,8 +103,8 @@ const AdminLayout = () => {
                     className={({ isActive }) => `
                       flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
                       ${isActive 
-                        ? 'bg-teal-600 text-white shadow-lg shadow-teal-500/25' 
-                        : 'text-teal-200 hover:text-white hover:bg-teal-700/50'}
+                        ? 'bg-white text-secondary-700 shadow-lg' 
+                        : 'text-secondary-200 hover:text-white hover:bg-secondary-600/50'}
                     `}
                   >
                     <item.icon className="w-5 h-5" />
@@ -101,11 +115,11 @@ const AdminLayout = () => {
             </ul>
 
             {/* Back to Partner Dashboard */}
-            <div className="mt-8 pt-4 border-t border-teal-700">
+            <div className="mt-8 pt-4 border-t border-secondary-600">
               <NavLink
                 to="/dashboard"
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-teal-200 
-                  hover:text-white hover:bg-teal-700/50 transition-all duration-200"
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-secondary-200 
+                  hover:text-white hover:bg-secondary-600/50 transition-all duration-200"
               >
                 <ArrowLeft className="w-5 h-5" />
                 <span className="font-medium">Partner Dashboard</span>
@@ -113,26 +127,26 @@ const AdminLayout = () => {
             </div>
 
             {/* Admin Info Card */}
-            <div className="mt-4 p-4 rounded-2xl bg-teal-700/50 border border-teal-600/30">
+            <div className="mt-4 p-4 rounded-2xl bg-secondary-600/50 border border-secondary-500/30">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-teal-600 
+                <div className="w-10 h-10 rounded-xl bg-secondary-700 
                   flex items-center justify-center">
-                  <Shield className="w-5 h-5 text-white" />
+                  <Shield className="w-5 h-5 text-primary-400" />
                 </div>
                 <div>
                   <p className="text-white font-semibold">Administrator</p>
-                  <p className="text-teal-300 text-xs">Vollzugriff</p>
+                  <p className="text-secondary-300 text-xs">Full Access</p>
                 </div>
               </div>
             </div>
           </nav>
 
           {/* Logout */}
-          <div className="p-4 border-t border-teal-700">
+          <div className="p-4 border-t border-secondary-600">
             <button
               onClick={handleLogout}
-              className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-teal-200 
-                hover:text-white hover:bg-teal-700/50 transition-all duration-200"
+              className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-secondary-200 
+                hover:text-white hover:bg-secondary-600/50 transition-all duration-200"
             >
               <LogOut className="w-5 h-5" />
               <span className="font-medium">{t('nav.logout')}</span>
@@ -144,35 +158,35 @@ const AdminLayout = () => {
       {/* Main Content */}
       <div className="lg:ml-72">
         {/* Top Header */}
-        <header className="sticky top-0 bg-white/80 backdrop-blur-xl border-b border-gray-200 z-30">
+        <header className="sticky top-0 bg-white/80 backdrop-blur-xl border-b border-secondary-200 z-30">
           <div className="flex items-center justify-between px-6 py-4">
             {/* Mobile Toggle */}
             <button
-              className="lg:hidden p-2 rounded-xl hover:bg-gray-100 transition-colors"
+              className="lg:hidden p-2 rounded-xl hover:bg-secondary-100 transition-colors"
               onClick={() => setSidebarOpen(true)}
             >
-              <Menu className="w-6 h-6 text-gray-700" />
+              <Menu className="w-6 h-6 text-secondary-700" />
             </button>
 
             {/* Title */}
             <div className="hidden lg:flex items-center gap-3">
-              <span className="px-3 py-1 bg-teal-100 text-teal-700 rounded-full text-sm font-bold">
+              <span className="px-3 py-1 bg-secondary-700 text-white rounded-full text-sm font-bold">
                 Admin
               </span>
-              <h1 className="text-xl font-heading font-bold text-gray-900">
+              <h1 className="text-xl font-heading font-bold text-secondary-700">
                 {t('admin.title')}
               </h1>
             </div>
 
             {/* Right Actions */}
             <div className="flex items-center gap-3">
-              <button onClick={toggle} className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100">
-                <Globe className="w-5 h-5 text-gray-600" />
-                <span className="text-sm font-medium uppercase">{lang}</span>
+              <button onClick={toggle} className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-secondary-100">
+                <Globe className="w-5 h-5 text-secondary-600" />
+                <span className="text-sm font-medium uppercase text-secondary-700">{lang}</span>
               </button>
 
-              <button className="relative p-2 rounded-xl hover:bg-gray-100">
-                <Bell className="w-5 h-5 text-gray-600" />
+              <button className="relative p-2 rounded-xl hover:bg-secondary-100">
+                <Bell className="w-5 h-5 text-secondary-600" />
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
               </button>
 
@@ -180,21 +194,21 @@ const AdminLayout = () => {
               <div className="relative">
                 <button
                   onClick={() => setProfileOpen(!profileOpen)}
-                  className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-100 transition-colors"
+                  className="flex items-center gap-3 p-2 rounded-xl hover:bg-secondary-100 transition-colors"
                 >
-                  <div className="w-10 h-10 rounded-full bg-teal-600 
-                    flex items-center justify-center shadow-lg shadow-teal-500/20">
+                  <div className="w-10 h-10 rounded-full bg-secondary-700 
+                    flex items-center justify-center shadow-lg shadow-secondary-700/20">
                     <span className="text-white font-semibold text-sm">
                       {user?.firstName?.[0]}{user?.lastName?.[0]}
                     </span>
                   </div>
                   <div className="hidden md:block text-left">
-                    <p className="text-sm font-semibold text-gray-800">
+                    <p className="text-sm font-semibold text-secondary-700">
                       {user?.firstName} {user?.lastName}
                     </p>
-                    <p className="text-xs text-teal-600 font-medium">Administrator</p>
+                    <p className="text-xs text-primary-500 font-medium">Administrator</p>
                   </div>
-                  <ChevronDown className="w-4 h-4 text-gray-400 hidden md:block" />
+                  <ChevronDown className="w-4 h-4 text-secondary-400 hidden md:block" />
                 </button>
 
                 <AnimatePresence>
@@ -203,25 +217,25 @@ const AdminLayout = () => {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 10 }}
-                      className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50"
+                      className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-secondary-100 py-2 z-50"
                     >
                       <NavLink
-                        to="/admin/einstellungen"
+                        to="/admin/settings"
                         onClick={() => setProfileOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50"
+                        className="flex items-center gap-3 px-4 py-2.5 text-secondary-700 hover:bg-secondary-50"
                       >
-                        <Settings className="w-4 h-4" />
-                        <span className="text-sm">Einstellungen</span>
+                        <Settings className="w-4 h-4 text-primary-500" />
+                        <span className="text-sm">Settings</span>
                       </NavLink>
                       <NavLink
                         to="/dashboard"
                         onClick={() => setProfileOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50"
+                        className="flex items-center gap-3 px-4 py-2.5 text-secondary-700 hover:bg-secondary-50"
                       >
-                        <ArrowLeft className="w-4 h-4" />
+                        <ArrowLeft className="w-4 h-4 text-primary-500" />
                         <span className="text-sm">Partner Dashboard</span>
                       </NavLink>
-                      <hr className="my-2 border-gray-100" />
+                      <hr className="my-2 border-secondary-100" />
                       <button
                         onClick={handleLogout}
                         className="flex items-center gap-3 w-full px-4 py-2.5 text-red-600 hover:bg-red-50"

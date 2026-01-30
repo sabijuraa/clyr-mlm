@@ -361,3 +361,57 @@ export const processPayouts = asyncHandler(async (req, res) => {
     failed
   });
 });
+
+/**
+ * Generate commission statement for specific partner (Admin)
+ */
+export const generateStatementForPartner = asyncHandler(async (req, res) => {
+  const { partnerId, period } = req.body; // period format: YYYY-MM
+
+  if (!partnerId || !period) {
+    throw new AppError('Partner-ID und Zeitraum erforderlich', 400);
+  }
+
+  const [year, month] = period.split('-').map(Number);
+  const startDate = new Date(year, month - 1, 1);
+  const endDate = new Date(year, month, 0, 23, 59, 59);
+
+  // Get commissions for period
+  const commissionsResult = await query(
+    `SELECT c.*, o.order_number
+     FROM commissions c
+     LEFT JOIN orders o ON c.order_id = o.id
+     WHERE c.user_id = $1 
+     AND c.created_at >= $2 
+     AND c.created_at <= $3
+     AND c.status IN ('released', 'paid')
+     ORDER BY c.created_at ASC`,
+    [partnerId, startDate, endDate]
+  );
+
+  if (commissionsResult.rows.length === 0) {
+    throw new AppError('Keine Provisionen für diesen Zeitraum', 404);
+  }
+
+  // Get user details
+  const userResult = await query(
+    'SELECT * FROM users WHERE id = $1',
+    [partnerId]
+  );
+
+  if (userResult.rows.length === 0) {
+    throw new AppError('Partner nicht gefunden', 404);
+  }
+
+  const periodFormatted = new Date(year, month - 1).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+
+  const pdfBuffer = await generateCommissionStatement(
+    userResult.rows[0],
+    commissionsResult.rows,
+    periodFormatted
+  );
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="Provisionsabrechnung-${userResult.rows[0].last_name}-${period}.pdf"`);
+  res.send(pdfBuffer);
+});

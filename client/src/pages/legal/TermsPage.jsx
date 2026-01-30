@@ -74,13 +74,13 @@ const TermsPage = () => {
         >
           <div className="text-center mb-12">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl 
-              bg-gradient-to-br from-teal-600 to-teal-700 mb-6">
+              bg-gradient-to-br from-secondary-600 to-secondary-700 mb-6">
               <FileText className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            <h1 className="text-4xl font-bold text-secondary-700 mb-4">
               Allgemeine Geschäftsbedingungen
             </h1>
-            <p className="text-gray-600">
+            <p className="text-secondary-500">
               für den Online-Shop von {legal?.companyName || companyName || 'Still und Laut GmbH'}
             </p>
           </div>
@@ -95,14 +95,14 @@ const TermsPage = () => {
                 className="bg-white rounded-2xl border border-gray-100 p-8"
               >
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-teal-100 flex items-center justify-center">
-                    <section.icon className="w-5 h-5 text-teal-600" />
+                  <div className="w-10 h-10 rounded-xl bg-secondary-100 flex items-center justify-center">
+                    <section.icon className="w-5 h-5 text-primary-400" />
                   </div>
-                  <h2 className="text-lg font-semibold text-gray-900">
+                  <h2 className="text-lg font-semibold text-secondary-700">
                     {section.title}
                   </h2>
                 </div>
-                <p className="text-gray-700 leading-relaxed">{section.content}</p>
+                <p className="text-secondary-700 leading-relaxed">{section.content}</p>
               </motion.div>
             ))}
           </div>
@@ -113,10 +113,10 @@ const TermsPage = () => {
             transition={{ delay: 0.7 }}
             className="bg-white rounded-2xl border border-gray-100 p-8 mt-6"
           >
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            <h2 className="text-lg font-semibold text-secondary-700 mb-4">
               §8 Schlussbestimmungen
             </h2>
-            <div className="space-y-4 text-gray-700">
+            <div className="space-y-4 text-secondary-700">
               <p>
                 Es gilt das Recht der Republik Österreich unter Ausschluss des 
                 UN-Kaufrechts. Bei Verbrauchern gilt diese Rechtswahl nur insoweit, 
@@ -131,7 +131,7 @@ const TermsPage = () => {
             </div>
           </motion.div>
 
-          <p className="text-center text-gray-500 text-sm mt-8">
+          <p className="text-center text-secondary-500 text-sm mt-8">
             Stand: Januar 2026
           </p>
         </motion.div>

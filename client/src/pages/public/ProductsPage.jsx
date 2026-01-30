@@ -76,15 +76,15 @@ const ProductsPage = () => {
   const handleAddToCart = (e, product) => { e.preventDefault(); addItem(product); };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-gradient-to-br from-teal-800 via-teal-700 to-teal-900 text-white">
+    <div className="min-h-screen bg-slate-50">
+      {/* Header - Charcoal background */}
+      <div className="bg-gradient-to-br from-secondary-700 via-secondary-700 to-secondary-800 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <h1 className="text-4xl lg:text-5xl text-teal-100 font-bold mb-4">
+            <h1 className="text-4xl lg:text-5xl text-white font-bold mb-4">
               {lang === 'de' ? 'Unsere Produkte' : 'Our Products'}
             </h1>
-            <p className="text-xl text-teal-100 max-w-2xl">
+            <p className="text-xl text-gray-300 max-w-2xl">
               {lang === 'de' 
                 ? 'Entdecken Sie unsere Premium Wasserfiltersysteme für reinstes Trinkwasser.'
                 : 'Discover our premium water filtration systems for the purest drinking water.'}
@@ -101,22 +101,22 @@ const ProductsPage = () => {
             <div className="sticky top-24 space-y-6">
               {/* Search */}
               <div className="bg-white rounded-2xl p-5 border border-gray-200">
-                <h3 className="font-semibold text-gray-900 mb-4">{lang === 'de' ? 'Suche' : 'Search'}</h3>
+                <h3 className="font-semibold text-secondary-700 mb-4">{lang === 'de' ? 'Suche' : 'Search'}</h3>
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-primary-400" />
                   <input
                     type="text"
                     placeholder={lang === 'de' ? 'Produkt suchen...' : 'Search products...'}
                     defaultValue={searchQuery}
                     onChange={(e) => handleSearch(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-secondary-700 focus:border-transparent text-secondary-700"
                   />
                 </div>
               </div>
 
               {/* Categories */}
               <div className="bg-white rounded-2xl p-5 border border-gray-200">
-                <h3 className="font-semibold text-gray-900 mb-4">{lang === 'de' ? 'Kategorien' : 'Categories'}</h3>
+                <h3 className="font-semibold text-secondary-700 mb-4">{lang === 'de' ? 'Kategorien' : 'Categories'}</h3>
                 <div className="space-y-1">
                   {categories.map((cat) => (
                     <button
@@ -124,8 +124,8 @@ const ProductsPage = () => {
                       onClick={() => setSelectedCategory(cat.key)}
                       className={`w-full text-left px-4 py-2.5 rounded-xl transition-all ${
                         selectedCategory === cat.key
-                          ? 'bg-teal-50 text-teal-700 font-medium'
-                          : 'text-gray-600 hover:bg-gray-50'
+                          ? 'bg-secondary-700 text-white font-medium'
+                          : 'text-secondary-600 hover:bg-slate-50'
                       }`}
                     >
                       {cat.label}
@@ -140,20 +140,20 @@ const ProductsPage = () => {
           <main className="flex-1">
             {/* Toolbar */}
             <div className="flex items-center justify-between mb-6">
-              <p className="text-gray-600">
-                <span className="font-semibold text-gray-900">{filteredProducts.length}</span> {lang === 'de' ? 'Produkte' : 'Products'}
+              <p className="text-secondary-600">
+                <span className="font-semibold text-secondary-700">{filteredProducts.length}</span> {lang === 'de' ? 'Produkte' : 'Products'}
               </p>
               <div className="relative">
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="appearance-none pl-4 pr-10 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="appearance-none pl-4 pr-10 py-2.5 bg-white border border-gray-200 rounded-xl text-secondary-700 focus:outline-none focus:ring-2 focus:ring-secondary-700"
                 >
                   {sortOptions.map((opt) => (
                     <option key={opt.key} value={opt.key}>{opt.label}</option>
                   ))}
                 </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary-400 pointer-events-none" />
               </div>
             </div>
 
@@ -162,9 +162,9 @@ const ProductsPage = () => {
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[...Array(6)].map((_, i) => (
                   <div key={i} className="bg-white rounded-2xl p-4 animate-pulse">
-                    <div className="aspect-square bg-gray-100 rounded-xl mb-4" />
-                    <div className="h-4 bg-gray-100 rounded w-3/4 mb-2" />
-                    <div className="h-6 bg-gray-100 rounded w-1/2" />
+                    <div className="aspect-square bg-slate-100 rounded-xl mb-4" />
+                    <div className="h-4 bg-slate-100 rounded w-3/4 mb-2" />
+                    <div className="h-6 bg-slate-100 rounded w-1/2" />
                   </div>
                 ))}
               </div>
@@ -184,30 +184,30 @@ const ProductsPage = () => {
                       transition={{ delay: index * 0.05 }}
                     >
                       <Link 
-                        to={`/produkt/${product.slug}`} 
-                        className="group block bg-white rounded-2xl overflow-hidden border border-gray-100 hover:border-teal-200 hover:shadow-lg transition-all"
+                        to={`/product/${product.slug}`} 
+                        className="group block bg-white rounded-2xl overflow-hidden border border-gray-100 hover:border-secondary-300 hover:shadow-lg transition-all"
                       >
-                        <div className="relative aspect-square bg-gray-50 p-6">
+                        <div className="relative aspect-square bg-slate-50 p-6">
                           {product.is_featured && (
-                            <span className="absolute top-3 left-3 px-2.5 py-1 bg-teal-600 text-white text-xs font-bold rounded-full">BESTSELLER</span>
+                            <span className="absolute top-3 left-3 px-2.5 py-1 bg-secondary-700 text-white text-xs font-bold rounded-full">BESTSELLER</span>
                           )}
                           {product.is_new && (
-                            <span className="absolute top-3 right-3 px-2.5 py-1 bg-amber-500 text-white text-xs font-bold rounded-full">NEU</span>
+                            <span className="absolute top-3 right-3 px-2.5 py-1 bg-primary-500 text-white text-xs font-bold rounded-full">{lang === 'de' ? 'NEU' : 'NEW'}</span>
                           )}
                           <img src={mainImage} alt={product.name} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
                         </div>
                         <div className="p-5">
-                          <h3 className="font-semibold text-gray-900 mb-1 group-hover:text-teal-600 transition-colors">{product.name}</h3>
+                          <h3 className="font-semibold text-secondary-700 mb-1 group-hover:text-primary-500 transition-colors">{product.name}</h3>
                           {product.short_description && (
-                            <p className="text-sm text-gray-500 mb-3 line-clamp-1">{product.short_description}</p>
+                            <p className="text-sm text-secondary-500 mb-3 line-clamp-1">{product.short_description}</p>
                           )}
                           <div className="flex items-center justify-between">
-                            <span className="text-xl font-bold text-gray-900">{formatCurrency(product.price)}</span>
+                            <span className="text-xl font-bold text-secondary-700">{formatCurrency(product.price)}</span>
                             <button
                               onClick={(e) => handleAddToCart(e, product)}
                               disabled={inCart}
                               className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                                inCart ? 'bg-teal-100 text-teal-600' : 'bg-gray-100 text-gray-600 hover:bg-teal-600 hover:text-white'
+                                inCart ? 'bg-green-100 text-green-600' : 'bg-secondary-700 text-white hover:bg-primary-500'
                               }`}
                             >
                               {inCart ? <Check className="w-5 h-5" /> : <ShoppingBag className="w-5 h-5" />}
@@ -221,11 +221,11 @@ const ProductsPage = () => {
               </div>
             ) : (
               <div className="text-center py-20">
-                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                  <Droplets className="w-10 h-10 text-gray-400" />
+                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-secondary-700 flex items-center justify-center">
+                  <Droplets className="w-10 h-10 text-primary-400" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">{lang === 'de' ? 'Keine Produkte gefunden' : 'No products found'}</h3>
-                <p className="text-gray-500">{lang === 'de' ? 'Versuchen Sie andere Filter' : 'Try different filters'}</p>
+                <h3 className="text-xl font-semibold text-secondary-700 mb-2">{lang === 'de' ? 'Keine Produkte gefunden' : 'No products found'}</h3>
+                <p className="text-secondary-500">{lang === 'de' ? 'Versuchen Sie andere Filter' : 'Try different filters'}</p>
               </div>
             )}
           </main>

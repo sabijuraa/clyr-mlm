@@ -45,13 +45,13 @@ const Modal = ({
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
+          {/* Backdrop - Charcoal tinted */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-secondary-900/60 backdrop-blur-sm"
           />
 
           {/* Modal */}
@@ -68,16 +68,16 @@ const Modal = ({
           >
             {/* Header */}
             {(title || showClose) && (
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-secondary-100">
                 {title && (
-                  <h3 className="text-xl font-heading font-semibold text-gray-900">
+                  <h3 className="text-xl font-heading font-semibold text-secondary-700">
                     {title}
                   </h3>
                 )}
                 {showClose && (
                   <button
                     onClick={onClose}
-                    className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                    className="p-2 rounded-xl text-secondary-400 hover:text-secondary-600 hover:bg-secondary-100 transition-colors"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -86,7 +86,7 @@ const Modal = ({
             )}
 
             {/* Content */}
-            <div className="px-6 py-4 max-h-[70vh] overflow-y-auto">
+            <div className="px-6 py-4 max-h-[70vh] overflow-y-auto text-secondary-700">
               {children}
             </div>
           </motion.div>

@@ -1,3 +1,4 @@
+import { Package } from 'lucide-react';
 import ProductCard from './ProductCard';
 import { ProductCardSkeleton } from '../common/Loading';
 
@@ -21,14 +22,11 @@ const ProductGrid = ({ products, isLoading = false, columns = 3 }) => {
   if (!products || products.length === 0) {
     return (
       <div className="text-center py-16">
-        <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gray-100 flex items-center justify-center">
-          <svg className="w-12 h-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} 
-              d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-          </svg>
+        <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-secondary-100 flex items-center justify-center">
+          <Package className="w-12 h-12 text-primary-400" />
         </div>
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">Keine Produkte gefunden</h3>
-        <p className="text-gray-500">Versuchen Sie andere Filter oder schauen Sie später wieder vorbei.</p>
+        <h3 className="text-xl font-semibold text-secondary-700 mb-2">No Products Found</h3>
+        <p className="text-secondary-500">Try different filters or check back later.</p>
       </div>
     );
   }

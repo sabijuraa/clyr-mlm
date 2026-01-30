@@ -29,7 +29,7 @@ const TeamMemberNode = ({ member, level = 0, isLast = false }) => {
           transition={{ delay: level * 0.1 }}
           className={cn(
             "flex items-center gap-3 p-3 rounded-xl transition-all duration-200",
-            "bg-white border border-gray-100 hover:border-teal-200 hover:shadow-md",
+            "bg-white border border-gray-100 hover:border-secondary-200 hover:shadow-md",
             hasChildren && "cursor-pointer"
           )}
           onClick={() => hasChildren && setExpanded(!expanded)}
@@ -49,7 +49,7 @@ const TeamMemberNode = ({ member, level = 0, isLast = false }) => {
           <div className={cn(
             "w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm",
             member.isActive 
-              ? "bg-teal-600" 
+              ? "bg-secondary-700" 
               : "bg-gray-300"
           )}>
             {getInitials(member.firstName, member.lastName)}
@@ -57,13 +57,13 @@ const TeamMemberNode = ({ member, level = 0, isLast = false }) => {
 
           {/* Info */}
           <div className="flex-1 min-w-0">
-            <p className="font-medium text-gray-900 truncate">
+            <p className="font-medium text-secondary-700 truncate">
               {member.firstName} {member.lastName}
             </p>
             <div className="flex items-center gap-2 text-xs">
               <span className={cn(
                 "px-2 py-0.5 rounded-full font-medium",
-                member.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                member.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-secondary-500"
               )}>
                 {member.rank}
               </span>
@@ -76,11 +76,11 @@ const TeamMemberNode = ({ member, level = 0, isLast = false }) => {
           {/* Stats */}
           <div className="hidden sm:flex items-center gap-4 text-sm">
             <div className="text-center">
-              <p className="font-semibold text-gray-900">{member.directPartners || 0}</p>
+              <p className="font-semibold text-secondary-700">{member.directPartners || 0}</p>
               <p className="text-xs text-gray-400">Direkt</p>
             </div>
             <div className="text-center">
-              <p className="font-semibold text-gray-900">{member.teamSize || 0}</p>
+              <p className="font-semibold text-secondary-700">{member.teamSize || 0}</p>
               <p className="text-xs text-gray-400">Team</p>
             </div>
           </div>
@@ -129,8 +129,8 @@ const TeamTree = ({ data, isLoading = false }) => {
         <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
           <Users className="w-8 h-8 text-gray-400" />
         </div>
-        <h3 className="font-semibold text-gray-900 mb-1">Noch keine Teammitglieder</h3>
-        <p className="text-sm text-gray-500">
+        <h3 className="font-semibold text-secondary-700 mb-1">Noch keine Teammitglieder</h3>
+        <p className="text-sm text-secondary-500">
           Teilen Sie Ihren Empfehlungslink, um Ihr Team aufzubauen.
         </p>
       </div>

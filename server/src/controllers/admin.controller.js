@@ -767,3 +767,54 @@ export const uploadLogo = asyncHandler(async (req, res) => {
     logoUrl 
   });
 });
+
+/**
+ * Get all invoices (customer and commission)
+ */
+export const getInvoices = asyncHandler(async (req, res) => {
+  const { type = 'all', page = 1, limit = 50 } = req.query;
+  const offset = (page - 1) * limit;
+
+  let whereClause = '';
+  if (type === 'customer') {
+    whereClause = "WHERE i.type = 'customer'";
+  } else if (type === 'commission') {
+    whereClause = "WHERE i.type = 'commission'";
+  }
+
+  const countResult = await query(
+    `SELECT COUNT(*) FROM invoices i ${whereClause}`
+  );
+
+  const result = await query(
+    `SELECT i.*,
+            o.order_number,
+            c.email as customer_email, c.first_name as customer_first_name, c.last_name as customer_last_name,
+            u.email as partner_email, u.first_name as partner_first_name, u.last_name as partner_last_name
+     FROM invoices i
+     LEFT JOIN orders o ON i.order_id = o.id
+     LEFT JOIN customers c ON i.customer_id = c.id
+     LEFT JOIN users u ON i.partner_id = u.id
+     ${whereClause}
+     ORDER BY i.created_at DESC
+     LIMIT $1 OFFSET $2`,
+    [parseInt(limit), offset]
+  );
+
+  // Format for frontend
+  const invoices = result.rows.map(inv => ({
+    ...inv,
+    customer_name: inv.customer_first_name ? `${inv.customer_first_name} ${inv.customer_last_name}` : null,
+    partner_name: inv.partner_first_name ? `${inv.partner_first_name} ${inv.partner_last_name}` : null
+  }));
+
+  res.json({
+    invoices,
+    pagination: {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total: parseInt(countResult.rows[0].count),
+      totalPages: Math.ceil(parseInt(countResult.rows[0].count) / limit)
+    }
+  });
+});

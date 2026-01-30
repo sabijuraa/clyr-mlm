@@ -42,10 +42,10 @@ const CommissionsPage = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-heading font-bold text-gray-900">
+          <h1 className="text-2xl font-heading font-bold text-secondary-700">
             {t('dashboard.menu.commissions')}
           </h1>
-          <p className="text-gray-600">Übersicht Ihrer Provisionen und Auszahlungen</p>
+          <p className="text-secondary-500">Übersicht Ihrer Provisionen und Auszahlungen</p>
         </div>
         <Button variant="secondary" icon={Download}>
           Export CSV
@@ -105,8 +105,8 @@ const CommissionsPage = () => {
                 onClick={() => setFilter(f.key)}
                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
                   filter === f.key
-                    ? 'bg-teal-100 text-teal-700'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-secondary-100 text-secondary-700'
+                    : 'bg-gray-100 text-secondary-500 hover:bg-gray-200'
                 }`}
               >
                 {f.label}
@@ -118,8 +118,8 @@ const CommissionsPage = () => {
             <select
               value={dateRange}
               onChange={(e) => setDateRange(e.target.value)}
-              className="px-4 py-2 bg-gray-100 border-0 rounded-xl text-sm font-medium text-gray-700
-                focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className="px-4 py-2 bg-gray-100 border-0 rounded-xl text-sm font-medium text-secondary-700
+                focus:outline-none focus:ring-2 focus:ring-secondary-500"
             >
               <option value="week">Diese Woche</option>
               <option value="month">Dieser Monat</option>

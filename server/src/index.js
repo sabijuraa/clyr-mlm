@@ -21,6 +21,15 @@ import webhookRoutes from './routes/webhook.routes.js';
 import payoutRoutes from './routes/payout.routes.js';
 import subscriptionRoutes from './routes/subscription.routes.js';
 import academyRoutes from './routes/academy.routes.js';
+import stockRoutes from './routes/stock.routes.js';
+import cmsRoutes from './routes/cms.routes.js';
+import variantRoutes from './routes/variant.routes.js';
+import gdprRoutes from './routes/gdpr.routes.js';
+import customerRoutes from './routes/customer.routes.js';
+import importRoutes from './routes/import.routes.js';
+import newsletterRoutes from './routes/newsletter.routes.js';
+import creditNoteRoutes from './routes/creditnote.routes.js';
+import vatReportRoutes from './routes/vatreport.routes.js';
 
 // Import services for cron jobs
 import * as commissionService from './services/commission.service.js';
@@ -104,6 +113,15 @@ app.use('/api/webhooks', webhookRoutes);
 app.use('/api/payouts', payoutRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/academy', academyRoutes);
+app.use('/api/stock', stockRoutes);
+app.use('/api/cms', cmsRoutes);
+app.use('/api/variants', variantRoutes);
+app.use('/api/gdpr', gdprRoutes);
+app.use('/api/customer', customerRoutes);
+app.use('/api/imports', importRoutes);
+app.use('/api/newsletter', newsletterRoutes);
+app.use('/api/credit-notes', creditNoteRoutes);
+app.use('/api/vat-reports', vatReportRoutes);
 
 // 404 handler
 app.use((req, res) => {

@@ -62,18 +62,18 @@ const PrivacyPage = () => {
         >
           <div className="text-center mb-12">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl 
-              bg-gradient-to-br from-teal-600 to-teal-700 mb-6">
+              bg-gradient-to-br from-secondary-600 to-secondary-700 mb-6">
               <Shield className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">Datenschutzerklärung</h1>
-            <p className="text-gray-600">Informationen zum Umgang mit Ihren personenbezogenen Daten</p>
+            <h1 className="text-4xl font-bold text-secondary-700 mb-4">Datenschutzerklärung</h1>
+            <p className="text-secondary-500">Informationen zum Umgang mit Ihren personenbezogenen Daten</p>
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 p-8 mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+            <h2 className="text-xl font-semibold text-secondary-700 mb-4">
               Verantwortlicher
             </h2>
-            <p className="text-gray-700 mb-4">
+            <p className="text-secondary-700 mb-4">
               Verantwortlich für die Datenverarbeitung auf dieser Website ist:
             </p>
             <div className="p-4 bg-gray-50 rounded-xl">
@@ -94,14 +94,14 @@ const PrivacyPage = () => {
                 className="bg-white rounded-2xl border border-gray-100 p-8"
               >
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-teal-100 flex items-center justify-center">
-                    <section.icon className="w-5 h-5 text-teal-600" />
+                  <div className="w-10 h-10 rounded-xl bg-secondary-100 flex items-center justify-center">
+                    <section.icon className="w-5 h-5 text-primary-400" />
                   </div>
-                  <h2 className="text-lg font-semibold text-gray-900">
+                  <h2 className="text-lg font-semibold text-secondary-700">
                     {section.title}
                   </h2>
                 </div>
-                <p className="text-gray-700 leading-relaxed">{section.content}</p>
+                <p className="text-secondary-700 leading-relaxed">{section.content}</p>
               </motion.div>
             ))}
           </div>
@@ -110,45 +110,45 @@ const PrivacyPage = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
-            className="bg-teal-50 rounded-2xl border border-teal-100 p-8 mt-8"
+            className="bg-slate-50 rounded-2xl border border-secondary-100 p-8 mt-8"
           >
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-teal-200 flex items-center justify-center">
-                <UserCheck className="w-5 h-5 text-teal-700" />
+              <div className="w-10 h-10 rounded-xl bg-secondary-100 flex items-center justify-center">
+                <UserCheck className="w-5 h-5 text-secondary-700" />
               </div>
-              <h2 className="text-lg font-semibold text-teal-900">
+              <h2 className="text-lg font-semibold text-secondary-700">
                 Ihre Rechte
               </h2>
             </div>
-            <ul className="space-y-2 text-teal-800">
+            <ul className="space-y-2 text-secondary-700">
               <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
                 Recht auf Auskunft (Art. 15 DSGVO)
               </li>
               <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
                 Recht auf Berichtigung (Art. 16 DSGVO)
               </li>
               <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
                 Recht auf Löschung (Art. 17 DSGVO)
               </li>
               <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
                 Recht auf Einschränkung der Verarbeitung (Art. 18 DSGVO)
               </li>
               <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
                 Recht auf Datenübertragbarkeit (Art. 20 DSGVO)
               </li>
               <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
                 Widerspruchsrecht (Art. 21 DSGVO)
               </li>
             </ul>
           </motion.div>
 
-          <p className="text-center text-gray-500 text-sm mt-8">
+          <p className="text-center text-secondary-500 text-sm mt-8">
             Stand: Januar 2026
           </p>
         </motion.div>

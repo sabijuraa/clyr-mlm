@@ -1,40 +1,43 @@
 import { Link } from 'react-router-dom';
-import {
-  Mail,
-  Phone,
-  MapPin,
-  Facebook,
-  Instagram,
-  Youtube,
-  CreditCard,
-  Shield,
-  Truck,
-  RotateCcw,
-  Droplets
+import { 
+  Facebook, Instagram, Youtube, Mail, Phone, MapPin,
+  Shield, Truck, Headphones, Award
 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
-import { useBrand } from '../../context/BrandContext';
 import brandConfig from '../../config/brand.config';
 
 const Footer = () => {
   const { lang } = useLanguage();
-  const { companyName, logoUrl, company, legal, social } = useBrand();
   const currentYear = new Date().getFullYear();
 
-  const shopLinks = [
-    { to: '/produkte', label: lang === 'de' ? 'Alle Produkte' : 'All Products' },
-    { to: '/produkte?category=wassersysteme', label: lang === 'de' ? 'Wassersysteme' : 'Water Systems' },
-    { to: '/produkte?category=duschen', label: lang === 'de' ? 'Aroma Duschen' : 'Aroma Showers' },
-    { to: '/produkte?category=zubehoer', label: lang === 'de' ? 'Zubehör' : 'Accessories' },
-  ];
-
-  const companyLinks = [
-    { to: '/partner-werden', label: lang === 'de' ? 'Partner werden' : 'Become Partner' },
-    { to: '/impressum', label: lang === 'de' ? 'Impressum' : 'Imprint' },
-    { to: '/datenschutz', label: lang === 'de' ? 'Datenschutz' : 'Privacy Policy' },
-    { to: '/agb', label: lang === 'de' ? 'AGB' : 'Terms & Conditions' },
-    { to: '/widerruf', label: lang === 'de' ? 'Widerrufsrecht' : 'Right of Withdrawal' },
-  ];
+  const footerLinks = {
+    products: {
+      title: lang === 'de' ? 'Produkte' : 'Products',
+      links: [
+        { to: '/products', label: lang === 'de' ? 'Alle Produkte' : 'All Products' },
+        { to: '/products?category=water-systems', label: 'CLYR Home Soda' },
+        { to: '/products?category=shower', label: 'CLYR Aroma Dusche' },
+        { to: '/products?category=accessories', label: lang === 'de' ? 'Zubehör' : 'Accessories' },
+      ]
+    },
+    company: {
+      title: lang === 'de' ? 'Unternehmen' : 'Company',
+      links: [
+        { to: '/', label: lang === 'de' ? 'Home' : 'Home' },
+        { to: '/partner/register', label: lang === 'de' ? 'Partner werden' : 'Become Partner' },
+        { to: '/login', label: lang === 'de' ? 'Partner Login' : 'Partner Login' },
+      ]
+    },
+    legal: {
+      title: lang === 'de' ? 'Rechtliches' : 'Legal',
+      links: [
+        { to: '/imprint', label: lang === 'de' ? 'Impressum' : 'Imprint' },
+        { to: '/privacy', label: lang === 'de' ? 'Datenschutz' : 'Privacy Policy' },
+        { to: '/terms', label: lang === 'de' ? 'AGB' : 'Terms & Conditions' },
+        { to: '/withdrawal', label: lang === 'de' ? 'Widerruf' : 'Withdrawal' },
+      ]
+    }
+  };
 
   const socialLinks = [
     { icon: Facebook, href: brandConfig.social?.facebook || '#', label: 'Facebook' },
@@ -43,182 +46,141 @@ const Footer = () => {
   ];
 
   return (
-    <footer className="bg-neutral-900 text-neutral-300">
-
+    <footer className="bg-secondary-800">
       {/* Main Footer */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
-
-          {/* Brand */}
-          <div className="lg:col-span-1">
-            <Link to="/" className="inline-flex items-center gap-3 mb-6">
-              {logoUrl ? (
-                <img
-                  src={logoUrl}
-                  alt={companyName || 'CLYR'}
-                  className="h-12 w-auto brightness-0 invert"
-                />
-              ) : (
-                <div className="flex items-center gap-2">
-                  <div className="w-12 h-12 bg-neutral-800 rounded-lg flex items-center justify-center">
-                    <Droplets className="w-7 h-7 text-sky-400" />
-                  </div>
-                  <span className="text-2xl font-bold text-white tracking-tight">CLYR</span>
-                </div>
-              )}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12">
+          
+          {/* Brand Column */}
+          <div className="lg:col-span-2">
+            <Link to="/" className="inline-block mb-6">
+              <img 
+                src="/images/clyr-logo.png" 
+                alt="CLYR" 
+                className="h-12 w-auto brightness-0 invert"
+              />
             </Link>
-
-            <p className="text-neutral-400 text-sm leading-relaxed mb-6">
-              {lang === 'de'
-                ? brandConfig.company?.description || 'Premium Wassersysteme für reines, frisches Trinkwasser und erfrischende Duscherlebnisse.'
-                : brandConfig.company?.descriptionEn || 'Premium water systems for pure, fresh drinking water and refreshing shower experiences.'}
+            <p className="text-gray-400 mb-6 max-w-sm leading-relaxed">
+              {lang === 'de' 
+                ? 'Premium Wassersysteme für reines, gefiltertes Wasser direkt aus Ihrem Wasserhahn. Klares Wasser. Klares Leben.'
+                : 'Premium water systems for pure, filtered water straight from your tap. Clear water. Clear life.'}
             </p>
-
+            
+            {/* Social Links */}
             <div className="flex gap-3">
-              {socialLinks.map((socialItem, i) => (
+              {socialLinks.map((social, index) => (
                 <a
-                  key={i}
-                  href={socialItem.href}
+                  key={index}
+                  href={social.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-10 h-10 rounded-lg bg-neutral-800 flex items-center justify-center hover:bg-sky-600 transition-colors"
-                  aria-label={socialItem.label}
+                  className="w-11 h-11 bg-secondary-700 rounded-lg flex items-center justify-center hover:bg-primary-500 transition-colors group"
+                  aria-label={social.label}
                 >
-                  <socialItem.icon className="w-4 h-4" />
+                  <social.icon className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
                 </a>
               ))}
             </div>
           </div>
 
-          {/* Shop */}
-          <div>
-            <h4 className="font-semibold text-white mb-5">{lang === 'de' ? 'Shop' : 'Shop'}</h4>
-            <ul className="space-y-3">
-              {shopLinks.map((link, i) => (
-                <li key={i}>
-                  <Link to={link.to} className="text-sm text-neutral-400 hover:text-sky-400 transition-colors">
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Company */}
-          <div>
-            <h4 className="font-semibold text-white mb-5">{lang === 'de' ? 'Unternehmen' : 'Company'}</h4>
-            <ul className="space-y-3">
-              {companyLinks.map((link, i) => (
-                <li key={i}>
-                  <Link to={link.to} className="text-sm text-neutral-400 hover:text-sky-400 transition-colors">
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Contact */}
-          <div>
-            <h4 className="font-semibold text-white mb-5">{lang === 'de' ? 'Kontakt' : 'Contact'}</h4>
-            <ul className="space-y-4">
-              <li>
-                <a
-                  href={`tel:${brandConfig.company?.phone || '+43 660 123 4567'}`}
-                  className="flex items-center gap-3 text-sm text-neutral-400 hover:text-sky-400 transition-colors"
-                >
-                  <Phone className="w-4 h-4 text-sky-500" />
-                  {brandConfig.company?.phone || '+43 660 123 4567'}
-                </a>
-              </li>
-              <li>
-                <a
-                  href={`mailto:${brandConfig.company?.email || 'info@clyr.at'}`}
-                  className="flex items-center gap-3 text-sm text-neutral-400 hover:text-sky-400 transition-colors"
-                >
-                  <Mail className="w-4 h-4 text-sky-500" />
-                  {brandConfig.company?.email || 'info@clyr.at'}
-                </a>
-              </li>
-              <li>
-                <div className="flex items-start gap-3 text-sm text-neutral-400">
-                  <MapPin className="w-4 h-4 text-sky-500 flex-shrink-0 mt-0.5" />
-                  <div>
-                    {brandConfig.fulfillmentCompany?.name || 'MUTIMBAUCH Vertriebs GmbH'}<br />
-                    {brandConfig.fulfillmentCompany?.address?.street || 'Industriestraße 123'}<br />
-                    {brandConfig.fulfillmentCompany?.address?.zip || '80333'} {brandConfig.fulfillmentCompany?.address?.city || 'München'}
-                  </div>
-                </div>
-              </li>
-            </ul>
-          </div>
-
+          {/* Links Columns */}
+          {Object.values(footerLinks).map((section, index) => (
+            <div key={index}>
+              <h4 className="font-semibold text-white mb-5 text-lg">{section.title}</h4>
+              <ul className="space-y-3">
+                {section.links.map((link, linkIndex) => (
+                  <li key={linkIndex}>
+                    <Link
+                      to={link.to}
+                      className="text-gray-400 hover:text-primary-400 transition-colors inline-flex items-center gap-1"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
-      </div>
 
-      {/* Trust badges */}
-      <div className="border-t border-neutral-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-neutral-800 flex items-center justify-center">
-                <Truck className="w-5 h-5 text-sky-400" />
+        {/* Contact Info */}
+        <div className="mt-16 pt-10 border-t border-secondary-700">
+          <div className="grid sm:grid-cols-3 gap-6">
+            <a 
+              href={`tel:${brandConfig.company.phone}`}
+              className="flex items-center gap-4 p-4 bg-secondary-700 rounded-xl hover:bg-secondary-600 transition-colors group"
+            >
+              <div className="w-12 h-12 bg-secondary-600 group-hover:bg-primary-500 rounded-lg flex items-center justify-center transition-colors">
+                <Phone className="w-5 h-5 text-primary-400 group-hover:text-white transition-colors" />
               </div>
               <div>
-                <p className="text-sm font-medium text-white">{lang === 'de' ? 'Schneller Versand' : 'Fast Shipping'}</p>
-                <p className="text-xs text-neutral-500">{lang === 'de' ? '3-7 Werktage' : '3-7 business days'}</p>
+                <div className="text-sm text-secondary-500 mb-1">{lang === 'de' ? 'Telefon' : 'Phone'}</div>
+                <span className="text-white font-medium">{brandConfig.company.phone}</span>
               </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-neutral-800 flex items-center justify-center">
-                <Shield className="w-5 h-5 text-sky-400" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-white">{lang === 'de' ? '2 Jahre Garantie' : '2 Year Warranty'}</p>
-                <p className="text-xs text-neutral-500">{lang === 'de' ? 'Auf alle Produkte' : 'On all products'}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-neutral-800 flex items-center justify-center">
-                <CreditCard className="w-5 h-5 text-sky-400" />
+            </a>
+            <a 
+              href={`mailto:${brandConfig.company.email}`}
+              className="flex items-center gap-4 p-4 bg-secondary-700 rounded-xl hover:bg-secondary-600 transition-colors group"
+            >
+              <div className="w-12 h-12 bg-secondary-600 group-hover:bg-primary-500 rounded-lg flex items-center justify-center transition-colors">
+                <Mail className="w-5 h-5 text-primary-400 group-hover:text-white transition-colors" />
               </div>
               <div>
-                <p className="text-sm font-medium text-white">{lang === 'de' ? 'Sichere Zahlung' : 'Secure Payment'}</p>
-                <p className="text-xs text-neutral-500">SSL, Stripe</p>
+                <div className="text-sm text-secondary-500 mb-1">E-Mail</div>
+                <span className="text-white font-medium">{brandConfig.company.email}</span>
               </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-neutral-800 flex items-center justify-center">
-                <RotateCcw className="w-5 h-5 text-sky-400" />
+            </a>
+            <div className="flex items-center gap-4 p-4 bg-secondary-700 rounded-xl">
+              <div className="w-12 h-12 bg-secondary-600 rounded-lg flex items-center justify-center">
+                <MapPin className="w-5 h-5 text-primary-400" />
               </div>
               <div>
-                <p className="text-sm font-medium text-white">{lang === 'de' ? '14 Tage Rückgabe' : '14 Day Returns'}</p>
-                <p className="text-xs text-neutral-500">{lang === 'de' ? 'Ohne Angabe von Gründen' : 'No questions asked'}</p>
+                <div className="text-sm text-secondary-500 mb-1">{lang === 'de' ? 'Standort' : 'Location'}</div>
+                <span className="text-white font-medium">{brandConfig.company.address.city}, {brandConfig.company.address.country}</span>
               </div>
-            </div>
-
-          </div>
-        </div>
-      </div>
-
-      {/* Bottom */}
-      <div className="border-t border-neutral-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-sm text-neutral-500">
-              © {currentYear} {brandConfig.fulfillmentCompany?.name || 'MUTIMBAUCH Vertriebs GmbH'}. {lang === 'de' ? 'Alle Rechte vorbehalten.' : 'All rights reserved.'}
-            </p>
-            <div className="flex items-center gap-6 text-sm text-neutral-500">
-              <span>USt-IdNr: {brandConfig.fulfillmentCompany?.vatId || 'DE123456789'}</span>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Trust Badges */}
+      <div className="bg-secondary-900 py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-wrap justify-center gap-8">
+            {[
+              { icon: Shield, text: lang === 'de' ? '2 Jahre Garantie' : '2 Year Warranty' },
+              { icon: Truck, text: lang === 'de' ? 'Schnelle Lieferung' : 'Fast Delivery' },
+              { icon: Headphones, text: lang === 'de' ? 'Premium Support' : 'Premium Support' },
+              { icon: Award, text: lang === 'de' ? 'Zertifizierte Qualität' : 'Certified Quality' },
+            ].map((item, index) => (
+              <div key={index} className="flex items-center gap-2 text-secondary-500 text-sm">
+                <item.icon className="w-4 h-4 text-primary-400" />
+                <span>{item.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Bar */}
+      <div className="bg-secondary-950 py-5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-secondary-500">
+            <p>© {currentYear} CLYR. {lang === 'de' ? 'Alle Rechte vorbehalten.' : 'All rights reserved.'}</p>
+            <div className="flex items-center gap-6">
+              <Link to="/privacy" className="hover:text-primary-400 transition-colors">
+                {lang === 'de' ? 'Datenschutz' : 'Privacy'}
+              </Link>
+              <Link to="/terms" className="hover:text-primary-400 transition-colors">
+                {lang === 'de' ? 'AGB' : 'Terms'}
+              </Link>
+              <Link to="/imprint" className="hover:text-primary-400 transition-colors">
+                {lang === 'de' ? 'Impressum' : 'Imprint'}
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
     </footer>
   );
 };

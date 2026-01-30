@@ -12,37 +12,37 @@ const StatCard = ({
   color = 'primary',
   index = 0 
 }) => {
-  // All colors now use teal-based theme for consistency
+  // Charcoal icon backgrounds with teal icons
   const colors = {
     primary: {
-      bg: 'bg-teal-100',
-      icon: 'text-teal-600',
-      trend: 'text-teal-600'
+      bg: 'bg-secondary-700',
+      icon: 'text-primary-400',
+      trend: 'text-secondary-600'
     },
     teal: {
-      bg: 'bg-teal-100',
-      icon: 'text-teal-600',
-      trend: 'text-teal-600'
+      bg: 'bg-secondary-700',
+      icon: 'text-primary-400',
+      trend: 'text-secondary-600'
     },
     success: {
-      bg: 'bg-teal-100',
-      icon: 'text-teal-600',
-      trend: 'text-teal-600'
+      bg: 'bg-secondary-700',
+      icon: 'text-primary-400',
+      trend: 'text-green-600'
     },
     warning: {
-      bg: 'bg-teal-50',
-      icon: 'text-teal-500',
-      trend: 'text-teal-500'
+      bg: 'bg-secondary-700',
+      icon: 'text-primary-400',
+      trend: 'text-amber-600'
     },
     info: {
-      bg: 'bg-teal-100',
-      icon: 'text-teal-600',
-      trend: 'text-teal-600'
+      bg: 'bg-secondary-700',
+      icon: 'text-primary-400',
+      trend: 'text-secondary-600'
     },
     purple: {
-      bg: 'bg-teal-100',
-      icon: 'text-teal-600',
-      trend: 'text-teal-600'
+      bg: 'bg-secondary-700',
+      icon: 'text-primary-400',
+      trend: 'text-secondary-600'
     }
   };
 
@@ -53,7 +53,7 @@ const StatCard = ({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.1 }}
-      className="bg-white rounded-2xl border border-gray-100 p-6"
+      className="bg-white rounded-2xl border border-secondary-100 p-6"
     >
       <div className="flex items-start justify-between mb-4">
         <div className={cn('w-12 h-12 rounded-xl flex items-center justify-center', colorSet.bg)}>
@@ -63,7 +63,7 @@ const StatCard = ({
         {trend && trendValue && (
           <div className={cn(
             'flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold',
-            trend === 'up' ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-gray-600'
+            trend === 'up' ? 'bg-green-100 text-green-700' : 'bg-secondary-100 text-secondary-600'
           )}>
             {trend === 'up' ? (
               <TrendingUp className="w-3 h-3" />
@@ -75,14 +75,14 @@ const StatCard = ({
         )}
       </div>
 
-      <h3 className="text-3xl font-heading font-bold text-gray-900 mb-1">
+      <h3 className="text-3xl font-heading font-bold text-secondary-700 mb-1">
         {value}
       </h3>
       
-      <p className="text-sm text-gray-500">{title}</p>
+      <p className="text-sm text-secondary-500">{title}</p>
       
       {subtitle && (
-        <p className="text-xs text-gray-400 mt-1">{subtitle}</p>
+        <p className="text-xs text-secondary-400 mt-1">{subtitle}</p>
       )}
     </motion.div>
   );

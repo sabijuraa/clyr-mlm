@@ -13,18 +13,14 @@ import {
   Check,
   Star,
   ChevronRight,
-  Play,
   ShoppingBag,
-  ArrowUpRight,
-  Sparkles,
   Users,
-  TrendingUp,
-  Clock,
   GraduationCap,
-  Heart,
-  Briefcase,
+  Package,
   Zap,
-  RefreshCw
+  Clock,
+  Briefcase,
+  Heart
 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useCart } from '../../context/CartContext';
@@ -61,20 +57,16 @@ const HomePage = () => {
   return (
     <div className="min-h-screen bg-white">
       
-      {/* ====== HERO SECTION - CLYR Branding ====== */}
-      <section className="relative min-h-[90vh] flex items-center overflow-hidden">
-        {/* Gradient Background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-neutral-900 via-neutral-800 to-sky-900" />
-        
-        {/* Water Pattern Overlay */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-10 w-64 h-64 bg-sky-400 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute bottom-20 right-20 w-96 h-96 bg-sky-500 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-          <div className="absolute top-1/2 left-1/2 w-80 h-80 bg-sky-300 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+      {/* ====== HERO SECTION ====== */}
+      <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-secondary-700">
+        {/* Subtle Pattern Overlay */}
+        <div className="absolute inset-0 opacity-5">
+          <div className="absolute top-20 left-10 w-64 h-64 bg-primary-400 rounded-full blur-3xl" />
+          <div className="absolute bottom-20 right-20 w-96 h-96 bg-primary-300 rounded-full blur-3xl" />
         </div>
         
-        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
             
             {/* Left - Text Content */}
             <motion.div
@@ -83,108 +75,182 @@ const HomePage = () => {
               transition={{ duration: 0.6 }}
             >
               {/* Brand Badge */}
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-sky-500/20 backdrop-blur-sm rounded-full text-sky-300 text-sm font-medium mb-6 border border-sky-500/30">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full text-primary-300 text-sm font-medium mb-8 border border-white/20">
                 <Droplets className="w-4 h-4" />
                 <span>{lang === 'de' ? 'Premium Wassersysteme' : 'Premium Water Systems'}</span>
               </div>
               
               {/* Main Headline */}
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6">
+              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white leading-tight mb-8">
                 {lang === 'de' ? (
                   <>
-                    <span className="text-sky-400">Klares</span> Wasser.<br />
-                    <span className="text-sky-400">Klares</span> Leben.
+                    <span className="text-primary-400">Klares</span> Wasser.<br />
+                    <span className="text-primary-400">Klares</span> Leben.
                   </>
                 ) : (
                   <>
-                    <span className="text-sky-400">Clear</span> Water.<br />
-                    <span className="text-sky-400">Clear</span> Life.
+                    <span className="text-primary-400">Clear</span> Water.<br />
+                    <span className="text-primary-400">Clear</span> Life.
                   </>
                 )}
               </h1>
               
-              <p className="text-lg text-neutral-300 mb-8 max-w-lg leading-relaxed">
+              {/* Subheadline */}
+              <p className="text-xl text-gray-300 mb-10 max-w-xl leading-relaxed">
                 {lang === 'de' 
-                  ? 'CLYR verwandelt Ihr Leitungswasser in reinstes Trinkwasser. Sprudel auf Knopfdruck, ohne Plastikflaschen, direkt aus Ihrem Wasserhahn.'
-                  : 'CLYR transforms your tap water into purest drinking water. Sparkling water at the touch of a button, without plastic bottles, straight from your tap.'}
+                  ? 'Entdecken Sie die Zukunft des Trinkwassers. Premium Wassersysteme für Ihr Zuhause - direkt aus dem Wasserhahn.'
+                  : 'Discover the future of drinking water. Premium water systems for your home - straight from the tap.'}
               </p>
-
-              <div className="flex flex-wrap gap-4 mb-10">
+              
+              {/* CTA Buttons - Correct Routes */}
+              <div className="flex flex-wrap gap-4 mb-12">
                 <Link 
-                  to="/produkte"
-                  className="inline-flex items-center gap-2 px-6 py-3.5 bg-sky-500 text-white font-semibold rounded-full hover:bg-sky-400 transition-all shadow-lg shadow-sky-500/30"
+                  to="/products"
+                  className="group inline-flex items-center gap-3 px-8 py-4 bg-white text-secondary-700 font-semibold rounded-xl hover:bg-primary-400 hover:text-white transition-all shadow-lg hover:-translate-y-0.5"
                 >
-                  {lang === 'de' ? 'Produkte entdecken' : 'Discover Products'}
-                  <ArrowRight className="w-4 h-4" />
+                  <ShoppingBag className="w-5 h-5" />
+                  {lang === 'de' ? 'Produkte entdecken' : 'Shop Products'}
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
-                <button className="inline-flex items-center gap-2 px-6 py-3.5 border-2 border-white/30 text-white font-medium rounded-full hover:bg-white/10 transition-all backdrop-blur-sm">
-                  <Play className="w-4 h-4" />
-                  {lang === 'de' ? 'Video ansehen' : 'Watch Video'}
-                </button>
+                <Link 
+                  to="/partner/register"
+                  className="inline-flex items-center gap-3 px-8 py-4 bg-transparent text-white font-semibold rounded-xl border-2 border-white/30 hover:border-primary-400 hover:text-primary-400 transition-all"
+                >
+                  <Users className="w-5 h-5" />
+                  {lang === 'de' ? 'Partner werden' : 'Become Partner'}
+                </Link>
               </div>
 
-              {/* Trust Row */}
-              <div className="flex flex-wrap items-center gap-6 text-neutral-400 text-sm">
+              {/* Trust Indicators */}
+              <div className="flex flex-wrap gap-8 text-sm text-gray-400">
                 <div className="flex items-center gap-2">
-                  <Shield className="w-5 h-5 text-sky-400" />
-                  <span>TÜV Zertifiziert</span>
+                  <Shield className="w-5 h-5 text-primary-400" />
+                  <span>{lang === 'de' ? '2 Jahre Garantie' : '2 Year Warranty'}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Award className="w-5 h-5 text-sky-400" />
-                  <span>2 Jahre Garantie</span>
+                  <Truck className="w-5 h-5 text-primary-400" />
+                  <span>{lang === 'de' ? 'Schnelle Lieferung' : 'Fast Delivery'}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Truck className="w-5 h-5 text-sky-400" />
-                  <span>Schneller Versand</span>
+                  <Headphones className="w-5 h-5 text-primary-400" />
+                  <span>{lang === 'de' ? 'Premium Support' : 'Premium Support'}</span>
                 </div>
               </div>
             </motion.div>
-
-            {/* Right - Product Visual */}
+            
+            {/* Right - Product Hero Image */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="hidden lg:flex justify-center items-center relative"
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="relative flex justify-center items-center"
             >
-              {/* Glow Effect */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-80 h-80 bg-sky-500/30 rounded-full blur-3xl" />
+              <div className="relative">
+                {/* Glow Effect Behind Product */}
+                <div className="absolute inset-0 bg-primary-400/20 rounded-full blur-3xl transform scale-75" />
+                
+                {/* Product Image */}
+                <img 
+                  src="/images/products/complete-set.png" 
+                  alt="CLYR Water System" 
+                  className="relative w-full max-w-lg h-auto drop-shadow-2xl"
+                />
+                
+                {/* Floating Stat Card - Top Right */}
+                <div className="absolute -top-4 -right-4 bg-white rounded-2xl p-4 shadow-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-secondary-700 rounded-xl flex items-center justify-center">
+                      <Droplets className="w-6 h-6 text-primary-400" />
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-secondary-700">99.9%</div>
+                      <div className="text-sm text-secondary-500">{lang === 'de' ? 'Filtration' : 'Filtration'}</div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Floating Stat Card - Bottom Left */}
+                <div className="absolute -bottom-4 -left-4 bg-white rounded-2xl p-4 shadow-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-secondary-700 rounded-xl flex items-center justify-center">
+                      <Leaf className="w-6 h-6 text-primary-400" />
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-secondary-700">1000+</div>
+                      <div className="text-sm text-secondary-500">{lang === 'de' ? 'Flaschen gespart' : 'Bottles Saved'}</div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              
-              <img 
-                src="/images/products/tower-front.png" 
-                alt="CLYR Home Soda System"
-                className="relative max-h-[550px] w-auto drop-shadow-2xl"
-              />
             </motion.div>
           </div>
         </div>
       </section>
 
-      {/* ====== STATS BAR ====== */}
-      <section className="py-16 bg-neutral-50 border-b border-neutral-200">
+      {/* ====== WHY CLYR SECTION ====== */}
+      <section className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-4xl sm:text-5xl font-bold text-secondary-700 mb-6">
+              {lang === 'de' ? 'Warum CLYR?' : 'Why CLYR?'}
+            </h2>
+            <p className="text-xl text-secondary-500 max-w-3xl mx-auto">
+              {lang === 'de'
+                ? 'Premium Qualität trifft auf Innovation - für reines Wasser direkt aus Ihrem Wasserhahn'
+                : 'Premium quality meets innovation - for pure water straight from your tap'}
+            </p>
+          </motion.div>
+
+          {/* Feature Cards */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { icon: Droplets, value: '99,9%', label: lang === 'de' ? 'Schadstoff-Entfernung' : 'Contaminant Removal' },
-              { icon: Leaf, value: '1.000+', label: lang === 'de' ? 'Flaschen gespart/Jahr' : 'Bottles Saved/Year' },
-              { icon: Star, value: '4.9/5', label: lang === 'de' ? 'Kundenbewertung' : 'Customer Rating' },
-              { icon: RefreshCw, value: '12 Mon.', label: lang === 'de' ? 'Filter-Abo' : 'Filter Subscription' },
-            ].map((item, i) => (
-              <motion.div 
-                key={i} 
+              {
+                icon: Droplets,
+                title: lang === 'de' ? 'Kristallklares Wasser' : 'Crystal Clear Water',
+                description: lang === 'de' 
+                  ? '99.9% Filtration für reinstes Trinkwasser'
+                  : '99.9% filtration for purest drinking water',
+              },
+              {
+                icon: Leaf,
+                title: lang === 'de' ? 'Umweltfreundlich' : 'Eco-Friendly',
+                description: lang === 'de'
+                  ? 'Keine Plastikflaschen mehr - gut für die Umwelt'
+                  : 'No more plastic bottles - good for the environment',
+              },
+              {
+                icon: Zap,
+                title: lang === 'de' ? 'Sofort verfügbar' : 'Instant Access',
+                description: lang === 'de'
+                  ? 'Gekühltes, gefiltertes Wasser auf Knopfdruck'
+                  : 'Chilled, filtered water at the touch of a button',
+              },
+              {
+                icon: Shield,
+                title: lang === 'de' ? 'Deutsche Qualität' : 'German Quality',
+                description: lang === 'de'
+                  ? 'Höchste Standards in Design und Verarbeitung'
+                  : 'Highest standards in design and workmanship',
+              },
+            ].map((feature, index) => (
+              <motion.div
+                key={index}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="text-center"
+                transition={{ delay: index * 0.1 }}
+                className="bg-secondary-700 rounded-2xl p-8 hover:bg-secondary-800 transition-all hover:-translate-y-1"
               >
-                <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-sky-100 flex items-center justify-center">
-                  <item.icon className="w-7 h-7 text-sky-600" />
+                <div className="w-14 h-14 bg-secondary-600 rounded-xl flex items-center justify-center mb-6">
+                  <feature.icon className="w-7 h-7 text-primary-400" />
                 </div>
-                <div className="text-3xl font-bold text-neutral-900 mb-1">{item.value}</div>
-                <div className="text-sm text-neutral-500">{item.label}</div>
+                <h3 className="text-xl font-semibold text-white mb-3">{feature.title}</h3>
+                <p className="text-gray-400 leading-relaxed">{feature.description}</p>
               </motion.div>
             ))}
           </div>
@@ -192,81 +258,68 @@ const HomePage = () => {
       </section>
 
       {/* ====== PRODUCTS SECTION ====== */}
-      <section className="py-20 bg-white">
+      <section className="py-24 bg-slate-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          
-          {/* Header */}
-          <div className="flex items-end justify-between mb-12">
+          <div className="flex justify-between items-end mb-12">
             <div>
-              <span className="text-sky-600 font-semibold text-sm uppercase tracking-wider">
+              <h2 className="text-4xl sm:text-5xl font-bold text-secondary-700 mb-4">
                 {lang === 'de' ? 'Unsere Produkte' : 'Our Products'}
-              </span>
-              <h2 className="text-3xl lg:text-4xl font-bold text-neutral-900 mt-2">
-                {lang === 'de' ? 'Premium Wassersysteme' : 'Premium Water Systems'}
               </h2>
+              <p className="text-lg text-secondary-500">
+                {lang === 'de' ? 'Premium Wassersysteme für Ihr Zuhause' : 'Premium water systems for your home'}
+              </p>
             </div>
-            <Link 
-              to="/produkte"
-              className="hidden md:inline-flex items-center gap-2 text-sky-600 hover:text-sky-700 font-medium"
+            <Link
+              to="/products"
+              className="hidden sm:inline-flex items-center gap-2 px-6 py-3 bg-secondary-700 text-white font-semibold rounded-xl hover:bg-secondary-800 transition-colors"
             >
               {lang === 'de' ? 'Alle Produkte' : 'All Products'}
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-5 h-5" />
             </Link>
           </div>
 
-          {/* Products Grid */}
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} className="bg-neutral-100 rounded-2xl h-80 animate-pulse" />
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="bg-white rounded-2xl h-96 animate-pulse" />
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {featuredProducts.map((product, i) => (
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {featuredProducts.slice(0, 4).map((product, index) => (
                 <motion.div
                   key={product.id}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
+                  transition={{ delay: index * 0.1 }}
                 >
-                  <Link 
-                    to={`/produkt/${product.slug}`}
-                    className="group block bg-neutral-50 rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 border border-neutral-100"
+                  <Link
+                    to={`/products/${product.id}`}
+                    className="group block bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all hover:-translate-y-1 border border-gray-100"
                   >
-                    <div className="aspect-square bg-gradient-to-br from-neutral-100 to-neutral-200 relative overflow-hidden">
-                      {product.image_url && (
-                        <img 
-                          src={product.image_url} 
-                          alt={product.name}
-                          className="w-full h-full object-contain p-6 group-hover:scale-105 transition-transform duration-300"
-                        />
-                      )}
-                      {product.is_featured && (
-                        <span className="absolute top-3 left-3 px-2 py-1 bg-sky-500 text-white text-xs font-semibold rounded-full">
-                          {lang === 'de' ? 'Bestseller' : 'Bestseller'}
-                        </span>
-                      )}
+                    <div className="aspect-square bg-gradient-to-br from-slate-50 to-slate-100 p-6 flex items-center justify-center">
+                      <img
+                        src={product.image_url || '/images/products/complete-set.png'}
+                        alt={product.name}
+                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                      />
                     </div>
-                    <div className="p-5">
-                      <h3 className="font-semibold text-neutral-900 mb-1 group-hover:text-sky-600 transition-colors">
+                    <div className="p-6">
+                      <h3 className="font-semibold text-secondary-700 mb-2 text-lg group-hover:text-primary-500 transition-colors">
                         {product.name}
                       </h3>
-                      <p className="text-sm text-neutral-500 mb-3 line-clamp-2">
-                        {product.short_description}
-                      </p>
                       <div className="flex items-center justify-between">
-                        <span className="text-lg font-bold text-neutral-900">
-                          {formatCurrency(product.price_net)}
-                        </span>
+                        <div className="text-2xl font-bold text-secondary-700">
+                          {formatCurrency(product.price_gross || product.price)}
+                        </div>
                         <button
                           onClick={(e) => handleAddToCart(e, product)}
                           disabled={isInCart(product.id)}
-                          className={`p-2 rounded-full transition-all ${
+                          className={`p-3 rounded-xl transition-all ${
                             isInCart(product.id)
                               ? 'bg-green-100 text-green-600'
-                              : 'bg-sky-100 text-sky-600 hover:bg-sky-200'
+                              : 'bg-secondary-700 text-white hover:bg-primary-500'
                           }`}
                         >
                           {isInCart(product.id) ? (
@@ -283,259 +336,182 @@ const HomePage = () => {
             </div>
           )}
 
-          <Link 
-            to="/produkte"
-            className="md:hidden mt-8 w-full flex items-center justify-center gap-2 py-3 border border-sky-200 text-sky-600 rounded-full hover:bg-sky-50 transition-all font-medium"
-          >
-            {lang === 'de' ? 'Alle Produkte ansehen' : 'View All Products'}
-            <ArrowRight className="w-4 h-4" />
-          </Link>
+          <div className="text-center mt-10 sm:hidden">
+            <Link
+              to="/products"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-secondary-700 text-white font-semibold rounded-xl"
+            >
+              {lang === 'de' ? 'Alle Produkte ansehen' : 'View All Products'}
+              <ChevronRight className="w-5 h-5" />
+            </Link>
+          </div>
         </div>
       </section>
 
-      {/* ====== FEATURES SECTION ====== */}
-      <section className="py-20 bg-neutral-900">
+      {/* ====== PARTNER CTA SECTION - NO COMMISSION RATES ====== */}
+      <section className="py-24 bg-secondary-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <span className="text-sky-400 font-semibold text-sm uppercase tracking-wider">
-              {lang === 'de' ? 'Warum CLYR?' : 'Why CLYR?'}
-            </span>
-            <h2 className="text-3xl lg:text-4xl font-bold text-white mt-2">
-              {lang === 'de' ? 'Vorteile auf einen Blick' : 'Benefits at a Glance'}
-            </h2>
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+            >
+              <h2 className="text-4xl sm:text-5xl font-bold text-white mb-6">
+                {lang === 'de' ? 'Werden Sie CLYR Partner' : 'Become a CLYR Partner'}
+              </h2>
+              <p className="text-xl text-gray-300 mb-10 leading-relaxed">
+                {lang === 'de'
+                  ? 'Starten Sie Ihr eigenes Geschäft mit CLYR. Profitieren Sie von attraktiven Vorteilen und einem bewährten Geschäftsmodell.'
+                  : 'Start your own business with CLYR. Benefit from attractive advantages and a proven business model.'}
+              </p>
+              
+              {/* Benefits Grid - NO COMMISSION RATES */}
+              <div className="grid sm:grid-cols-2 gap-4 mb-10">
+                {[
+                  { icon: Briefcase, text: lang === 'de' ? 'Eigenes Business aufbauen' : 'Build Your Own Business' },
+                  { icon: Users, text: lang === 'de' ? 'Team aufbauen' : 'Build Your Team' },
+                  { icon: GraduationCap, text: lang === 'de' ? 'CLYR Academy Schulungen' : 'CLYR Academy Training' },
+                  { icon: Package, text: lang === 'de' ? 'Premium Produkte' : 'Premium Products' },
+                  { icon: Clock, text: lang === 'de' ? 'Flexible Arbeitszeiten' : 'Flexible Working Hours' },
+                  { icon: Heart, text: lang === 'de' ? 'Persönlicher Support' : 'Personal Support' },
+                ].map((item, index) => (
+                  <div key={index} className="flex items-center gap-4 bg-secondary-600 rounded-xl p-4">
+                    <div className="w-12 h-12 bg-secondary-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <item.icon className="w-6 h-6 text-primary-400" />
+                    </div>
+                    <span className="font-medium text-white">{item.text}</span>
+                  </div>
+                ))}
+              </div>
+              
+              <Link
+                to="/partner/register"
+                className="inline-flex items-center gap-3 px-8 py-4 bg-white text-secondary-700 font-semibold rounded-xl hover:bg-primary-400 hover:text-white transition-all shadow-lg"
+              >
+                {lang === 'de' ? 'Jetzt Partner werden' : 'Become Partner Now'}
+                <ArrowRight className="w-5 h-5" />
+              </Link>
+            </motion.div>
+            
+            {/* Right Side - Benefits Card (NO COMMISSION RATES) */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+            >
+              <div className="bg-white rounded-3xl p-8 shadow-2xl">
+                <div className="text-center mb-8 pb-8 border-b border-gray-100">
+                  <div className="w-20 h-20 bg-secondary-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <Users className="w-10 h-10 text-primary-400" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-secondary-700">
+                    {lang === 'de' ? 'Ihre Karriere bei CLYR' : 'Your Career at CLYR'}
+                  </h3>
+                  <p className="text-secondary-500 mt-2">
+                    {lang === 'de' ? '6 Karrierestufen warten auf Sie' : '6 career levels await you'}
+                  </p>
+                </div>
+                <div className="space-y-4">
+                  {[
+                    { icon: Star, title: lang === 'de' ? 'Attraktive Vergütung' : 'Attractive Compensation', desc: lang === 'de' ? 'Leistungsbasierte Provisionen' : 'Performance-based rewards' },
+                    { icon: GraduationCap, title: lang === 'de' ? 'Umfassende Schulung' : 'Comprehensive Training', desc: lang === 'de' ? 'CLYR Academy für Ihren Erfolg' : 'CLYR Academy for your success' },
+                    { icon: Shield, title: lang === 'de' ? 'Premium Marke' : 'Premium Brand', desc: lang === 'de' ? 'Hochwertige Produkte verkaufen' : 'Sell high-quality products' },
+                    { icon: Heart, title: lang === 'de' ? 'Starke Community' : 'Strong Community', desc: lang === 'de' ? 'Teil eines wachsenden Teams' : 'Part of a growing team' },
+                  ].map((item, index) => (
+                    <div 
+                      key={index} 
+                      className="flex items-start gap-4 p-4 bg-slate-50 rounded-xl hover:bg-secondary-700 transition-colors group"
+                    >
+                      <div className="w-10 h-10 bg-secondary-700 group-hover:bg-secondary-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <item.icon className="w-5 h-5 text-primary-400" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-secondary-700 group-hover:text-white transition-colors">{item.title}</h4>
+                        <p className="text-sm text-secondary-500 group-hover:text-gray-300 transition-colors">{item.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
           </div>
+        </div>
+      </section>
 
-          <div className="grid md:grid-cols-3 gap-8">
+      {/* ====== CONTACT SECTION ====== */}
+      <section className="py-24 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-12"
+          >
+            <h2 className="text-4xl sm:text-5xl font-bold text-secondary-700 mb-4">
+              {lang === 'de' ? 'Kontakt' : 'Contact Us'}
+            </h2>
+            <p className="text-lg text-secondary-500">
+              {lang === 'de' ? 'Wir sind für Sie da' : 'We are here for you'}
+            </p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-3 gap-6">
             {[
               {
-                icon: Droplets,
-                title: lang === 'de' ? 'Reinste Wasserqualität' : 'Purest Water Quality',
-                desc: lang === 'de' 
-                  ? 'Unser mehrstufiges Filtersystem entfernt 99,9% aller Schadstoffe und Verunreinigungen aus Ihrem Leitungswasser.'
-                  : 'Our multi-stage filtration system removes 99.9% of all contaminants and impurities from your tap water.'
+                icon: Phone,
+                title: lang === 'de' ? 'Telefon' : 'Phone',
+                value: brandConfig.company.phone,
+                link: `tel:${brandConfig.company.phone}`,
               },
               {
-                icon: Zap,
-                title: lang === 'de' ? 'Sprudel auf Knopfdruck' : 'Sparkling at the Touch',
-                desc: lang === 'de'
-                  ? 'Still, medium oder sprudelig – wählen Sie Ihre bevorzugte Kohlensäure-Stärke direkt am Gerät.'
-                  : 'Still, medium or sparkling – choose your preferred carbonation level directly on the device.'
+                icon: Mail,
+                title: 'E-Mail',
+                value: brandConfig.company.email,
+                link: `mailto:${brandConfig.company.email}`,
               },
               {
-                icon: Leaf,
-                title: lang === 'de' ? 'Nachhaltig & Umweltfreundlich' : 'Sustainable & Eco-Friendly',
-                desc: lang === 'de'
-                  ? 'Sparen Sie über 1.000 Plastikflaschen pro Jahr und reduzieren Sie Ihren CO2-Fußabdruck erheblich.'
-                  : 'Save over 1,000 plastic bottles per year and significantly reduce your carbon footprint.'
-              }
-            ].map((feature, i) => (
-              <motion.div
-                key={i}
+                icon: MapPin,
+                title: lang === 'de' ? 'Adresse' : 'Address',
+                value: `${brandConfig.company.address.city}, ${brandConfig.company.address.country}`,
+                link: '#',
+              },
+            ].map((contact, index) => (
+              <motion.a
+                key={index}
+                href={contact.link}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.15 }}
-                className="bg-neutral-800/50 backdrop-blur-sm rounded-2xl p-8 border border-neutral-700"
+                transition={{ delay: index * 0.1 }}
+                className="flex flex-col items-center p-8 bg-secondary-700 rounded-2xl hover:bg-secondary-800 transition-all hover:-translate-y-1"
               >
-                <div className="w-14 h-14 rounded-2xl bg-sky-500/20 flex items-center justify-center mb-6">
-                  <feature.icon className="w-7 h-7 text-sky-400" />
+                <div className="w-16 h-16 bg-secondary-600 rounded-xl flex items-center justify-center mb-4">
+                  <contact.icon className="w-8 h-8 text-primary-400" />
                 </div>
-                <h3 className="text-xl font-semibold text-white mb-3">{feature.title}</h3>
-                <p className="text-neutral-400 leading-relaxed">{feature.desc}</p>
-              </motion.div>
+                <h3 className="font-semibold text-white mb-2 text-lg">{contact.title}</h3>
+                <p className="text-gray-400 text-center">{contact.value}</p>
+              </motion.a>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ====== PARTNER CTA SECTION ====== */}
-      <section className="py-24 bg-gradient-to-br from-sky-600 via-sky-500 to-sky-700 relative overflow-hidden">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 left-0 w-full h-full" 
-            style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '40px 40px' }} 
-          />
-        </div>
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            
-            {/* Left - Text */}
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-            >
-              <span className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full text-white text-sm font-medium mb-6">
-                <Sparkles className="w-4 h-4" />
-                <span>{lang === 'de' ? 'Karriere-Möglichkeit' : 'Career Opportunity'}</span>
-              </span>
-              
-              <h2 className="text-3xl lg:text-4xl font-bold text-white mb-6">
-                {lang === 'de' 
-                  ? 'Werde CLYR Partner' 
-                  : 'Become a CLYR Partner'}
-              </h2>
-              
-              <p className="text-sky-100 mb-8 leading-relaxed text-lg">
-                {lang === 'de'
-                  ? 'Sie sind begeistert von unseren Produkten? Teilen Sie diese Begeisterung und bauen Sie sich ein eigenes Geschäft auf. Wir unterstützen Sie mit Schulungen, Marketing-Material und persönlicher Betreuung.'
-                  : 'Passionate about our products? Share that enthusiasm and build your own business. We support you with training, marketing materials, and personal guidance.'}
-              </p>
-
-              <Link 
-                to="/partner-werden"
-                className="inline-flex items-center gap-2 px-8 py-4 bg-white text-sky-600 font-semibold rounded-full hover:bg-sky-50 transition-all shadow-lg"
-              >
-                {lang === 'de' ? 'Jetzt Partner werden' : 'Become a Partner'}
-                <ArrowUpRight className="w-5 h-5" />
-              </Link>
-            </motion.div>
-
-            {/* Right - Benefits Grid */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2 }}
-            >
-              <div className="grid grid-cols-2 gap-4">
-                {[
-                  { 
-                    icon: Clock, 
-                    title: lang === 'de' ? 'Flexible Arbeitszeiten' : 'Flexible Hours',
-                    desc: lang === 'de' ? 'Arbeiten Sie wann und wo Sie wollen' : 'Work when and where you want'
-                  },
-                  { 
-                    icon: TrendingUp, 
-                    title: lang === 'de' ? 'Attraktives Einkommen' : 'Attractive Income',
-                    desc: lang === 'de' ? 'Bis zu 36% Provision' : 'Up to 36% commission'
-                  },
-                  { 
-                    icon: GraduationCap, 
-                    title: lang === 'de' ? 'Kostenlose Schulungen' : 'Free Training',
-                    desc: lang === 'de' ? 'CLYR Academy Zugang' : 'CLYR Academy access'
-                  },
-                  { 
-                    icon: Users, 
-                    title: lang === 'de' ? 'Starkes Team' : 'Strong Team',
-                    desc: lang === 'de' ? 'Teil einer wachsenden Community' : 'Part of a growing community'
-                  },
-                  { 
-                    icon: Heart, 
-                    title: lang === 'de' ? 'Premium Produkte' : 'Premium Products',
-                    desc: lang === 'de' ? 'Produkte die begeistern' : 'Products that inspire'
-                  },
-                  { 
-                    icon: Briefcase, 
-                    title: lang === 'de' ? 'Eigenes Business' : 'Your Own Business',
-                    desc: lang === 'de' ? 'Seien Sie Ihr eigener Chef' : 'Be your own boss'
-                  },
-                ].map((item, i) => (
-                  <motion.div 
-                    key={i}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: 0.1 * i }}
-                    className="bg-white/10 backdrop-blur-sm rounded-2xl p-5 hover:bg-white/15 transition-all border border-white/20"
-                  >
-                    <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center mb-3">
-                      <item.icon className="w-5 h-5 text-white" />
-                    </div>
-                    <h3 className="font-semibold text-white mb-1">{item.title}</h3>
-                    <p className="text-sm text-sky-100">{item.desc}</p>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-          </div>
-
-          {/* Bottom Stats */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.4 }}
-            className="mt-16 pt-12 border-t border-white/20"
-          >
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-              {[
-                { value: '500+', label: lang === 'de' ? 'Aktive Partner' : 'Active Partners' },
-                { value: '6', label: lang === 'de' ? 'Karrierestufen' : 'Career Levels' },
-                { value: '€50', label: lang === 'de' ? 'Min. Auszahlung' : 'Min. Payout' },
-                { value: '100%', label: lang === 'de' ? 'Weiterempfehlung' : 'Recommendation' },
-              ].map((stat, i) => (
-                <div key={i} className="text-center">
-                  <div className="text-3xl lg:text-4xl font-bold text-white mb-1">{stat.value}</div>
-                  <div className="text-sm text-sky-200">{stat.label}</div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ====== CONTACT SECTION ====== */}
-      <section id="contact" className="py-20 bg-white">
+      {/* ====== TRUST BAR ====== */}
+      <section className="py-12 bg-slate-50 border-t border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <span className="text-sky-600 font-semibold text-sm uppercase tracking-wider">
-              {lang === 'de' ? 'Kontakt' : 'Contact'}
-            </span>
-            <h2 className="text-3xl lg:text-4xl font-bold text-neutral-900 mt-2">
-              {lang === 'de' ? 'Wir sind für Sie da' : 'We are here for you'}
-            </h2>
-          </div>
-          
-          <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            <div className="text-center p-6 bg-neutral-50 rounded-2xl border border-neutral-100">
-              <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-sky-100 flex items-center justify-center">
-                <Phone className="w-7 h-7 text-sky-600" />
-              </div>
-              <h3 className="font-semibold text-neutral-900 mb-2">{lang === 'de' ? 'Telefon' : 'Phone'}</h3>
-              <a href={`tel:${brandConfig.company.phone}`} className="text-sky-600 hover:text-sky-700">
-                {brandConfig.company.phone}
-              </a>
-            </div>
-            <div className="text-center p-6 bg-neutral-50 rounded-2xl border border-neutral-100">
-              <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-sky-100 flex items-center justify-center">
-                <Mail className="w-7 h-7 text-sky-600" />
-              </div>
-              <h3 className="font-semibold text-neutral-900 mb-2">{lang === 'de' ? 'E-Mail' : 'Email'}</h3>
-              <a href={`mailto:${brandConfig.company.email}`} className="text-sky-600 hover:text-sky-700">
-                {brandConfig.company.email}
-              </a>
-            </div>
-            <div className="text-center p-6 bg-neutral-50 rounded-2xl border border-neutral-100">
-              <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-sky-100 flex items-center justify-center">
-                <MapPin className="w-7 h-7 text-sky-600" />
-              </div>
-              <h3 className="font-semibold text-neutral-900 mb-2">{lang === 'de' ? 'Adresse' : 'Address'}</h3>
-              <p className="text-neutral-600 text-sm">Wien, Österreich</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ====== TRUST FOOTER ====== */}
-      <section className="py-16 bg-neutral-50 border-t border-neutral-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="flex flex-wrap justify-center gap-12 items-center">
             {[
-              { icon: Truck, title: lang === 'de' ? 'Schneller Versand' : 'Fast Shipping', desc: lang === 'de' ? '3-7 Werktage' : '3-7 business days' },
-              { icon: Shield, title: lang === 'de' ? '14 Tage Rückgabe' : '14 Day Returns', desc: lang === 'de' ? 'Ohne Risiko testen' : 'Risk-free trial' },
-              { icon: Award, title: lang === 'de' ? '2 Jahre Garantie' : '2 Year Warranty', desc: lang === 'de' ? 'Voller Schutz' : 'Full coverage' },
-              { icon: Headphones, title: lang === 'de' ? 'Premium Support' : 'Premium Support', desc: lang === 'de' ? 'Persönliche Beratung' : 'Personal consultation' },
-            ].map((item, i) => (
-              <div key={i} className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-sky-100 flex items-center justify-center flex-shrink-0">
-                  <item.icon className="w-6 h-6 text-sky-600" />
+              { icon: Shield, text: lang === 'de' ? '2 Jahre Garantie' : '2 Year Warranty' },
+              { icon: Truck, text: lang === 'de' ? 'Schnelle Lieferung' : 'Fast Delivery' },
+              { icon: Headphones, text: lang === 'de' ? 'Premium Support' : 'Premium Support' },
+              { icon: Award, text: lang === 'de' ? 'Zertifizierte Qualität' : 'Certified Quality' },
+            ].map((item, index) => (
+              <div key={index} className="flex items-center gap-3 text-secondary-700">
+                <div className="w-10 h-10 bg-secondary-700 rounded-lg flex items-center justify-center">
+                  <item.icon className="w-5 h-5 text-primary-400" />
                 </div>
-                <div>
-                  <div className="font-semibold text-neutral-900 text-sm">{item.title}</div>
-                  <div className="text-xs text-neutral-500">{item.desc}</div>
-                </div>
+                <span className="font-medium">{item.text}</span>
               </div>
             ))}
           </div>

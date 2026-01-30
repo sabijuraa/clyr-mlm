@@ -97,10 +97,10 @@ const AdminProductsPage = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-heading font-bold text-gray-900">
+          <h1 className="text-2xl font-heading font-bold text-secondary-700">
             Produkte verwalten
           </h1>
-          <p className="text-gray-600">Alle Produkte im Shop</p>
+          <p className="text-secondary-500">Alle Produkte im Shop</p>
         </div>
         <Button icon={Plus} onClick={() => setShowCreateModal(true)}>
           Neues Produkt
@@ -111,34 +111,34 @@ const AdminProductsPage = () => {
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl border border-gray-100 p-6">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-teal-100 flex items-center justify-center">
-              <Package className="w-6 h-6 text-teal-600" />
+            <div className="w-12 h-12 rounded-xl bg-secondary-100 flex items-center justify-center">
+              <Package className="w-6 h-6 text-primary-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">{totalProducts}</p>
-              <p className="text-sm text-gray-500">Produkte gesamt</p>
+              <p className="text-2xl font-bold text-secondary-700">{totalProducts}</p>
+              <p className="text-sm text-secondary-500">Produkte gesamt</p>
             </div>
           </div>
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 p-6">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-teal-100 flex items-center justify-center">
-              <CheckCircle className="w-6 h-6 text-teal-600" />
+            <div className="w-12 h-12 rounded-xl bg-secondary-100 flex items-center justify-center">
+              <CheckCircle className="w-6 h-6 text-primary-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">{activeProducts}</p>
-              <p className="text-sm text-gray-500">Aktiv</p>
+              <p className="text-2xl font-bold text-secondary-700">{activeProducts}</p>
+              <p className="text-sm text-secondary-500">Aktiv</p>
             </div>
           </div>
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 p-6">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-teal-100 flex items-center justify-center">
-              <Layers className="w-6 h-6 text-teal-600" />
+            <div className="w-12 h-12 rounded-xl bg-secondary-100 flex items-center justify-center">
+              <Layers className="w-6 h-6 text-primary-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">{lowStockProducts}</p>
-              <p className="text-sm text-gray-500">Niedriger Bestand</p>
+              <p className="text-2xl font-bold text-secondary-700">{lowStockProducts}</p>
+              <p className="text-sm text-secondary-500">Niedriger Bestand</p>
             </div>
           </div>
         </div>
@@ -159,7 +159,7 @@ const AdminProductsPage = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl
-                focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:border-transparent"
             />
           </div>
           <div className="flex gap-2">
@@ -167,8 +167,8 @@ const AdminProductsPage = () => {
               onClick={() => setCategoryFilter('all')}
               className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
                 categoryFilter === 'all'
-                  ? 'bg-teal-100 text-teal-700'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-secondary-100 text-secondary-700'
+                  : 'bg-gray-100 text-secondary-500 hover:bg-gray-200'
               }`}
             >
               Alle
@@ -179,8 +179,8 @@ const AdminProductsPage = () => {
                 onClick={() => setCategoryFilter(cat)}
                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
                   categoryFilter === cat
-                    ? 'bg-teal-100 text-teal-700'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-secondary-100 text-secondary-700'
+                    : 'bg-gray-100 text-secondary-500 hover:bg-gray-200'
                 }`}
               >
                 {cat}
@@ -216,7 +216,7 @@ const AdminProductsPage = () => {
               {/* Badges */}
               <div className="absolute top-3 left-3 flex flex-col gap-2">
                 {product.isNew && (
-                  <span className="px-2 py-1 bg-teal-600 text-white text-xs font-bold rounded-lg">
+                  <span className="px-2 py-1 bg-secondary-700 text-white text-xs font-bold rounded-lg">
                     NEU
                   </span>
                 )}
@@ -231,15 +231,15 @@ const AdminProductsPage = () => {
               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 
                 flex items-center justify-center gap-2 transition-opacity">
                 <button 
-                  className="p-2 bg-white rounded-lg text-gray-700 hover:bg-teal-50 hover:text-teal-600 transition-colors"
+                  className="p-2 bg-white rounded-lg text-secondary-700 hover:bg-slate-50 hover:text-primary-400 transition-colors"
                   onClick={() => setEditingProduct(product)}
                 >
                   <Edit className="w-5 h-5" />
                 </button>
-                <button className="p-2 bg-white rounded-lg text-gray-700 hover:bg-teal-50 hover:text-teal-600 transition-colors">
+                <button className="p-2 bg-white rounded-lg text-secondary-700 hover:bg-slate-50 hover:text-primary-400 transition-colors">
                   <Eye className="w-5 h-5" />
                 </button>
-                <button className="p-2 bg-white rounded-lg text-gray-700 hover:bg-gray-100 transition-colors">
+                <button className="p-2 bg-white rounded-lg text-secondary-700 hover:bg-gray-100 transition-colors">
                   <Trash2 className="w-5 h-5" />
                 </button>
               </div>
@@ -248,15 +248,15 @@ const AdminProductsPage = () => {
             {/* Content */}
             <div className="p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-teal-600 uppercase">{product.category}</span>
-                <span className={`w-2 h-2 rounded-full ${product.status === 'active' ? 'bg-teal-500' : 'bg-gray-300'}`} />
+                <span className="text-xs font-medium text-primary-400 uppercase">{product.category}</span>
+                <span className={`w-2 h-2 rounded-full ${product.status === 'active' ? 'bg-slate-500' : 'bg-gray-300'}`} />
               </div>
               
-              <h3 className="font-semibold text-gray-900 mb-2 line-clamp-1">{product.name}</h3>
+              <h3 className="font-semibold text-secondary-700 mb-2 line-clamp-1">{product.name}</h3>
               
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-lg font-bold text-gray-900">{formatCurrency(product.price)}</span>
+                  <span className="text-lg font-bold text-secondary-700">{formatCurrency(product.price)}</span>
                   {product.originalPrice && (
                     <span className="text-sm text-gray-400 line-through ml-2">
                       {formatCurrency(product.originalPrice)}
@@ -264,7 +264,7 @@ const AdminProductsPage = () => {
                   )}
                 </div>
                 <div className="text-right">
-                  <p className={`text-sm font-medium ${product.stock < 10 ? 'text-gray-500' : 'text-gray-600'}`}>
+                  <p className={`text-sm font-medium ${product.stock < 10 ? 'text-secondary-500' : 'text-secondary-500'}`}>
                     {product.stock} auf Lager
                   </p>
                 </div>
@@ -284,11 +284,11 @@ const AdminProductsPage = () => {
         <form className="space-y-6">
           {/* Image Upload */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Produktbild</label>
+            <label className="block text-sm font-medium text-secondary-700 mb-2">Produktbild</label>
             <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center 
-              hover:border-teal-400 hover:bg-teal-50 transition-colors cursor-pointer">
+              hover:border-secondary-400 hover:bg-slate-50 transition-colors cursor-pointer">
               <Upload className="w-10 h-10 mx-auto text-gray-400 mb-2" />
-              <p className="text-gray-600">Klicken oder Bild hierher ziehen</p>
+              <p className="text-secondary-500">Klicken oder Bild hierher ziehen</p>
               <p className="text-sm text-gray-400">PNG, JPG bis 5MB</p>
             </div>
           </div>
@@ -301,10 +301,10 @@ const AdminProductsPage = () => {
               icon={Tag}
             />
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Kategorie</label>
+              <label className="block text-sm font-medium text-secondary-700 mb-2">Kategorie</label>
               <select 
                 className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl
-                  focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                  focus:outline-none focus:border-secondary-500 focus:ring-2 focus:ring-secondary-100"
                 defaultValue={editingProduct?.category}
               >
                 {categories.map(cat => (
@@ -339,11 +339,11 @@ const AdminProductsPage = () => {
           />
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Beschreibung</label>
+            <label className="block text-sm font-medium text-secondary-700 mb-2">Beschreibung</label>
             <textarea
               rows={4}
               className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl
-                focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 resize-none"
+                focus:outline-none focus:border-secondary-500 focus:ring-2 focus:ring-secondary-100 resize-none"
               placeholder="Produktbeschreibung..."
             />
           </div>
@@ -353,17 +353,17 @@ const AdminProductsPage = () => {
               <input 
                 type="checkbox" 
                 defaultChecked={editingProduct?.status === 'active'}
-                className="w-5 h-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                className="w-5 h-5 rounded border-gray-300 text-primary-400 focus:ring-secondary-500"
               />
-              <span className="text-gray-700">Aktiv</span>
+              <span className="text-secondary-700">Aktiv</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input 
                 type="checkbox" 
                 defaultChecked={editingProduct?.isNew}
-                className="w-5 h-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                className="w-5 h-5 rounded border-gray-300 text-primary-400 focus:ring-secondary-500"
               />
-              <span className="text-gray-700">Als "Neu" markieren</span>
+              <span className="text-secondary-700">Als "Neu" markieren</span>
             </label>
           </div>
 

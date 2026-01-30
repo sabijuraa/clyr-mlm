@@ -10,6 +10,12 @@ const brandConfig = {
     email: 'info@clyr.at',
     phone: '+43 660 123 4567',
     website: 'https://clyr.at',
+    address: {
+      street: 'Musterstraße 1',
+      city: 'Wien',
+      zip: '1010',
+      country: 'Österreich',
+    },
   },
 
   branding: {

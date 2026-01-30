@@ -17,6 +17,9 @@ router.get('/partners/:id', adminController.getPartnerById);
 router.patch('/partners/:id/status', adminController.updatePartnerStatus);
 router.patch('/partners/:id/rank', adminController.updatePartnerRank);
 
+// Invoices
+router.get('/invoices', adminController.getInvoices);
+
 // Settings
 router.get('/settings', adminController.getSettings);
 router.put('/settings/:key', adminController.updateSetting);

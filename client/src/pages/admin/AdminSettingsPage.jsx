@@ -151,10 +151,10 @@ const AdminSettingsPage = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-secondary-700">
             {lang === 'de' ? 'Einstellungen' : 'Settings'}
           </h1>
-          <p className="text-gray-600">
+          <p className="text-secondary-500">
             {lang === 'de' ? 'Marke, Farben und Unternehmenseinstellungen verwalten' : 'Manage brand, colors, and company settings'}
           </p>
         </div>
@@ -176,8 +176,8 @@ const AdminSettingsPage = () => {
               onClick={() => setActiveTab(tab.id)}
               className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 font-medium transition-colors
                 ${activeTab === tab.id 
-                  ? 'text-teal-600 bg-teal-50 border-b-2 border-teal-600' 
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  ? 'text-primary-400 bg-slate-50 border-b-2 border-secondary-600' 
+                  : 'text-secondary-500 hover:text-secondary-700 hover:bg-gray-50'
                 }`}
             >
               <tab.icon className="w-5 h-5" />
@@ -197,28 +197,28 @@ const AdminSettingsPage = () => {
               <div className="grid md:grid-cols-2 gap-6">
                 {/* Company Name */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-secondary-700 mb-2">
                     {lang === 'de' ? 'Firmenname' : 'Company Name'}
                   </label>
                   <input
                     type="text"
                     value={branding.companyName}
                     onChange={(e) => setBranding(prev => ({ ...prev, companyName: e.target.value }))}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-secondary-500 focus:ring-4 focus:ring-secondary-100"
                     placeholder="Still und Laut"
                   />
                 </div>
 
                 {/* Tagline DE */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-secondary-700 mb-2">
                     Tagline (DE)
                   </label>
                   <input
                     type="text"
                     value={branding.tagline}
                     onChange={(e) => setBranding(prev => ({ ...prev, tagline: e.target.value }))}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-secondary-500 focus:ring-4 focus:ring-secondary-100"
                     placeholder="Frisches Wasser für Ihr Zuhause"
                   />
                 </div>
@@ -226,13 +226,13 @@ const AdminSettingsPage = () => {
 
               {/* Colors */}
               <div>
-                <h3 className="font-semibold text-gray-900 mb-4">
+                <h3 className="font-semibold text-secondary-700 mb-4">
                   {lang === 'de' ? 'Markenfarben' : 'Brand Colors'}
                 </h3>
                 <div className="grid md:grid-cols-3 gap-6">
                   {/* Primary Color */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-secondary-700 mb-2">
                       {lang === 'de' ? 'Primärfarbe' : 'Primary Color'}
                     </label>
                     <div className="flex gap-3">
@@ -246,14 +246,14 @@ const AdminSettingsPage = () => {
                         type="text"
                         value={branding.primaryColor}
                         onChange={(e) => setBranding(prev => ({ ...prev, primaryColor: e.target.value }))}
-                        className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:ring-4 focus:ring-teal-100 font-mono"
+                        className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-secondary-500 focus:ring-4 focus:ring-secondary-100 font-mono"
                       />
                     </div>
                   </div>
 
                   {/* Primary Hover */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-secondary-700 mb-2">
                       Primary Hover
                     </label>
                     <div className="flex gap-3">
@@ -267,14 +267,14 @@ const AdminSettingsPage = () => {
                         type="text"
                         value={branding.primaryHover}
                         onChange={(e) => setBranding(prev => ({ ...prev, primaryHover: e.target.value }))}
-                        className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:ring-4 focus:ring-teal-100 font-mono"
+                        className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-secondary-500 focus:ring-4 focus:ring-secondary-100 font-mono"
                       />
                     </div>
                   </div>
 
                   {/* Secondary Color */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-secondary-700 mb-2">
                       {lang === 'de' ? 'Sekundärfarbe' : 'Secondary Color'}
                     </label>
                     <div className="flex gap-3">
@@ -288,7 +288,7 @@ const AdminSettingsPage = () => {
                         type="text"
                         value={branding.secondaryColor}
                         onChange={(e) => setBranding(prev => ({ ...prev, secondaryColor: e.target.value }))}
-                        className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:ring-4 focus:ring-teal-100 font-mono"
+                        className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-secondary-500 focus:ring-4 focus:ring-secondary-100 font-mono"
                       />
                     </div>
                   </div>
@@ -297,7 +297,7 @@ const AdminSettingsPage = () => {
 
               {/* Color Preview */}
               <div className="bg-gray-50 rounded-2xl p-6">
-                <h4 className="font-medium text-gray-700 mb-4">
+                <h4 className="font-medium text-secondary-700 mb-4">
                   {lang === 'de' ? 'Vorschau' : 'Preview'}
                 </h4>
                 <div className="flex gap-4 flex-wrap">
@@ -333,76 +333,76 @@ const AdminSettingsPage = () => {
             >
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-secondary-700 mb-2">
                     {lang === 'de' ? 'Rechtlicher Firmenname' : 'Legal Company Name'}
                   </label>
                   <input
                     type="text"
                     value={legal.companyName}
                     onChange={(e) => setLegal(prev => ({ ...prev, companyName: e.target.value }))}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-secondary-500 focus:ring-4 focus:ring-secondary-100"
                     placeholder="Still und Laut GmbH"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-secondary-700 mb-2">
                     {lang === 'de' ? 'Geschäftsführer' : 'Managing Director'}
                   </label>
                   <input
                     type="text"
                     value={legal.managingDirector}
                     onChange={(e) => setLegal(prev => ({ ...prev, managingDirector: e.target.value }))}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-secondary-500 focus:ring-4 focus:ring-secondary-100"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-secondary-700 mb-2">
                     {lang === 'de' ? 'Straße' : 'Street'}
                   </label>
                   <input
                     type="text"
                     value={legal.street}
                     onChange={(e) => setLegal(prev => ({ ...prev, street: e.target.value }))}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-secondary-500 focus:ring-4 focus:ring-secondary-100"
                   />
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">PLZ</label>
+                    <label className="block text-sm font-medium text-secondary-700 mb-2">PLZ</label>
                     <input
                       type="text"
                       value={legal.zip}
                       onChange={(e) => setLegal(prev => ({ ...prev, zip: e.target.value }))}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-secondary-500 focus:ring-4 focus:ring-secondary-100"
                     />
                   </div>
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">{lang === 'de' ? 'Stadt' : 'City'}</label>
+                    <label className="block text-sm font-medium text-secondary-700 mb-2">{lang === 'de' ? 'Stadt' : 'City'}</label>
                     <input
                       type="text"
                       value={legal.city}
                       onChange={(e) => setLegal(prev => ({ ...prev, city: e.target.value }))}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-secondary-500 focus:ring-4 focus:ring-secondary-100"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">USt-IdNr.</label>
+                  <label className="block text-sm font-medium text-secondary-700 mb-2">USt-IdNr.</label>
                   <input
                     type="text"
                     value={legal.vatId}
                     onChange={(e) => setLegal(prev => ({ ...prev, vatId: e.target.value }))}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-secondary-500 focus:ring-4 focus:ring-secondary-100"
                     placeholder="ATU12345678"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">{lang === 'de' ? 'Firmenbuchnummer' : 'Registration Number'}</label>
+                  <label className="block text-sm font-medium text-secondary-700 mb-2">{lang === 'de' ? 'Firmenbuchnummer' : 'Registration Number'}</label>
                   <input
                     type="text"
                     value={legal.registrationNumber}
                     onChange={(e) => setLegal(prev => ({ ...prev, registrationNumber: e.target.value }))}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-secondary-500 focus:ring-4 focus:ring-secondary-100"
                     placeholder="FN 123456a"
                   />
                 </div>
@@ -410,24 +410,24 @@ const AdminSettingsPage = () => {
 
               {/* Contact Info */}
               <div className="border-t pt-6">
-                <h3 className="font-semibold text-gray-900 mb-4">{lang === 'de' ? 'Kontakt' : 'Contact'}</h3>
+                <h3 className="font-semibold text-secondary-700 mb-4">{lang === 'de' ? 'Kontakt' : 'Contact'}</h3>
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">E-Mail</label>
+                    <label className="block text-sm font-medium text-secondary-700 mb-2">E-Mail</label>
                     <input
                       type="email"
                       value={branding.email}
                       onChange={(e) => setBranding(prev => ({ ...prev, email: e.target.value }))}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-secondary-500 focus:ring-4 focus:ring-secondary-100"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">{lang === 'de' ? 'Telefon' : 'Phone'}</label>
+                    <label className="block text-sm font-medium text-secondary-700 mb-2">{lang === 'de' ? 'Telefon' : 'Phone'}</label>
                     <input
                       type="tel"
                       value={branding.phone}
                       onChange={(e) => setBranding(prev => ({ ...prev, phone: e.target.value }))}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-secondary-500 focus:ring-4 focus:ring-secondary-100"
                     />
                   </div>
                 </div>
@@ -435,25 +435,25 @@ const AdminSettingsPage = () => {
 
               {/* Social Media */}
               <div className="border-t pt-6">
-                <h3 className="font-semibold text-gray-900 mb-4">Social Media</h3>
+                <h3 className="font-semibold text-secondary-700 mb-4">Social Media</h3>
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Facebook</label>
+                    <label className="block text-sm font-medium text-secondary-700 mb-2">Facebook</label>
                     <input
                       type="url"
                       value={social.facebook}
                       onChange={(e) => setSocial(prev => ({ ...prev, facebook: e.target.value }))}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-secondary-500 focus:ring-4 focus:ring-secondary-100"
                       placeholder="https://facebook.com/..."
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Instagram</label>
+                    <label className="block text-sm font-medium text-secondary-700 mb-2">Instagram</label>
                     <input
                       type="url"
                       value={social.instagram}
                       onChange={(e) => setSocial(prev => ({ ...prev, instagram: e.target.value }))}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-secondary-500 focus:ring-4 focus:ring-secondary-100"
                       placeholder="https://instagram.com/..."
                     />
                   </div>
@@ -472,10 +472,10 @@ const AdminSettingsPage = () => {
               <div className="grid md:grid-cols-2 gap-8">
                 {/* Upload */}
                 <div>
-                  <h3 className="font-semibold text-gray-900 mb-4">
+                  <h3 className="font-semibold text-secondary-700 mb-4">
                     {lang === 'de' ? 'Logo hochladen' : 'Upload Logo'}
                   </h3>
-                  <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center hover:border-teal-400 transition-colors">
+                  <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center hover:border-secondary-400 transition-colors">
                     <input
                       type="file"
                       accept="image/*"
@@ -485,7 +485,7 @@ const AdminSettingsPage = () => {
                     />
                     <label htmlFor="logo-upload" className="cursor-pointer">
                       <Upload className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                      <p className="text-gray-600 mb-2">
+                      <p className="text-secondary-500 mb-2">
                         {lang === 'de' ? 'Klicken oder Datei hierher ziehen' : 'Click or drag file here'}
                       </p>
                       <p className="text-sm text-gray-400">PNG, JPG, SVG (max. 2MB)</p>
@@ -495,7 +495,7 @@ const AdminSettingsPage = () => {
 
                 {/* Preview */}
                 <div>
-                  <h3 className="font-semibold text-gray-900 mb-4">
+                  <h3 className="font-semibold text-secondary-700 mb-4">
                     {lang === 'de' ? 'Vorschau' : 'Preview'}
                   </h3>
                   <div className="space-y-4">
@@ -507,7 +507,7 @@ const AdminSettingsPage = () => {
                       )}
                     </div>
                     {/* Dark Background */}
-                    <div className="bg-gray-900 rounded-xl p-6">
+                    <div className="bg-secondary-800 rounded-xl p-6">
                       <p className="text-xs text-gray-400 mb-2">{lang === 'de' ? 'Dunkler Hintergrund' : 'Dark Background'}</p>
                       {logoPreview && (
                         <img src={logoPreview} alt="Logo Preview" className="h-12 w-auto brightness-0 invert" />

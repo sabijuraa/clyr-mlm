@@ -10,7 +10,7 @@ const LanguageToggle = ({ showLabel = true, className = '' }) => {
       onClick={toggle}
       className={`flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100 transition-colors ${className}`}
     >
-      <Globe className="w-5 h-5 text-gray-600" />
+      <Globe className="w-5 h-5 text-secondary-500" />
       {showLabel && (
         <motion.span 
           key={lang}

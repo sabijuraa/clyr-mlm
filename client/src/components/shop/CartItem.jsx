@@ -13,11 +13,11 @@ const CartItem = ({ item }) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -100 }}
-      className="flex gap-4 p-4 bg-white rounded-2xl border border-gray-100"
+      className="flex gap-4 p-4 bg-white rounded-2xl border border-secondary-100"
     >
       {/* Image */}
-      <Link to={`/produkt/${item.slug}`} className="flex-shrink-0">
-        <div className="w-24 h-24 rounded-xl overflow-hidden bg-gray-100">
+      <Link to={`/product/${item.slug}`} className="flex-shrink-0">
+        <div className="w-24 h-24 rounded-xl overflow-hidden bg-secondary-100">
           <img
             src={item.image || '/placeholder-product.jpg'}
             alt={item.name}
@@ -28,41 +28,41 @@ const CartItem = ({ item }) => {
 
       {/* Details */}
       <div className="flex-1 min-w-0">
-        <Link to={`/produkt/${item.slug}`}>
-          <h3 className="font-semibold text-gray-900 hover:text-teal-600 transition-colors truncate">
+        <Link to={`/product/${item.slug}`}>
+          <h3 className="font-semibold text-secondary-700 hover:text-primary-500 transition-colors truncate">
             {item.name}
           </h3>
         </Link>
         
-        <p className="text-lg font-bold text-teal-600 mt-1">
+        <p className="text-lg font-bold text-secondary-700 mt-1">
           {formatCurrency(item.price)}
         </p>
 
-        {/* Quantity Controls */}
+        {/* Quantity Controls - Charcoal styling */}
         <div className="flex items-center gap-3 mt-3">
-          <div className="flex items-center bg-gray-100 rounded-xl">
+          <div className="flex items-center bg-secondary-100 rounded-xl">
             <button
               onClick={() => updateQuantity(item.id, item.quantity - 1)}
-              className="p-2 hover:bg-gray-200 rounded-l-xl transition-colors"
+              className="p-2 hover:bg-secondary-200 rounded-l-xl transition-colors"
             >
-              <Minus className="w-4 h-4 text-gray-600" />
+              <Minus className="w-4 h-4 text-secondary-600" />
             </button>
             
-            <span className="w-10 text-center font-semibold text-gray-900">
+            <span className="w-10 text-center font-semibold text-secondary-700">
               {item.quantity}
             </span>
             
             <button
               onClick={() => updateQuantity(item.id, item.quantity + 1)}
-              className="p-2 hover:bg-gray-200 rounded-r-xl transition-colors"
+              className="p-2 hover:bg-secondary-200 rounded-r-xl transition-colors"
             >
-              <Plus className="w-4 h-4 text-gray-600" />
+              <Plus className="w-4 h-4 text-secondary-600" />
             </button>
           </div>
 
           <button
             onClick={() => removeItem(item.id)}
-            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+            className="p-2 text-secondary-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
           >
             <Trash2 className="w-5 h-5" />
           </button>
@@ -71,7 +71,7 @@ const CartItem = ({ item }) => {
 
       {/* Total */}
       <div className="text-right">
-        <p className="text-lg font-bold text-gray-900">
+        <p className="text-lg font-bold text-secondary-700">
           {formatCurrency(item.price * item.quantity)}
         </p>
       </div>

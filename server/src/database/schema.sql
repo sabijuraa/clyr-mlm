@@ -714,8 +714,95 @@ CREATE TABLE settings (
 );
 
 -- ============================================
+-- CMS CONTENT TABLE (for homepage/shop editing)
+-- ============================================
+CREATE TABLE cms_content (
+    id SERIAL PRIMARY KEY,
+    section VARCHAR(100) NOT NULL, -- 'hero', 'features', 'testimonials', 'cta', etc.
+    key VARCHAR(100), -- unique identifier within section
+    
+    -- Content (German)
+    title VARCHAR(255),
+    subtitle VARCHAR(500),
+    content TEXT,
+    
+    -- Content (English)
+    title_en VARCHAR(255),
+    subtitle_en VARCHAR(500),
+    content_en TEXT,
+    
+    -- Media & Links
+    image_url VARCHAR(500),
+    link_url VARCHAR(500),
+    link_text VARCHAR(100),
+    link_text_en VARCHAR(100),
+    
+    -- Extra data
+    metadata JSONB DEFAULT '{}',
+    
+    sort_order INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT true,
+    
+    updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_cms_section ON cms_content(section);
+CREATE UNIQUE INDEX idx_cms_section_key ON cms_content(section, key) WHERE key IS NOT NULL;
+
+-- ============================================
+-- VARIANT OPTIONS TABLE (e.g., faucet types)
+-- ============================================
+CREATE TABLE variant_options (
+    id SERIAL PRIMARY KEY,
+    type VARCHAR(100) NOT NULL, -- 'faucet', 'color', 'size', etc.
+    name VARCHAR(255) NOT NULL,
+    name_en VARCHAR(255),
+    description TEXT,
+    
+    price_modifier DECIMAL(10,2) DEFAULT 0, -- Add/subtract from base price
+    image_url VARCHAR(500),
+    
+    sort_order INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT true,
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_variant_options_type ON variant_options(type);
+
+-- ============================================
+-- PRODUCT VARIANTS TABLE (links products to options)
+-- ============================================
+CREATE TABLE product_variants (
+    id SERIAL PRIMARY KEY,
+    product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    option_id INTEGER NOT NULL REFERENCES variant_options(id) ON DELETE CASCADE,
+    
+    price_modifier DECIMAL(10,2) DEFAULT 0, -- Override option price modifier
+    stock_modifier INTEGER DEFAULT 0, -- Adjust stock for this variant
+    sku_suffix VARCHAR(50), -- Append to product SKU
+    
+    is_default BOOLEAN DEFAULT false,
+    is_active BOOLEAN DEFAULT true,
+    sort_order INTEGER DEFAULT 0,
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    UNIQUE(product_id, option_id)
+);
+
+CREATE INDEX idx_product_variants_product ON product_variants(product_id);
+
+-- ============================================
 -- TRIGGERS
 -- ============================================
+CREATE TRIGGER update_cms_content_updated_at BEFORE UPDATE ON cms_content FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_variant_options_updated_at BEFORE UPDATE ON variant_options FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_product_variants_updated_at BEFORE UPDATE ON product_variants FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_products_updated_at BEFORE UPDATE ON products FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_orders_updated_at BEFORE UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -728,3 +815,305 @@ CREATE TRIGGER update_subscriptions_updated_at BEFORE UPDATE ON subscriptions FO
 CREATE TRIGGER update_academy_content_updated_at BEFORE UPDATE ON academy_content FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_academy_progress_updated_at BEFORE UPDATE ON academy_progress FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_discount_codes_updated_at BEFORE UPDATE ON discount_codes FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================
+-- PHASE 3: GDPR, CUSTOMER PORTAL, IMPORTS
+-- ============================================
+
+-- ============================================
+-- GDPR REQUESTS TABLE
+-- ============================================
+CREATE TABLE gdpr_requests (
+    id SERIAL PRIMARY KEY,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+    email VARCHAR(255) NOT NULL,
+    
+    request_type VARCHAR(50) NOT NULL CHECK (request_type IN ('export', 'delete', 'rectification')),
+    status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'rejected')),
+    
+    -- Request details
+    reason TEXT,
+    requested_data JSONB, -- What data was requested for export
+    
+    -- Processing
+    processed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    processed_at TIMESTAMP,
+    export_file_url VARCHAR(500), -- For export requests
+    notes TEXT,
+    
+    -- Verification
+    verification_token VARCHAR(255),
+    verified_at TIMESTAMP,
+    
+    expires_at TIMESTAMP, -- Export links expire
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_gdpr_requests_email ON gdpr_requests(email);
+CREATE INDEX idx_gdpr_requests_status ON gdpr_requests(status);
+
+-- ============================================
+-- COOKIE CONSENTS TABLE
+-- ============================================
+CREATE TABLE cookie_consents (
+    id SERIAL PRIMARY KEY,
+    visitor_id VARCHAR(255) NOT NULL, -- Browser fingerprint or cookie ID
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+    
+    -- Consent categories
+    necessary BOOLEAN DEFAULT true, -- Always required
+    analytics BOOLEAN DEFAULT false,
+    marketing BOOLEAN DEFAULT false,
+    preferences BOOLEAN DEFAULT false,
+    
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    
+    consented_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_cookie_consents_visitor ON cookie_consents(visitor_id);
+
+-- ============================================
+-- NEWSLETTER SUBSCRIBERS TABLE
+-- ============================================
+CREATE TABLE newsletter_subscribers (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+    
+    status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'active', 'unsubscribed', 'bounced')),
+    
+    -- Double opt-in
+    confirmation_token VARCHAR(255),
+    confirmed_at TIMESTAMP,
+    
+    -- Preferences
+    language VARCHAR(2) DEFAULT 'de',
+    preferences JSONB DEFAULT '{"promotions": true, "news": true, "tips": true}',
+    
+    -- Tracking
+    source VARCHAR(100), -- 'checkout', 'footer', 'popup', 'partner_registration'
+    ip_address VARCHAR(45),
+    
+    unsubscribed_at TIMESTAMP,
+    unsubscribe_reason TEXT,
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_newsletter_email ON newsletter_subscribers(email);
+CREATE INDEX idx_newsletter_status ON newsletter_subscribers(status);
+
+-- ============================================
+-- EMAIL CAMPAIGNS TABLE
+-- ============================================
+CREATE TABLE email_campaigns (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    subject VARCHAR(255) NOT NULL,
+    subject_en VARCHAR(255),
+    
+    content_html TEXT NOT NULL,
+    content_html_en TEXT,
+    content_text TEXT,
+    
+    -- Targeting
+    target_audience VARCHAR(50) DEFAULT 'all' CHECK (target_audience IN ('all', 'customers', 'partners', 'newsletter', 'custom')),
+    target_filter JSONB, -- Custom filter criteria
+    
+    -- Status
+    status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'scheduled', 'sending', 'sent', 'cancelled')),
+    scheduled_at TIMESTAMP,
+    sent_at TIMESTAMP,
+    
+    -- Stats
+    total_recipients INTEGER DEFAULT 0,
+    sent_count INTEGER DEFAULT 0,
+    open_count INTEGER DEFAULT 0,
+    click_count INTEGER DEFAULT 0,
+    bounce_count INTEGER DEFAULT 0,
+    unsubscribe_count INTEGER DEFAULT 0,
+    
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================
+-- CREDIT NOTES TABLE
+-- ============================================
+CREATE TABLE credit_notes (
+    id SERIAL PRIMARY KEY,
+    credit_note_number VARCHAR(50) UNIQUE NOT NULL, -- GS-2025-0001
+    
+    -- Reference
+    order_id INTEGER REFERENCES orders(id) ON DELETE SET NULL,
+    invoice_id INTEGER REFERENCES invoices(id) ON DELETE SET NULL,
+    customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+    
+    -- Amounts
+    subtotal DECIMAL(10,2) NOT NULL,
+    vat_rate DECIMAL(5,2) DEFAULT 0,
+    vat_amount DECIMAL(10,2) DEFAULT 0,
+    total DECIMAL(10,2) NOT NULL,
+    
+    -- Details
+    reason TEXT NOT NULL, -- Reason for credit note
+    line_items JSONB, -- Items being credited
+    
+    -- Company issuing (MUTIMBAUCH)
+    issuer_name VARCHAR(255) DEFAULT 'MUTIMBAUCH Vertriebs GmbH',
+    issuer_address TEXT,
+    issuer_vat_id VARCHAR(50),
+    
+    -- Customer details (snapshot)
+    customer_name VARCHAR(255),
+    customer_address TEXT,
+    customer_vat_id VARCHAR(50),
+    customer_country VARCHAR(2),
+    
+    -- Tax handling
+    is_reverse_charge BOOLEAN DEFAULT false,
+    is_export BOOLEAN DEFAULT false,
+    vat_note TEXT,
+    
+    -- GoBD compliance
+    document_hash VARCHAR(64),
+    
+    status VARCHAR(50) DEFAULT 'issued' CHECK (status IN ('draft', 'issued', 'applied', 'cancelled')),
+    issued_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_credit_notes_order ON credit_notes(order_id);
+CREATE INDEX idx_credit_notes_customer ON credit_notes(customer_id);
+
+-- ============================================
+-- CUSTOMER ACCOUNTS TABLE (for customer portal login)
+-- ============================================
+CREATE TABLE customer_accounts (
+    id SERIAL PRIMARY KEY,
+    customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    
+    -- Verification
+    email_verified BOOLEAN DEFAULT false,
+    email_verification_token VARCHAR(255),
+    
+    -- Password reset
+    password_reset_token VARCHAR(255),
+    password_reset_expires TIMESTAMP,
+    
+    -- Status
+    is_active BOOLEAN DEFAULT true,
+    last_login_at TIMESTAMP,
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_customer_accounts_email ON customer_accounts(email);
+CREATE INDEX idx_customer_accounts_customer ON customer_accounts(customer_id);
+
+-- ============================================
+-- DATA IMPORTS TABLE (for bulk imports)
+-- ============================================
+CREATE TABLE data_imports (
+    id SERIAL PRIMARY KEY,
+    type VARCHAR(50) NOT NULL CHECK (type IN ('partners', 'customers', 'products', 'downlines')),
+    
+    file_name VARCHAR(255) NOT NULL,
+    file_url VARCHAR(500),
+    
+    -- Status
+    status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'validating', 'processing', 'completed', 'failed', 'cancelled')),
+    
+    -- Stats
+    total_rows INTEGER DEFAULT 0,
+    processed_rows INTEGER DEFAULT 0,
+    success_count INTEGER DEFAULT 0,
+    error_count INTEGER DEFAULT 0,
+    
+    -- Errors
+    errors JSONB DEFAULT '[]', -- Array of {row, field, message}
+    
+    -- Options
+    options JSONB DEFAULT '{}', -- Import options (skip_duplicates, update_existing, etc.)
+    
+    -- Mapping (for CSV column mapping)
+    column_mapping JSONB,
+    
+    started_at TIMESTAMP,
+    completed_at TIMESTAMP,
+    
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_data_imports_status ON data_imports(status);
+
+-- ============================================
+-- VAT REPORTS TABLE (for separated DE/AT reports)
+-- ============================================
+CREATE TABLE vat_reports (
+    id SERIAL PRIMARY KEY,
+    
+    report_type VARCHAR(50) NOT NULL CHECK (report_type IN ('monthly', 'quarterly', 'annual')),
+    country VARCHAR(2) NOT NULL, -- DE, AT
+    
+    period_start DATE NOT NULL,
+    period_end DATE NOT NULL,
+    
+    -- Totals
+    net_sales DECIMAL(12,2) DEFAULT 0,
+    vat_collected DECIMAL(12,2) DEFAULT 0,
+    reverse_charge_sales DECIMAL(12,2) DEFAULT 0,
+    export_sales DECIMAL(12,2) DEFAULT 0,
+    
+    -- Breakdown by VAT rate
+    breakdown JSONB DEFAULT '{}', -- {19: {net: x, vat: y}, 20: {net: x, vat: y}}
+    
+    -- Commission payouts (for AT reports)
+    commission_payouts_net DECIMAL(12,2) DEFAULT 0,
+    commission_payouts_vat DECIMAL(12,2) DEFAULT 0,
+    
+    -- File
+    report_file_url VARCHAR(500),
+    
+    status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'final', 'submitted')),
+    finalized_at TIMESTAMP,
+    
+    generated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX idx_vat_reports_period ON vat_reports(country, report_type, period_start);
+
+-- ============================================
+-- PHASE 3 TRIGGERS
+-- ============================================
+CREATE TRIGGER update_gdpr_requests_updated_at BEFORE UPDATE ON gdpr_requests FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_cookie_consents_updated_at BEFORE UPDATE ON cookie_consents FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_newsletter_subscribers_updated_at BEFORE UPDATE ON newsletter_subscribers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_email_campaigns_updated_at BEFORE UPDATE ON email_campaigns FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_credit_notes_updated_at BEFORE UPDATE ON credit_notes FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_customer_accounts_updated_at BEFORE UPDATE ON customer_accounts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_data_imports_updated_at BEFORE UPDATE ON data_imports FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_vat_reports_updated_at BEFORE UPDATE ON vat_reports FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

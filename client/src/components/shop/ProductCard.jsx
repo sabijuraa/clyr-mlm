@@ -47,13 +47,13 @@ const ProductCard = ({ product, index = 0 }) => {
       onMouseLeave={() => setIsHovered(false)}
       className="group"
     >
-      <Link to={`/produkt/${product.slug}`}>
-        <div className="card-hover">
+      <Link to={`/product/${product.slug}`}>
+        <div className="bg-white rounded-2xl overflow-hidden shadow-lg shadow-secondary-900/5 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
           {/* Image Container */}
-          <div className="product-image-container relative">
+          <div className="relative aspect-square overflow-hidden bg-secondary-50">
             {/* Loading skeleton */}
             {!imageLoaded && (
-              <div className="absolute inset-0 skeleton" />
+              <div className="absolute inset-0 bg-secondary-200 animate-pulse" />
             )}
             
             {/* Product Image */}
@@ -61,19 +61,19 @@ const ProductCard = ({ product, index = 0 }) => {
               src={mainImage}
               alt={product.name}
               onLoad={() => setImageLoaded(true)}
-              className={`product-image group-hover:scale-105 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+              className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
             />
 
-            {/* Badges */}
+            {/* Badges - Charcoal badges */}
             <div className="absolute top-3 left-3 flex flex-col gap-2">
               {product.is_featured && (
-                <span className="px-2.5 py-1 text-xs font-semibold bg-brand-600 text-white rounded-lg shadow-lg">
+                <span className="px-2.5 py-1 text-xs font-semibold bg-secondary-700 text-white rounded-lg shadow-lg">
                   Bestseller
                 </span>
               )}
               {product.is_new && (
                 <span className="px-2.5 py-1 text-xs font-semibold bg-emerald-500 text-white rounded-lg shadow-lg">
-                  Neu
+                  {lang === 'de' ? 'Neu' : 'New'}
                 </span>
               )}
               {product.stock <= 5 && product.stock > 0 && (
@@ -94,8 +94,8 @@ const ProductCard = ({ product, index = 0 }) => {
                     ${inCart 
                       ? 'bg-emerald-500 text-white cursor-default' 
                       : product.stock === 0
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        : 'bg-white text-gray-900 hover:bg-brand-600 hover:text-white'
+                        ? 'bg-secondary-300 text-secondary-500 cursor-not-allowed'
+                        : 'bg-secondary-700 text-white hover:bg-primary-500'
                     }`}
                 >
                   {inCart ? (
@@ -118,10 +118,10 @@ const ProductCard = ({ product, index = 0 }) => {
                   )}
                 </button>
                 <button 
-                  className="p-2.5 bg-white rounded-xl shadow-lg hover:bg-gray-50 transition-colors"
+                  className="p-2.5 bg-white rounded-xl shadow-lg hover:bg-secondary-50 transition-colors"
                   title={lang === 'de' ? 'Details ansehen' : 'View Details'}
                 >
-                  <Eye className="w-4 h-4 text-gray-700" />
+                  <Eye className="w-4 h-4 text-secondary-700" />
                 </button>
               </div>
             </div>
@@ -129,21 +129,21 @@ const ProductCard = ({ product, index = 0 }) => {
 
           {/* Content */}
           <div className="p-5">
-            {/* Category */}
+            {/* Category - Teal accent */}
             {product.category && (
-              <p className="text-xs font-medium text-brand-600 uppercase tracking-wider mb-1">
+              <p className="text-xs font-medium text-primary-500 uppercase tracking-wider mb-1">
                 {product.category.name || product.category}
               </p>
             )}
 
-            {/* Name */}
-            <h3 className="font-heading font-semibold text-gray-900 mb-2 line-clamp-2 group-hover:text-brand-600 transition-colors">
+            {/* Name - Charcoal text */}
+            <h3 className="font-heading font-semibold text-secondary-700 mb-2 line-clamp-2 group-hover:text-primary-500 transition-colors">
               {product.name}
             </h3>
 
             {/* Short Description */}
             {product.short_description && (
-              <p className="text-sm text-gray-500 mb-3 line-clamp-2">
+              <p className="text-sm text-secondary-500 mb-3 line-clamp-2">
                 {product.short_description}
               </p>
             )}
@@ -151,17 +151,17 @@ const ProductCard = ({ product, index = 0 }) => {
             {/* Price & Shipping */}
             <div className="flex items-end justify-between">
               <div>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-2xl font-bold text-secondary-700">
                   {formatCurrency(product.price)}
                 </p>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-secondary-500 mt-0.5">
                   {lang === 'de' ? 'inkl. MwSt.' : 'incl. VAT'}
                 </p>
               </div>
               
               {product.is_large_item && (
-                <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                  <Truck className="w-3.5 h-3.5" />
+                <div className="flex items-center gap-1.5 text-xs text-secondary-500">
+                  <Truck className="w-3.5 h-3.5 text-primary-400" />
                   <span>{lang === 'de' ? 'Spedition' : 'Freight'}</span>
                 </div>
               )}

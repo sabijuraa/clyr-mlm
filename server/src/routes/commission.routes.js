@@ -16,5 +16,6 @@ router.get('/all', requireRole('admin', 'accounting'), commissionController.getA
 router.get('/pending', requireRole('admin'), commissionController.getPendingCommissions);
 router.post('/release', requireRole('admin'), commissionController.releaseCommissions);
 router.post('/process-payouts', requireRole('admin'), commissionController.processPayouts);
+router.post('/generate-statement', requireRole('admin'), commissionController.generateStatementForPartner);
 
 export default router;

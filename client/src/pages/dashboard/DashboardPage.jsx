@@ -57,7 +57,7 @@ const DashboardPage = () => {
     const success = await copyToClipboard(referralLink);
     if (success) {
       setCopied(true);
-      toast.success('Link kopiert!');
+      toast.success(lang === 'de' ? 'Link kopiert!' : 'Link copied!');
       setTimeout(() => setCopied(false), 2000);
     }
   };
@@ -65,22 +65,23 @@ const DashboardPage = () => {
   return (
     <div className="space-y-8">
       <div className="lg:hidden">
-        <h1 className="text-2xl font-bold text-gray-900">
-          {lang === 'de' ? 'Willkommen zurück' : 'Welcome back'}, {user?.first_name || user?.firstName}! 👋
+        <h1 className="text-2xl font-bold text-secondary-700">
+          {lang === 'de' ? 'Willkommen zurück' : 'Welcome back'}, {user?.first_name || user?.firstName}!
         </h1>
       </div>
 
+      {/* Referral Link Card - Charcoal background */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-teal-600 to-teal-700 rounded-2xl p-6 text-white"
+        className="bg-secondary-700 rounded-2xl p-6 text-white"
       >
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h3 className="font-semibold text-lg mb-1">
               {lang === 'de' ? 'Ihr Empfehlungslink' : 'Your Referral Link'}
             </h3>
-            <p className="text-white/80 text-sm">
+            <p className="text-gray-300 text-sm">
               {lang === 'de' 
                 ? 'Teilen Sie diesen Link, um neue Kunden und Partner zu gewinnen' 
                 : 'Share this link to acquire new customers and partners'}
@@ -88,14 +89,14 @@ const DashboardPage = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex-1 md:w-80 px-4 py-2.5 bg-white/20 rounded-xl truncate text-sm">
+            <div className="flex-1 md:w-80 px-4 py-2.5 bg-secondary-600 rounded-xl truncate text-sm">
               {referralLink}
             </div>
 
             <button
               onClick={handleCopyLink}
               className={`p-2.5 rounded-xl transition-colors ${
-                copied ? 'bg-green-500' : 'bg-white/20 hover:bg-white/30'
+                copied ? 'bg-green-500' : 'bg-secondary-600 hover:bg-primary-500'
               }`}
             >
               <Copy className="w-5 h-5" />
@@ -105,7 +106,7 @@ const DashboardPage = () => {
               href={referralLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2.5 bg-white/20 hover:bg-white/30 rounded-xl transition-colors"
+              className="p-2.5 bg-secondary-600 hover:bg-primary-500 rounded-xl transition-colors"
             >
               <ExternalLink className="w-5 h-5" />
             </a>
@@ -129,10 +130,10 @@ const DashboardPage = () => {
             className="bg-white rounded-2xl border border-gray-100 p-6"
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-semibold text-lg text-gray-900">
+              <h3 className="font-semibold text-lg text-secondary-700">
                 {lang === 'de' ? 'Letzte Provisionen' : 'Recent Commissions'}
               </h3>
-              <Link to="/dashboard/provisionen">
+              <Link to="/dashboard/commissions">
                 <Button variant="ghost" size="sm" icon={ArrowRight} iconPosition="right">
                   {lang === 'de' ? 'Alle anzeigen' : 'View all'}
                 </Button>
@@ -147,7 +148,7 @@ const DashboardPage = () => {
             transition={{ delay: 0.3 }} 
             className="bg-white rounded-2xl border border-gray-100 p-6"
           >
-            <h3 className="font-semibold text-lg text-gray-900 mb-6">
+            <h3 className="font-semibold text-lg text-secondary-700 mb-6">
               {lang === 'de' ? 'Letzte Aktivitäten' : 'Recent Activity'}
             </h3>
             <ActivityFeed activities={activities} isLoading={isLoading} limit={5} />
@@ -169,39 +170,39 @@ const DashboardPage = () => {
             transition={{ delay: 0.5 }} 
             className="bg-white rounded-2xl border border-gray-100 p-6"
           >
-            <h3 className="font-semibold text-lg text-gray-900 mb-4">
+            <h3 className="font-semibold text-lg text-secondary-700 mb-4">
               {lang === 'de' ? 'Schnellzugriff' : 'Quick Actions'}
             </h3>
 
             <div className="space-y-3">
               <Link to="/dashboard/links" className="block">
-                <div className="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-                  <p className="font-medium text-gray-900">
+                <div className="p-4 bg-slate-50 rounded-xl hover:bg-secondary-700 hover:text-white transition-colors group">
+                  <p className="font-medium text-secondary-700 group-hover:text-white">
                     {lang === 'de' ? 'Empfehlungslinks' : 'Referral Links'}
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-secondary-500 group-hover:text-gray-300">
                     {lang === 'de' ? 'Links für alle Produkte' : 'Links for all products'}
                   </p>
                 </div>
               </Link>
 
               <Link to="/dashboard/team" className="block">
-                <div className="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-                  <p className="font-medium text-gray-900">
+                <div className="p-4 bg-slate-50 rounded-xl hover:bg-secondary-700 hover:text-white transition-colors group">
+                  <p className="font-medium text-secondary-700 group-hover:text-white">
                     {lang === 'de' ? 'Team verwalten' : 'Manage Team'}
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-secondary-500 group-hover:text-gray-300">
                     {lang === 'de' ? 'Teamstruktur ansehen' : 'View team structure'}
                   </p>
                 </div>
               </Link>
 
-              <Link to="/produkte" className="block">
-                <div className="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-                  <p className="font-medium text-gray-900">
+              <Link to="/products" className="block">
+                <div className="p-4 bg-slate-50 rounded-xl hover:bg-secondary-700 hover:text-white transition-colors group">
+                  <p className="font-medium text-secondary-700 group-hover:text-white">
                     {lang === 'de' ? 'Produkte' : 'Products'}
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-secondary-500 group-hover:text-gray-300">
                     {lang === 'de' ? 'Zum Shop' : 'Go to shop'}
                   </p>
                 </div>

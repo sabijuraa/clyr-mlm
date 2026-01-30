@@ -7,54 +7,54 @@ export default {
   theme: {
     extend: {
       colors: {
-        // CLYR Brand Colors - Sleek and Premium
+        // CLYR Brand Colors - From Logo
         primary: {
-          50: '#f0f9ff',
-          100: '#e0f2fe',
-          200: '#bae6fd',
-          300: '#7dd3fc',
-          400: '#38bdf8',
-          500: '#0ea5e9', // Main brand accent - Sky blue (water)
-          600: '#0284c7',
-          700: '#0369a1',
-          800: '#075985',
-          900: '#0c4a6e',
-          950: '#082f49',
+          50: '#f0fdfd',
+          100: '#ccfbf1',
+          200: '#99f6e4',
+          300: '#7dd3c8',
+          400: '#5fb3b3', // Main teal from logo
+          500: '#4a9d9d',
+          600: '#3d8787',
+          700: '#2f6b6b',
+          800: '#245454',
+          900: '#1a3d3d',
+          950: '#0f2626',
         },
-        // Secondary - Dark/Neutral (from logo)
+        // Secondary - Dark Charcoal (from logo C, R letters)
         secondary: {
-          50: '#fafafa',
-          100: '#f5f5f5',
-          200: '#e5e5e5',
-          300: '#d4d4d4',
-          400: '#a3a3a3',
-          500: '#737373',
-          600: '#525252',
-          700: '#404040',
-          800: '#262626',
-          900: '#171717', // Main dark color
-          950: '#0a0a0a',
+          50: '#f7f8f9',
+          100: '#ebeef0',
+          200: '#d3d9de',
+          300: '#adb8c1',
+          400: '#8293a0',
+          500: '#637685',
+          600: '#4f5f6d',
+          700: '#3d4f5f', // Main dark charcoal from logo
+          800: '#354352',
+          900: '#2f3a46',
+          950: '#1f262e',
         },
-        // Brand alias
+        // Brand alias for easy use
         brand: {
-          light: '#0ea5e9',  // Sky blue
-          DEFAULT: '#0284c7', // Darker blue
-          dark: '#0c4a6e',   // Deep blue
-          black: '#171717',  // Near black
+          teal: '#5fb3b3',      // Teal from Y, L
+          dark: '#3d4f5f',      // Charcoal from C, R
+          light: '#7dd3c8',     // Lighter teal
+          DEFAULT: '#5fb3b3',   // Default teal
         },
-        // Accent colors
+        // Accent - Complementary colors
         accent: {
-          50: '#ecfeff',
-          100: '#cffafe',
-          200: '#a5f3fc',
-          300: '#67e8f9',
-          400: '#22d3ee',
-          500: '#06b6d4', // Cyan for highlights
-          600: '#0891b2',
-          700: '#0e7490',
-          800: '#155e75',
-          900: '#164e63',
-          950: '#083344',
+          50: '#f0fdfd',
+          100: '#ccfbf1',
+          200: '#99f6e4',
+          300: '#5eead4',
+          400: '#2dd4bf',
+          500: '#14b8a6',
+          600: '#0d9488',
+          700: '#0f766e',
+          800: '#115e59',
+          900: '#134e4a',
+          950: '#042f2e',
         },
         // Success, Warning, Error
         success: {
@@ -85,8 +85,8 @@ export default {
         'soft': '0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04)',
         'soft-lg': '0 10px 40px -10px rgba(0, 0, 0, 0.1), 0 2px 10px -2px rgba(0, 0, 0, 0.04)',
         'inner-soft': 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.05)',
-        'glow': '0 0 20px rgba(14, 165, 233, 0.3)', // Blue glow for CTAs
-        'glow-lg': '0 0 40px rgba(14, 165, 233, 0.4)',
+        'glow': '0 0 20px rgba(95, 179, 179, 0.3)',
+        'glow-lg': '0 0 40px rgba(95, 179, 179, 0.4)',
       },
       borderRadius: {
         '4xl': '2rem',
@@ -118,7 +118,7 @@ export default {
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-        'water-pattern': 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%230ea5e9\' fill-opacity=\'0.05\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
+        'water-pattern': 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%235fb3b3\' fill-opacity=\'0.05\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
       },
     },
   },

@@ -14,11 +14,12 @@ const Button = forwardRef(({
   className,
   ...props
 }, ref) => {
+  // Updated colors: Charcoal primary, teal hover
   const variants = {
-    primary: 'bg-teal-600 text-white shadow-lg shadow-teal-500/25 hover:bg-teal-700 hover:shadow-xl hover:shadow-teal-500/30 hover:-translate-y-0.5',
-    secondary: 'bg-white text-teal-600 border-2 border-teal-500 hover:bg-teal-50',
-    outline: 'bg-transparent text-teal-600 border-2 border-teal-500 hover:bg-teal-50',
-    ghost: 'bg-transparent text-gray-700 hover:bg-gray-100',
+    primary: 'bg-secondary-700 text-white shadow-lg shadow-secondary-700/25 hover:bg-primary-500 hover:shadow-xl hover:shadow-primary-500/30 hover:-translate-y-0.5',
+    secondary: 'bg-white text-secondary-700 border-2 border-secondary-700 hover:bg-primary-400 hover:text-white hover:border-primary-400',
+    outline: 'bg-transparent text-secondary-700 border-2 border-secondary-700 hover:bg-primary-400 hover:text-white hover:border-primary-400',
+    ghost: 'bg-transparent text-secondary-700 hover:bg-secondary-100',
     danger: 'bg-red-500 text-white hover:bg-red-600',
     success: 'bg-green-500 text-white hover:bg-green-600',
   };

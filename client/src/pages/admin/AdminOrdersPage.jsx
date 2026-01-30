@@ -103,19 +103,19 @@ const AdminOrdersPage = () => {
 
   const getStatusConfig = (status) => {
     const configs = {
-      completed: { label: 'Abgeschlossen', icon: CheckCircle, color: 'text-teal-600 bg-teal-100' },
-      processing: { label: 'In Bearbeitung', icon: Truck, color: 'text-teal-600 bg-teal-50' },
-      pending: { label: 'Ausstehend', icon: Clock, color: 'text-gray-600 bg-gray-100' },
-      cancelled: { label: 'Storniert', icon: XCircle, color: 'text-gray-500 bg-gray-100' },
+      completed: { label: 'Abgeschlossen', icon: CheckCircle, color: 'text-primary-400 bg-secondary-100' },
+      processing: { label: 'In Bearbeitung', icon: Truck, color: 'text-primary-400 bg-slate-50' },
+      pending: { label: 'Ausstehend', icon: Clock, color: 'text-secondary-500 bg-gray-100' },
+      cancelled: { label: 'Storniert', icon: XCircle, color: 'text-secondary-500 bg-gray-100' },
     };
     return configs[status] || configs.pending;
   };
 
   const getPaymentConfig = (status) => {
     const configs = {
-      paid: { label: 'Bezahlt', icon: CheckCircle, color: 'text-teal-600' },
-      pending: { label: 'Ausstehend', icon: Clock, color: 'text-gray-500' },
-      refunded: { label: 'Erstattet', icon: XCircle, color: 'text-gray-500' },
+      paid: { label: 'Bezahlt', icon: CheckCircle, color: 'text-primary-400' },
+      pending: { label: 'Ausstehend', icon: Clock, color: 'text-secondary-500' },
+      refunded: { label: 'Erstattet', icon: XCircle, color: 'text-secondary-500' },
     };
     return configs[status] || configs.pending;
   };
@@ -125,10 +125,10 @@ const AdminOrdersPage = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-heading font-bold text-gray-900">
+          <h1 className="text-2xl font-heading font-bold text-secondary-700">
             Bestellungen
           </h1>
-          <p className="text-gray-600">Alle Bestellungen verwalten</p>
+          <p className="text-secondary-500">Alle Bestellungen verwalten</p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" icon={Download}>
@@ -194,7 +194,7 @@ const AdminOrdersPage = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl
-                focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:border-transparent"
             />
           </div>
           <div className="flex gap-2">
@@ -210,8 +210,8 @@ const AdminOrdersPage = () => {
                 onClick={() => setStatusFilter(option.value)}
                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
                   statusFilter === option.value
-                    ? 'bg-teal-100 text-teal-700'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-secondary-100 text-secondary-700'
+                    : 'bg-gray-100 text-secondary-500 hover:bg-gray-200'
                 }`}
               >
                 {option.label}
@@ -232,13 +232,13 @@ const AdminOrdersPage = () => {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Bestellung</th>
-                <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Kunde</th>
-                <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Partner</th>
-                <th className="text-right py-4 px-6 text-sm font-semibold text-gray-600">Betrag</th>
-                <th className="text-center py-4 px-6 text-sm font-semibold text-gray-600">Status</th>
-                <th className="text-center py-4 px-6 text-sm font-semibold text-gray-600">Zahlung</th>
-                <th className="text-right py-4 px-6 text-sm font-semibold text-gray-600">Aktionen</th>
+                <th className="text-left py-4 px-6 text-sm font-semibold text-secondary-500">Bestellung</th>
+                <th className="text-left py-4 px-6 text-sm font-semibold text-secondary-500">Kunde</th>
+                <th className="text-left py-4 px-6 text-sm font-semibold text-secondary-500">Partner</th>
+                <th className="text-right py-4 px-6 text-sm font-semibold text-secondary-500">Betrag</th>
+                <th className="text-center py-4 px-6 text-sm font-semibold text-secondary-500">Status</th>
+                <th className="text-center py-4 px-6 text-sm font-semibold text-secondary-500">Zahlung</th>
+                <th className="text-right py-4 px-6 text-sm font-semibold text-secondary-500">Aktionen</th>
               </tr>
             </thead>
             <tbody>
@@ -251,34 +251,34 @@ const AdminOrdersPage = () => {
                   <tr key={order.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-teal-100 flex items-center justify-center">
-                          <Package className="w-5 h-5 text-teal-600" />
+                        <div className="w-10 h-10 rounded-lg bg-secondary-100 flex items-center justify-center">
+                          <Package className="w-5 h-5 text-primary-400" />
                         </div>
                         <div>
-                          <p className="font-semibold text-gray-900">{order.id}</p>
-                          <p className="text-sm text-gray-500">{formatDate(order.createdAt)}</p>
+                          <p className="font-semibold text-secondary-700">{order.id}</p>
+                          <p className="text-sm text-secondary-500">{formatDate(order.createdAt)}</p>
                         </div>
                       </div>
                     </td>
                     <td className="py-4 px-6">
-                      <p className="font-medium text-gray-900">
+                      <p className="font-medium text-secondary-700">
                         {order.customer.firstName} {order.customer.lastName}
                       </p>
-                      <p className="text-sm text-gray-500">{order.customer.email}</p>
+                      <p className="text-sm text-secondary-500">{order.customer.email}</p>
                     </td>
                     <td className="py-4 px-6">
                       {order.partner ? (
                         <div>
-                          <p className="text-gray-900">{order.partner.name}</p>
-                          <p className="text-sm text-gray-500">{order.partner.code}</p>
+                          <p className="text-secondary-700">{order.partner.name}</p>
+                          <p className="text-sm text-secondary-500">{order.partner.code}</p>
                         </div>
                       ) : (
                         <span className="text-gray-400">Kein Partner</span>
                       )}
                     </td>
                     <td className="py-4 px-6 text-right">
-                      <p className="font-semibold text-gray-900">{formatCurrency(order.total)}</p>
-                      <p className="text-sm text-gray-500">{order.items.length} Artikel</p>
+                      <p className="font-semibold text-secondary-700">{formatCurrency(order.total)}</p>
+                      <p className="text-sm text-secondary-500">{order.items.length} Artikel</p>
                     </td>
                     <td className="py-4 px-6">
                       <div className="flex justify-center">
@@ -300,7 +300,7 @@ const AdminOrdersPage = () => {
                       <div className="flex items-center justify-end">
                         <button
                           onClick={() => { setSelectedOrder(order); setShowDetailModal(true); }}
-                          className="p-2 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+                          className="p-2 text-gray-400 hover:text-primary-400 hover:bg-slate-50 rounded-lg transition-colors"
                         >
                           <Eye className="w-5 h-5" />
                         </button>
@@ -327,7 +327,7 @@ const AdminOrdersPage = () => {
             <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
               <div className="flex items-center gap-3">
                 <Calendar className="w-5 h-5 text-gray-400" />
-                <span className="text-gray-700">{formatDate(selectedOrder.createdAt, { hour: '2-digit', minute: '2-digit' })}</span>
+                <span className="text-secondary-700">{formatDate(selectedOrder.createdAt, { hour: '2-digit', minute: '2-digit' })}</span>
               </div>
               <div className="flex items-center gap-4">
                 {(() => {
@@ -346,63 +346,63 @@ const AdminOrdersPage = () => {
             {/* Customer Info */}
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <User className="w-5 h-5 text-teal-600" />
+                <h4 className="font-semibold text-secondary-700 mb-3 flex items-center gap-2">
+                  <User className="w-5 h-5 text-primary-400" />
                   Kunde
                 </h4>
                 <div className="p-4 bg-gray-50 rounded-xl space-y-2">
-                  <p className="font-medium text-gray-900">
+                  <p className="font-medium text-secondary-700">
                     {selectedOrder.customer.firstName} {selectedOrder.customer.lastName}
                   </p>
-                  <p className="text-gray-600">{selectedOrder.customer.email}</p>
+                  <p className="text-secondary-500">{selectedOrder.customer.email}</p>
                 </div>
               </div>
               <div>
-                <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-teal-600" />
+                <h4 className="font-semibold text-secondary-700 mb-3 flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-primary-400" />
                   Lieferadresse
                 </h4>
                 <div className="p-4 bg-gray-50 rounded-xl space-y-1">
-                  <p className="text-gray-900">{selectedOrder.shippingAddress.street}</p>
-                  <p className="text-gray-600">
+                  <p className="text-secondary-700">{selectedOrder.shippingAddress.street}</p>
+                  <p className="text-secondary-500">
                     {selectedOrder.shippingAddress.zip} {selectedOrder.shippingAddress.city}
                   </p>
-                  <p className="text-gray-600">{selectedOrder.shippingAddress.country}</p>
+                  <p className="text-secondary-500">{selectedOrder.shippingAddress.country}</p>
                 </div>
               </div>
             </div>
 
             {/* Items */}
             <div>
-              <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                <Package className="w-5 h-5 text-teal-600" />
+              <h4 className="font-semibold text-secondary-700 mb-3 flex items-center gap-2">
+                <Package className="w-5 h-5 text-primary-400" />
                 Artikel
               </h4>
               <div className="border border-gray-200 rounded-xl overflow-hidden">
                 {selectedOrder.items.map((item, idx) => (
                   <div key={idx} className="flex items-center justify-between p-4 border-b border-gray-100 last:border-0">
                     <div>
-                      <p className="font-medium text-gray-900">{item.name}</p>
-                      <p className="text-sm text-gray-500">Menge: {item.quantity}</p>
+                      <p className="font-medium text-secondary-700">{item.name}</p>
+                      <p className="text-sm text-secondary-500">Menge: {item.quantity}</p>
                     </div>
-                    <p className="font-semibold text-gray-900">{formatCurrency(item.price * item.quantity)}</p>
+                    <p className="font-semibold text-secondary-700">{formatCurrency(item.price * item.quantity)}</p>
                   </div>
                 ))}
                 <div className="flex items-center justify-between p-4 bg-gray-50 font-semibold">
-                  <span className="text-gray-700">Gesamt</span>
-                  <span className="text-lg text-gray-900">{formatCurrency(selectedOrder.total)}</span>
+                  <span className="text-secondary-700">Gesamt</span>
+                  <span className="text-lg text-secondary-700">{formatCurrency(selectedOrder.total)}</span>
                 </div>
               </div>
             </div>
 
             {/* Partner Info */}
             {selectedOrder.partner && (
-              <div className="p-4 bg-teal-50 rounded-xl border border-teal-100">
+              <div className="p-4 bg-slate-50 rounded-xl border border-secondary-100">
                 <div className="flex items-center gap-3">
-                  <User className="w-5 h-5 text-teal-600" />
+                  <User className="w-5 h-5 text-primary-400" />
                   <div>
-                    <p className="font-medium text-teal-900">Partner: {selectedOrder.partner.name}</p>
-                    <p className="text-sm text-teal-700">Code: {selectedOrder.partner.code}</p>
+                    <p className="font-medium text-secondary-700">Partner: {selectedOrder.partner.name}</p>
+                    <p className="text-sm text-secondary-700">Code: {selectedOrder.partner.code}</p>
                   </div>
                 </div>
               </div>

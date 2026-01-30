@@ -15,20 +15,20 @@ const WithdrawalPage = () => {
         >
           <div className="text-center mb-12">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl 
-              bg-gradient-to-br from-teal-600 to-teal-700 mb-6">
+              bg-gradient-to-br from-secondary-600 to-secondary-700 mb-6">
               <RotateCcw className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">Widerrufsbelehrung</h1>
-            <p className="text-gray-600">Ihr Recht auf Widerruf als Verbraucher</p>
+            <h1 className="text-4xl font-bold text-secondary-700 mb-4">Widerrufsbelehrung</h1>
+            <p className="text-secondary-500">Ihr Recht auf Widerruf als Verbraucher</p>
           </div>
 
           {/* Main Info Box */}
-          <div className="bg-teal-50 rounded-2xl border border-teal-100 p-8 mb-8">
+          <div className="bg-slate-50 rounded-2xl border border-secondary-100 p-8 mb-8">
             <div className="flex items-center gap-3 mb-4">
-              <Clock className="w-6 h-6 text-teal-600" />
-              <h2 className="text-xl font-semibold text-teal-900">Widerrufsrecht</h2>
+              <Clock className="w-6 h-6 text-primary-400" />
+              <h2 className="text-xl font-semibold text-secondary-700">Widerrufsrecht</h2>
             </div>
-            <p className="text-teal-800 leading-relaxed">
+            <p className="text-secondary-700 leading-relaxed">
               Sie haben das Recht, binnen <strong>14 Tagen</strong> ohne Angabe von Gründen 
               diesen Vertrag zu widerrufen. Die Widerrufsfrist beträgt 14 Tage ab dem Tag, 
               an dem Sie oder ein von Ihnen benannter Dritter, der nicht der Beförderer ist, 
@@ -42,20 +42,20 @@ const WithdrawalPage = () => {
               <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
                 <Mail className="w-5 h-5 text-blue-600" />
               </div>
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-secondary-700">
                 Ausübung des Widerrufsrechts
               </h2>
             </div>
-            <p className="text-gray-700 mb-4">
+            <p className="text-secondary-700 mb-4">
               Um Ihr Widerrufsrecht auszuüben, müssen Sie uns mittels einer eindeutigen 
               Erklärung (z.B. Brief, Fax oder E-Mail) über Ihren Entschluss, diesen 
               Vertrag zu widerrufen, informieren.
             </p>
             <div className="p-4 bg-gray-50 rounded-xl">
-              <p className="font-semibold text-gray-900">{legal?.companyName || companyName || 'Still und Laut GmbH'}</p>
-              <p className="text-gray-700">{legal?.street || 'Musterstraße 123'}</p>
-              <p className="text-gray-700">{legal?.zip || '1010'} {legal?.city || 'Wien'}</p>
-              <p className="text-gray-700 mt-2">E-Mail: {company?.email || 'info@stillundlaut.com'}</p>
+              <p className="font-semibold text-secondary-700">{legal?.companyName || companyName || 'Still und Laut GmbH'}</p>
+              <p className="text-secondary-700">{legal?.street || 'Musterstraße 123'}</p>
+              <p className="text-secondary-700">{legal?.zip || '1010'} {legal?.city || 'Wien'}</p>
+              <p className="text-secondary-700 mt-2">E-Mail: {company?.email || 'info@stillundlaut.com'}</p>
             </div>
           </div>
 
@@ -65,11 +65,11 @@ const WithdrawalPage = () => {
               <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
                 <CheckCircle className="w-5 h-5 text-green-600" />
               </div>
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-secondary-700">
                 Folgen des Widerrufs
               </h2>
             </div>
-            <div className="space-y-4 text-gray-700">
+            <div className="space-y-4 text-secondary-700">
               <p>
                 Wenn Sie diesen Vertrag widerrufen, haben wir Ihnen alle Zahlungen, die wir 
                 von Ihnen erhalten haben, einschließlich der Lieferkosten (mit Ausnahme der 
@@ -94,11 +94,11 @@ const WithdrawalPage = () => {
               <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
                 <Package className="w-5 h-5 text-amber-600" />
               </div>
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-secondary-700">
                 Rücksendung der Waren
               </h2>
             </div>
-            <div className="space-y-4 text-gray-700">
+            <div className="space-y-4 text-secondary-700">
               <p>
                 Sie haben die Waren unverzüglich und in jedem Fall spätestens binnen 14 Tagen 
                 ab dem Tag, an dem Sie uns über den Widerruf dieses Vertrags unterrichten, 
@@ -145,7 +145,7 @@ const WithdrawalPage = () => {
             </ul>
           </div>
 
-          <p className="text-center text-gray-500 text-sm mt-8">
+          <p className="text-center text-secondary-500 text-sm mt-8">
             Stand: Januar 2026
           </p>
         </motion.div>
