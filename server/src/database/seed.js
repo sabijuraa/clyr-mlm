@@ -82,6 +82,46 @@ async function seed() {
     `, [adminPassword]);
 
     // ========================================
+    // 3b. SEED DEMO PARTNER
+    // ========================================
+    console.log('Seeding demo partner...');
+    const partnerPassword = await bcrypt.hash('Partner123!', 12);
+    
+    await client.query(`
+      INSERT INTO users (
+        email, password_hash, first_name, last_name, role, status,
+        referral_code, country, rank_id, email_verified,
+        phone, street, zip, city, iban, bic, bank_name, account_holder
+      ) VALUES (
+        'demo@partner.com', $1, 'Max', 'Mustermann', 'partner', 'active',
+        'DEMO2025', 'DE', 2, true,
+        '+49 170 1234567', 'Musterstraße 123', '80333', 'München',
+        'DE89370400440532013000', 'COBADEFFXXX', 'Commerzbank', 'Max Mustermann'
+      )
+      ON CONFLICT (email) DO UPDATE SET
+        password_hash = EXCLUDED.password_hash,
+        status = EXCLUDED.status
+    `, [partnerPassword]);
+
+    // ========================================
+    // 3c. SEED DEMO CUSTOMER
+    // ========================================
+    console.log('Seeding demo customer...');
+    const customerPassword = await bcrypt.hash('Customer123!', 12);
+    
+    const customerResult = await client.query(`
+      INSERT INTO customers (
+        email, first_name, last_name, phone,
+        street, zip, city, country, password_hash, is_registered
+      ) VALUES (
+        'demo@customer.com', 'Anna', 'Kundin', '+49 171 9876543',
+        'Kundenweg 45', '10115', 'Berlin', 'DE', $1, true
+      )
+      ON CONFLICT (email) DO NOTHING
+      RETURNING id
+    `, [customerPassword]);
+
+    // ========================================
     // 4. SEED PRODUCTS - NEW CLYR PRODUCTS
     // ========================================
     console.log('Seeding CLYR products...');
