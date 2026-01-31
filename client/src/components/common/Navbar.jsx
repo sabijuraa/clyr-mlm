@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Menu, X, ShoppingCart, User, LogOut, LayoutDashboard, 
-  ChevronDown, Settings
+  ChevronDown, Settings, Globe
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
@@ -14,7 +14,7 @@ const Navbar = () => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { user, logout, isAuthenticated } = useAuth();
   const { itemCount } = useCart();
-  const { lang } = useLanguage();
+  const { lang, toggle } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -81,8 +81,18 @@ const Navbar = () => {
             ))}
           </div>
 
-          {/* Right Side - Cart & User - ALWAYS Charcoal */}
-          <div className="flex items-center gap-3">
+          {/* Right Side - Language, Cart & User */}
+          <div className="flex items-center gap-2">
+            {/* Language Toggle */}
+            <button
+              onClick={toggle}
+              className="flex items-center gap-1 px-3 py-2 rounded-xl hover:bg-secondary-100 text-secondary-700 transition-all font-medium text-sm"
+              title={lang === 'de' ? 'Switch to English' : 'Auf Deutsch wechseln'}
+            >
+              <Globe className="w-4 h-4" />
+              <span className="uppercase">{lang === 'de' ? 'EN' : 'DE'}</span>
+            </button>
+
             {/* Cart */}
             <Link
               to="/cart"
@@ -187,6 +197,15 @@ const Navbar = () => {
                 {link.label}
               </Link>
             ))}
+            
+            {/* Mobile Language Toggle */}
+            <button
+              onClick={toggle}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium text-secondary-700 hover:bg-secondary-50 transition-colors border border-secondary-200"
+            >
+              <Globe className="w-5 h-5" />
+              {lang === 'de' ? 'Switch to English' : 'Auf Deutsch wechseln'}
+            </button>
             
             {!isAuthenticated && (
               <Link
