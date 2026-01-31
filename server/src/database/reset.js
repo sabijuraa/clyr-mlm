@@ -1,39 +1,21 @@
-import pool from '../config/database.js';
+import { query, pool } from '../config/database.js';
 
 async function reset() {
   console.log('⚠️  Resetting database...\n');
   
   try {
-    // Drop all tables in reverse order of dependencies
-    const tables = [
-      'activity_log',
-      'refresh_tokens',
-      'referral_clicks',
-      'discount_codes',
-      'payouts',
-      'commissions',
-      'order_items',
-      'orders',
-      'customers',
-      'products',
-      'categories',
-      'users',
-      'ranks',
-      'settings'
-    ];
-
-    for (const table of tables) {
-      await pool.query(`DROP TABLE IF EXISTS ${table} CASCADE`);
-      console.log(`  Dropped: ${table}`);
-    }
-
-    // Drop functions
-    await pool.query('DROP FUNCTION IF EXISTS update_updated_at_column CASCADE');
+    // Drop entire schema and recreate
+    await query('DROP SCHEMA public CASCADE');
+    console.log('  Dropped schema');
+    
+    await query('CREATE SCHEMA public');
+    console.log('  Created schema');
+    
+    await query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
+    console.log('  Created uuid extension');
     
     console.log('\n✅ Database reset completed!\n');
-    console.log('Run the following commands to recreate:');
-    console.log('  npm run db:migrate');
-    console.log('  npm run db:seed');
+    console.log('Now run: npm run migrate');
     
   } catch (error) {
     console.error('❌ Reset failed:', error.message);

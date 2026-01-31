@@ -1006,7 +1006,7 @@ CREATE INDEX idx_credit_notes_customer ON credit_notes(customer_id);
 -- ============================================
 CREATE TABLE customer_accounts (
     id SERIAL PRIMARY KEY,
-    customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
     
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
