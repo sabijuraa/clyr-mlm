@@ -245,7 +245,7 @@ CREATE INDEX idx_stock_movements_type ON stock_movements(type);
 -- ============================================
 CREATE TABLE customers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    email VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
     first_name VARCHAR(100),
     last_name VARCHAR(100),
     phone VARCHAR(50),
