@@ -597,31 +597,7 @@ Jede Kapsel hält ca. 30 Duschen (abhängig von Duschzeit und Wasserdruck).`,
     }
 
     // ========================================
-    // 6. SEED DEMO PARTNER
-    // ========================================
-    console.log('Seeding demo partner...');
-    const partnerPassword = await bcrypt.hash('Partner123!', 12);
-    
-    const adminResult = await client.query(`SELECT id FROM users WHERE email = 'theresa@clyr.at'`);
-    const adminId = adminResult.rows[0]?.id;
-
-    if (adminId) {
-      await client.query(`
-        INSERT INTO users (
-          email, password_hash, first_name, last_name, role, status,
-          referral_code, country, rank_id, upline_id, email_verified,
-          street, zip, city, iban
-        ) VALUES (
-          'demo@partner.com', $1, 'Max', 'Mustermann', 'partner', 'active',
-          'MAXDEMO', 'DE', 2, $2, true,
-          'Teststraße 1', '80331', 'München', 'DE89370400440532013000'
-        )
-        ON CONFLICT (email) DO NOTHING
-      `, [partnerPassword, adminId]);
-    }
-
-    // ========================================
-    // 7. SEED ACADEMY CONTENT
+    // 6. SEED ACADEMY CONTENT
     // ========================================
     console.log('Seeding academy content...');
     

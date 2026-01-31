@@ -1,4 +1,4 @@
-import { query, pool } from '../config/database.js';
+import pool, { query } from '../config/database.js';
 
 async function reset() {
   console.log('⚠️  Resetting database...\n');
