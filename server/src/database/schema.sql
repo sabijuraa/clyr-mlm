@@ -826,7 +826,7 @@ CREATE TRIGGER update_discount_codes_updated_at BEFORE UPDATE ON discount_codes 
 CREATE TABLE gdpr_requests (
     id SERIAL PRIMARY KEY,
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-    customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+    customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
     email VARCHAR(255) NOT NULL,
     
     request_type VARCHAR(50) NOT NULL CHECK (request_type IN ('export', 'delete', 'rectification')),
@@ -861,7 +861,7 @@ CREATE TABLE cookie_consents (
     id SERIAL PRIMARY KEY,
     visitor_id VARCHAR(255) NOT NULL, -- Browser fingerprint or cookie ID
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-    customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+    customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
     
     -- Consent categories
     necessary BOOLEAN DEFAULT true, -- Always required
@@ -888,7 +888,7 @@ CREATE TABLE newsletter_subscribers (
     last_name VARCHAR(100),
     
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-    customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+    customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
     
     status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'active', 'unsubscribed', 'bounced')),
     
@@ -957,9 +957,9 @@ CREATE TABLE credit_notes (
     credit_note_number VARCHAR(50) UNIQUE NOT NULL, -- GS-2025-0001
     
     -- Reference
-    order_id INTEGER REFERENCES orders(id) ON DELETE SET NULL,
-    invoice_id INTEGER REFERENCES invoices(id) ON DELETE SET NULL,
-    customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+    order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
+    invoice_id UUID REFERENCES invoices(id) ON DELETE SET NULL,
+    customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
     
     -- Amounts
     subtotal DECIMAL(10,2) NOT NULL,
