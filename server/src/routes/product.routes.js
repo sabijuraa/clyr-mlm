@@ -1,6 +1,13 @@
+/**
+ * Product Routes
+ * ==============
+ * Routes for product management (public + admin)
+ */
+
 import express from 'express';
 import * as productController from '../controllers/product.controller.js';
 import { authenticate, isAdmin, optionalAuth } from '../middleware/auth.middleware.js';
+import { upload, uploadMultipleToSpaces } from '../middleware/upload.middleware.js';
 
 const router = express.Router();
 
@@ -39,11 +46,43 @@ router.get('/admin/all', authenticate, isAdmin, productController.getAllProducts
 // Get product statistics - Admin only
 router.get('/admin/stats', authenticate, isAdmin, productController.getProductStats);
 
-// Create new product - Admin only
-router.post('/admin', authenticate, isAdmin, productController.createProduct);
+// Create new product with images - Admin only (NEW - with Spaces upload)
+router.post(
+  '/admin', 
+  authenticate, 
+  isAdmin, 
+  upload.array('images', 5), 
+  uploadMultipleToSpaces('products'), 
+  productController.createProduct
+);
 
-// Update product - Admin only
-router.put('/admin/:id', authenticate, isAdmin, productController.updateProduct);
+// Update product with new images - Admin only (NEW - with Spaces upload)
+router.put(
+  '/admin/:id', 
+  authenticate, 
+  isAdmin, 
+  upload.array('images', 5), 
+  uploadMultipleToSpaces('products'), 
+  productController.updateProduct
+);
+
+// Upload additional product images - Admin only (NEW - for Theresa's fixes)
+router.post(
+  '/admin/:id/images', 
+  authenticate, 
+  isAdmin, 
+  upload.array('images', 5), 
+  uploadMultipleToSpaces('products'), 
+  productController.uploadProductImages
+);
+
+// Remove product image - Admin only (NEW - for Theresa's fixes)
+router.delete(
+  '/admin/:id/images', 
+  authenticate, 
+  isAdmin, 
+  productController.removeProductImage
+);
 
 // Delete product (soft delete) - Admin only
 router.delete('/admin/:id', authenticate, isAdmin, productController.deleteProduct);
@@ -60,10 +99,10 @@ router.patch('/admin/:id/stock', authenticate, isAdmin, productController.update
 // Bulk update products - Admin only
 router.post('/admin/bulk-update', authenticate, isAdmin, productController.bulkUpdateProducts);
 
-// Upload product image - Admin only
+// Upload single product image (legacy) - Admin only
 router.post('/admin/:id/image', authenticate, isAdmin, productController.uploadProductImage);
 
-// Delete product image - Admin only
+// Delete product image by index (legacy) - Admin only
 router.delete('/admin/:id/image/:imageIndex', authenticate, isAdmin, productController.deleteProductImage);
 
 export default router;

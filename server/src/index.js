@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Import routes
+// Import existing routes
 import authRoutes from './routes/auth.routes.js';
 import productRoutes from './routes/product.routes.js';
 import orderRoutes from './routes/order.routes.js';
@@ -26,7 +26,7 @@ import variantRoutes from './routes/variant.routes.js';
 import creditnoteRoutes from './routes/creditnote.routes.js';
 import vatreportRoutes from './routes/vatreport.routes.js';
 
-// Import NEW routes
+// Import NEW routes (for Theresa's WordPress-like features)
 import brandingRoutes from './routes/branding.routes.js';
 import settingsRoutes from './routes/settings.routes.js';
 
@@ -41,60 +41,140 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
+// ========================================
+// MIDDLEWARE
+// ========================================
+
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:3000',
   credentials: true
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Static files
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/public', express.static(path.join(__dirname, '../public')));
 
-// Health check
+// Request logging (development)
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req, res, next) => {
+    console.log(`${req.method} ${req.path}`);
+    next();
+  });
+}
+
+// ========================================
+// HEALTH CHECK
+// ========================================
+
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development'
+  });
 });
 
-// API Routes
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'CLYR MLM API',
+    version: '3.0.0',
+    status: 'running'
+  });
+});
+
+// ========================================
+// API ROUTES
+// ========================================
+
+// Authentication & User Management
 app.use('/api/auth', authRoutes);
+
+// E-commerce
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/variants', variantRoutes);
+app.use('/api/stock', stockRoutes);
+
+// Customer Portal
 app.use('/api/customers', customerRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
+
+// Partner/MLM
 app.use('/api/partners', partnerRoutes);
-app.use('/api/admin', adminRoutes);
 app.use('/api/commissions', commissionRoutes);
 app.use('/api/payouts', payoutRoutes);
-app.use('/api/webhooks', webhookRoutes);
+
+// Admin
+app.use('/api/admin', adminRoutes);
+
+// CMS & Content
 app.use('/api/cms', cmsRoutes);
 app.use('/api/academy', academyRoutes);
-app.use('/api/gdpr', gdprRoutes);
-app.use('/api/import', importRoutes);
 app.use('/api/newsletter', newsletterRoutes);
-app.use('/api/stock', stockRoutes);
-app.use('/api/subscriptions', subscriptionRoutes);
-app.use('/api/variants', variantRoutes);
+
+// Financial
 app.use('/api/creditnotes', creditnoteRoutes);
 app.use('/api/vatreports', vatreportRoutes);
 
-// NEW Routes
-app.use('/api', brandingRoutes);
-app.use('/api', settingsRoutes);
+// Integrations
+app.use('/api/webhooks', webhookRoutes);
+app.use('/api/import', importRoutes);
 
-// Error handling
-app.use(errorHandler);
+// Legal & Compliance
+app.use('/api/gdpr', gdprRoutes);
+
+// NEW ROUTES - WordPress-like Admin Features
+app.use('/api', brandingRoutes);        // Branding management (logo, colors)
+app.use('/api', settingsRoutes);        // Legal pages, company settings, invoices
+
+// ========================================
+// ERROR HANDLING
+// ========================================
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
+  res.status(404).json({ 
+    error: 'Route not found',
+    path: req.path,
+    method: req.method
+  });
 });
 
-// Start server
+// Global error handler
+app.use(errorHandler);
+
+// ========================================
+// START SERVER
+// ========================================
+
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Server running on port ${PORT}`);
+  console.log('='.repeat(50));
+  console.log('🚀 CLYR MLM Server Started');
+  console.log('='.repeat(50));
+  console.log(`📡 Port: ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔗 URL: http://localhost:${PORT}`);
+  console.log(`💾 Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
+  console.log('='.repeat(50));
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+  console.error('❌ Unhandled Promise Rejection:', err);
+  // Don't exit in production, just log
+  if (process.env.NODE_ENV !== 'production') {
+    process.exit(1);
+  }
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('❌ Uncaught Exception:', err);
+  process.exit(1);
 });
 
 export default app;
