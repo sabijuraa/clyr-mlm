@@ -239,7 +239,7 @@ export default function CheckoutPage() {
               {/* REFERRAL CODE SECTION */}
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg shadow border-2 border-blue-200">
                 <h2 className="text-xl font-semibold mb-3 flex items-center">
-                  🎁 Empfehlungscode (optional)
+                   Empfehlungscode (optional)
                 </h2>
                 <p className="text-sm text-gray-700 mb-4">
                   Haben Sie einen Empfehlungscode von einem Partner erhalten? Geben Sie ihn hier ein, 
@@ -262,7 +262,7 @@ export default function CheckoutPage() {
                     disabled={referralValid || !referralCode.trim() || verifyingCode}
                     className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
                   >
-                    {verifyingCode ? 'Prüfen...' : referralValid ? '✓ Angewendet' : 'Anwenden'}
+                    {verifyingCode ? 'Prüfen...' : referralValid ? ' Angewendet' : 'Anwenden'}
                   </button>
                 </div>
                 
@@ -272,7 +272,7 @@ export default function CheckoutPage() {
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                     </svg>
                     <div>
-                      <p className="font-semibold">✓ Empfehlungscode akzeptiert!</p>
+                      <p className="font-semibold"> Empfehlungscode akzeptiert!</p>
                       <p className="text-sm mt-1">
                         Ihr Partner: <strong>{referralPartner.first_name} {referralPartner.last_name}</strong>
                       </p>
@@ -282,7 +282,7 @@ export default function CheckoutPage() {
 
                 {!referralValid && referralCode && (
                   <p className="mt-2 text-sm text-gray-600">
-                    💡 Tipp: Empfehlungscodes sind normalerweise 6-10 Zeichen lang
+                     Tipp: Empfehlungscodes sind normalerweise 6-10 Zeichen lang
                   </p>
                 )}
               </div>
@@ -328,7 +328,7 @@ export default function CheckoutPage() {
                 </div>
                 {subtotal < 50 && (
                   <p className="text-sm text-gray-600">
-                    💡 Kostenloser Versand ab €50
+                     Kostenloser Versand ab €50
                   </p>
                 )}
                 <div className="border-t pt-2 flex justify-between text-lg font-bold">
