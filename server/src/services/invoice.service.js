@@ -73,8 +73,7 @@ class InvoiceService {
   // ========================================
   async generateInvoicePDF(orderData, invoiceNumber) {
     try {
-      // Get company settings
-      const companyResult = await pool.query('SELECT * FROM company_settings WHERE id = 1');
+      const companyResult = await pool.query('SELECT * FROM company_settings WHERE id = 1').catch(() => ({ rows: [] }));
       const company = companyResult.rows[0] || { 
         company_name: 'CLYR', 
         email: 'info@clyr.de',
@@ -96,27 +95,23 @@ class InvoiceService {
       const stream = fs.createWriteStream(filepath);
       doc.pipe(stream);
 
-      // Header
       doc.fontSize(20).text('RECHNUNG', 400, 50, { align: 'right' });
       doc.fontSize(10)
          .text(`Nr: ${invoiceNumber || 'DRAFT'}`, 400, 75, { align: 'right' })
          .text(`Datum: ${new Date().toLocaleDateString('de-DE')}`, 400, 90, { align: 'right' });
 
-      // Company info
       doc.fontSize(10)
          .text(company.company_name, 50, 150)
          .text(company.address_line1 || '', 50, 165)
          .text(`${company.postal_code || ''} ${company.city || ''}`, 50, 180)
          .text(`Email: ${company.email || ''}`, 50, 195);
 
-      // Customer info
       doc.text('Rechnungsadresse:', 300, 150)
          .text(`${orderData.customer_name || ''}`, 300, 165)
          .text(orderData.shipping_address || '', 300, 180);
 
       doc.moveTo(50, 260).lineTo(550, 260).stroke();
 
-      // Items table
       const tableTop = 280;
       doc.font('Helvetica-Bold')
          .text('Pos', 50, tableTop)
@@ -143,7 +138,6 @@ class InvoiceService {
       doc.moveTo(50, yPosition).lineTo(550, yPosition).stroke();
       yPosition += 20;
 
-      // Totals
       const subtotal = parseFloat(orderData.subtotal || 0);
       const shipping = parseFloat(orderData.shipping_cost || 0);
       const taxRate = 19;
@@ -195,12 +189,88 @@ class InvoiceService {
   }
 
   // ========================================
+  // GENERATE COMMISSION STATEMENT (For commission.controller.js)
+  // ========================================
+  async generateCommissionStatement(commissionData, statementNumber) {
+    try {
+      const companyResult = await pool.query('SELECT * FROM company_settings WHERE id = 1').catch(() => ({ rows: [] }));
+      const company = companyResult.rows[0] || { company_name: 'CLYR', email: 'info@clyr.de' };
+
+      const doc = new PDFDocument({ size: 'A4', margin: 50 });
+      const filename = `${statementNumber || 'COMM-' + Date.now()}.pdf`;
+      const invoiceDir = path.join(__dirname, '../../public/invoices');
+      
+      if (!fs.existsSync(invoiceDir)) {
+        fs.mkdirSync(invoiceDir, { recursive: true });
+      }
+      
+      const filepath = path.join(invoiceDir, filename);
+      const stream = fs.createWriteStream(filepath);
+      doc.pipe(stream);
+
+      doc.fontSize(20).text('PROVISIONSABRECHNUNG', 50, 50);
+      doc.fontSize(10)
+         .text(`Nr: ${statementNumber || 'DRAFT'}`, 400, 50, { align: 'right' })
+         .text(`Datum: ${new Date().toLocaleDateString('de-DE')}`, 400, 65, { align: 'right' });
+
+      doc.fontSize(10)
+         .text(company.company_name, 50, 120)
+         .text(company.address_line1 || '', 50, 135);
+
+      doc.text('Partner:', 300, 120)
+         .text(commissionData.partner_name || '', 300, 135)
+         .text(commissionData.partner_email || '', 300, 150);
+
+      doc.moveTo(50, 200).lineTo(550, 200).stroke();
+
+      const tableTop = 220;
+      doc.font('Helvetica-Bold')
+         .text('Bestellung', 50, tableTop)
+         .text('Datum', 200, tableTop)
+         .text('Betrag', 350, tableTop)
+         .text('Provision', 450, tableTop);
+
+      doc.font('Helvetica');
+      let yPosition = tableTop + 25;
+
+      if (commissionData.items && commissionData.items.length > 0) {
+        commissionData.items.forEach((item) => {
+          doc.text(item.order_number || '', 50, yPosition)
+             .text(new Date(item.date).toLocaleDateString('de-DE'), 200, yPosition)
+             .text(`€${parseFloat(item.order_total).toFixed(2)}`, 350, yPosition)
+             .text(`€${parseFloat(item.commission).toFixed(2)}`, 450, yPosition);
+          yPosition += 20;
+        });
+      }
+
+      yPosition += 10;
+      doc.moveTo(50, yPosition).lineTo(550, yPosition).stroke();
+      yPosition += 20;
+
+      const total = commissionData.total_commission || 0;
+      doc.font('Helvetica-Bold').fontSize(12)
+         .text('GESAMT PROVISION:', 350, yPosition)
+         .text(`€${parseFloat(total).toFixed(2)}`, 450, yPosition);
+
+      doc.end();
+
+      return new Promise((resolve, reject) => {
+        stream.on('finish', () => resolve(`/invoices/${filename}`));
+        stream.on('error', reject);
+      });
+    } catch (error) {
+      console.error('Commission statement generation error:', error);
+      throw error;
+    }
+  }
+
+  // ========================================
   // GENERATE PDF (INTERNAL)
   // ========================================
   async generatePDF(invoice, order, items) {
     return new Promise(async (resolve, reject) => {
       try {
-        const companyResult = await pool.query('SELECT * FROM company_settings WHERE id = 1');
+        const companyResult = await pool.query('SELECT * FROM company_settings WHERE id = 1').catch(() => ({ rows: [] }));
         const company = companyResult.rows[0] || { company_name: 'CLYR', email: 'info@clyr.de' };
 
         const doc = new PDFDocument({ size: 'A4', margin: 50 });
@@ -291,30 +361,35 @@ class InvoiceService {
   }
 
   // ========================================
-  // GET NEXT INVOICE NUMBER
+  // HELPER METHODS
   // ========================================
+
   async getNextInvoiceNumber() {
-    const result = await pool.query('SELECT generate_invoice_number()');
-    return result.rows[0].generate_invoice_number;
+    try {
+      const result = await pool.query('SELECT generate_invoice_number()');
+      return result.rows[0].generate_invoice_number;
+    } catch (error) {
+      // Fallback if function doesn't exist yet
+      return `INV-${new Date().getFullYear()}-${Date.now()}`;
+    }
   }
 
-  // ========================================
-  // GET ALL INVOICES
-  // ========================================
   async getAllInvoices() {
-    const result = await pool.query(`
-      SELECT i.*, c.first_name, c.last_name, o.order_number
-      FROM invoices i
-      JOIN customers c ON i.customer_id = c.id
-      LEFT JOIN orders o ON i.order_id = o.id
-      ORDER BY i.created_at DESC
-    `);
-    return result.rows;
+    try {
+      const result = await pool.query(`
+        SELECT i.*, c.first_name, c.last_name, o.order_number
+        FROM invoices i
+        JOIN customers c ON i.customer_id = c.id
+        LEFT JOIN orders o ON i.order_id = o.id
+        ORDER BY i.created_at DESC
+      `);
+      return result.rows;
+    } catch (error) {
+      console.error('Get all invoices error:', error);
+      return [];
+    }
   }
 
-  // ========================================
-  // GET INVOICE BY ID
-  // ========================================
   async getInvoiceById(invoiceId) {
     const result = await pool.query(`
       SELECT i.*, c.first_name, c.last_name, c.email, c.address_line1, c.city, c.postal_code
@@ -330,9 +405,6 @@ class InvoiceService {
     return result.rows[0];
   }
 
-  // ========================================
-  // GET INVOICE BY ORDER ID
-  // ========================================
   async getInvoiceByOrderId(orderId) {
     const result = await pool.query(`
       SELECT * FROM invoices WHERE order_id = $1
@@ -343,14 +415,15 @@ class InvoiceService {
 }
 
 // ========================================
-// EXPORTS
+// EXPORTS (ALL OF THEM!)
 // ========================================
 
 const invoiceService = new InvoiceService();
 
-// Named exports (for compatibility)
+// Named exports for compatibility
 export const generateInvoice = (orderId) => invoiceService.generateInvoice(orderId);
 export const generateInvoicePDF = (orderData, invoiceNumber) => invoiceService.generateInvoicePDF(orderData, invoiceNumber);
+export const generateCommissionStatement = (commissionData, statementNumber) => invoiceService.generateCommissionStatement(commissionData, statementNumber);
 export const getAllInvoices = () => invoiceService.getAllInvoices();
 export const getInvoiceById = (invoiceId) => invoiceService.getInvoiceById(invoiceId);
 export const getInvoiceByOrderId = (orderId) => invoiceService.getInvoiceByOrderId(orderId);
