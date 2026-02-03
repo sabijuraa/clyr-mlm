@@ -16,7 +16,7 @@ const HomePage = lazy(() => import('./pages/public/HomePage').catch(() => ({ def
 const ProductsPage = lazy(() => import('./pages/public/ProductsPage').catch(() => ({ default: () => <div>Products - Coming Soon</div> })));
 const ProductDetailPage = lazy(() => import('./pages/public/ProductDetailPage').catch(() => ({ default: () => <div>Product Detail - Coming Soon</div> })));
 const CheckoutPage = lazy(() => import('./pages/public/CheckoutPage').catch(() => ({ default: () => <div>Checkout - Coming Soon</div> })));
-const LoginPage = lazy(() => import('./pages/public/LoginPage').catch(() => ({ default: () => <div>Login - Coming Soon</div> })));
+const LoginPage = lazy(() => import('./pages/auth/LoginPage').catch(() => ({ default: () => <div>Login - Coming Soon</div> })));
 
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard').catch(() => ({ default: () => <div>Dashboard - Coming Soon</div> })));
 const AdminProductsPage = lazy(() => import('./pages/admin/ProductsPage').catch(() => ({ default: () => <div>Products Admin - Coming Soon</div> })));
