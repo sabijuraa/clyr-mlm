@@ -1,67 +1,100 @@
-// Add to server/src/routes/index.js
+// server/src/index.js
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-import { upload, uploadSingleToSpaces, uploadMultipleToSpaces } from '../middleware/upload.middleware.js';
-import * as brandingController from '../controllers/branding.controller.js';
-import * as productController from '../controllers/product.controller.js';
-import * as customerController from '../controllers/customer.controller.js';
-import * as settingsController from '../controllers/settings.controller.js';
-import invoiceService from '../services/invoice.service.js';
+// Import routes
+import authRoutes from './routes/auth.routes.js';
+import productRoutes from './routes/product.routes.js';
+import orderRoutes from './routes/order.routes.js';
+import customerRoutes from './routes/customer.routes.js';
+import partnerRoutes from './routes/partner.routes.js';
+import adminRoutes from './routes/admin.routes.js';
+import commissionRoutes from './routes/commission.routes.js';
+import payoutRoutes from './routes/payout.routes.js';
+import webhookRoutes from './routes/webhook.routes.js';
+import cmsRoutes from './routes/cms.routes.js';
+import academyRoutes from './routes/academy.routes.js';
+import gdprRoutes from './routes/gdpr.routes.js';
+import importRoutes from './routes/import.routes.js';
+import newsletterRoutes from './routes/newsletter.routes.js';
+import stockRoutes from './routes/stock.routes.js';
+import subscriptionRoutes from './routes/subscription.routes.js';
+import variantRoutes from './routes/variant.routes.js';
+import creditnoteRoutes from './routes/creditnote.routes.js';
+import vatreportRoutes from './routes/vatreport.routes.js';
 
-// ===== PUBLIC ROUTES =====
-router.get('/branding', brandingController.getBranding);
-router.get('/legal/:type', settingsController.getLegalDocument);
-router.get('/legal', settingsController.getAllLegalDocuments);
-router.get('/company', settingsController.getCompanySettings);
-router.get('/shipping-rules', settingsController.getShippingRules);
+// Import NEW routes
+import brandingRoutes from './routes/branding.routes.js';
+import settingsRoutes from './routes/settings.routes.js';
 
-// Customer Auth
-router.post('/customer/login', customerController.customerLogin);
-router.post('/customer/register', customerController.customerRegister);
+// Import error middleware
+import { errorHandler } from './middleware/error.middleware.js';
 
-// ===== CUSTOMER ROUTES =====
-router.get('/customer/profile', authenticateUser, customerController.getCustomerProfile);
-router.put('/customer/profile', authenticateUser, customerController.updateCustomerProfile);
-router.get('/customer/orders', authenticateUser, customerController.getCustomerOrders);
-router.get('/customer/invoices', authenticateUser, customerController.getCustomerInvoices);
+dotenv.config();
 
-// ===== ADMIN ROUTES =====
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// Branding
-router.put('/admin/branding', authenticateAdmin, brandingController.updateBranding);
-router.post('/admin/branding/logo-light', authenticateAdmin, upload.single('logo'), uploadSingleToSpaces('branding'), brandingController.uploadLogoLight);
-router.post('/admin/branding/logo-dark', authenticateAdmin, upload.single('logo'), uploadSingleToSpaces('branding'), brandingController.uploadLogoDark);
-router.post('/admin/branding/favicon', authenticateAdmin, upload.single('favicon'), uploadSingleToSpaces('branding'), brandingController.uploadFavicon);
+const app = express();
+const PORT = process.env.PORT || 5000;
 
-// Products
-router.post('/admin/products', authenticateAdmin, upload.array('images', 5), uploadMultipleToSpaces('products'), productController.createProduct);
-router.put('/admin/products/:id', authenticateAdmin, upload.array('images', 5), uploadMultipleToSpaces('products'), productController.updateProduct);
-router.post('/admin/products/:id/images', authenticateAdmin, upload.array('images', 5), uploadMultipleToSpaces('products'), productController.uploadProductImages);
-router.delete('/admin/products/:id/images', authenticateAdmin, productController.removeProductImage);
+// Middleware
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  credentials: true
+}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Legal Documents
-router.put('/admin/legal/:type', authenticateAdmin, settingsController.updateLegalDocument);
+// Static files
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/public', express.static(path.join(__dirname, '../public')));
 
-// Company Settings
-router.put('/admin/company', authenticateAdmin, settingsController.updateCompanySettings);
-
-// Shipping Rules
-router.put('/admin/shipping-rules/:id', authenticateAdmin, settingsController.updateShippingRule);
-
-// Invoices
-router.get('/admin/invoices', authenticateAdmin, async (req, res) => {
-  try {
-    const invoices = await invoiceService.getAllInvoices();
-    res.json(invoices);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-router.post('/admin/invoices/generate/:orderId', authenticateAdmin, async (req, res) => {
-  try {
-    const invoice = await invoiceService.generateInvoice(req.params.orderId);
-    res.json(invoice);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/customers', customerRoutes);
+app.use('/api/partners', partnerRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/commissions', commissionRoutes);
+app.use('/api/payouts', payoutRoutes);
+app.use('/api/webhooks', webhookRoutes);
+app.use('/api/cms', cmsRoutes);
+app.use('/api/academy', academyRoutes);
+app.use('/api/gdpr', gdprRoutes);
+app.use('/api/import', importRoutes);
+app.use('/api/newsletter', newsletterRoutes);
+app.use('/api/stock', stockRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/variants', variantRoutes);
+app.use('/api/creditnotes', creditnoteRoutes);
+app.use('/api/vatreports', vatreportRoutes);
+
+// NEW Routes
+app.use('/api', brandingRoutes);
+app.use('/api', settingsRoutes);
+
+// Error handling
+app.use(errorHandler);
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ error: 'Route not found' });
 });
+
+// Start server
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Server running on port ${PORT}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+});
+
+export default app;
