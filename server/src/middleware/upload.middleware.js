@@ -1,120 +1,104 @@
+// server/src/middleware/upload.middleware.js
 import multer from 'multer';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
+import crypto from 'crypto';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Ensure upload directories exist
-const uploadDirs = ['documents', 'products', 'avatars', 'branding'];
-uploadDirs.forEach(dir => {
-  const fullPath = path.join(__dirname, '../../uploads', dir);
-  if (!fs.existsSync(fullPath)) {
-    fs.mkdirSync(fullPath, { recursive: true });
+// DigitalOcean Spaces configuration
+const spacesClient = new S3Client({
+  endpoint: process.env.DO_SPACES_ENDPOINT || 'https://fra1.digitaloceanspaces.com',
+  region: process.env.DO_SPACES_REGION || 'fra1',
+  credentials: {
+    accessKeyId: process.env.DO_SPACES_KEY,
+    secretAccessKey: process.env.DO_SPACES_SECRET
   }
 });
 
-// Storage configuration
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    let uploadPath = path.join(__dirname, '../../uploads');
-    
-    // Determine subfolder based on field name or route
-    if (file.fieldname.includes('passport') || file.fieldname.includes('license') || file.fieldname.includes('bankCard')) {
-      uploadPath = path.join(uploadPath, 'documents');
-    } else if (file.fieldname.includes('product') || file.fieldname.includes('image')) {
-      uploadPath = path.join(uploadPath, 'products');
-    } else if (file.fieldname.includes('avatar')) {
-      uploadPath = path.join(uploadPath, 'avatars');
-    }
-    
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const uniqueName = `${uuidv4()}${ext}`;
-    cb(null, uniqueName);
-  }
-});
+const BUCKET_NAME = process.env.DO_SPACES_BUCKET || 'clyr-uploads';
+const CDN_URL = process.env.DO_SPACES_CDN || `https://${BUCKET_NAME}.fra1.cdn.digitaloceanspaces.com`;
+
+// Memory storage for multer
+const storage = multer.memoryStorage();
 
 // File filter
 const fileFilter = (req, file, cb) => {
-  // Allowed file types
-  const allowedMimes = [
-    'image/jpeg',
-    'image/jpg',
-    'image/png',
-    'image/webp',
-    'application/pdf'
-  ];
+  const allowedTypes = /jpeg|jpg|png|gif|webp|svg/;
+  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+  const mimetype = allowedTypes.test(file.mimetype);
 
-  if (allowedMimes.includes(file.mimetype)) {
-    cb(null, true);
+  if (mimetype && extname) {
+    return cb(null, true);
   } else {
-    cb(new Error(`Dateityp ${file.mimetype} nicht erlaubt. Erlaubt: JPG, PNG, WebP, PDF`), false);
+    cb(new Error('Only image files are allowed!'));
   }
 };
 
-// Multer instance
-const upload = multer({
-  storage,
-  fileFilter,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
-    files: 10 // Max 10 files
-  }
+// Multer upload config
+export const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: fileFilter
 });
 
-// Export upload middleware variants
-export const uploadSingle = (fieldName) => upload.single(fieldName);
+// Upload to DigitalOcean Spaces
+export const uploadToSpaces = async (file, folder = 'general') => {
+  try {
+    const fileExtension = path.extname(file.originalname);
+    const fileName = `${folder}/${crypto.randomBytes(16).toString('hex')}${fileExtension}`;
+    
+    const uploadParams = {
+      Bucket: BUCKET_NAME,
+      Key: fileName,
+      Body: file.buffer,
+      ACL: 'public-read',
+      ContentType: file.mimetype,
+      CacheControl: 'max-age=31536000'
+    };
 
-export const uploadMultiple = (fieldName, maxCount = 5) => upload.array(fieldName, maxCount);
-
-export const uploadFields = (fields) => upload.fields(fields);
-
-// Document upload for partner registration
-export const uploadPartnerDocuments = upload.fields([
-  { name: 'passport', maxCount: 1 },
-  { name: 'bankCard', maxCount: 1 },
-  { name: 'tradeLicense', maxCount: 1 }
-]);
-
-// Product images upload
-export const uploadProductImages = upload.array('images', 10);
-
-// Avatar upload
-export const uploadAvatar = upload.single('avatar');
-
-// Branding logo upload
-const brandingStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadPath = path.join(__dirname, '../../uploads/branding');
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const uniqueName = `logo-${Date.now()}${ext}`;
-    cb(null, uniqueName);
-  }
-});
-
-const brandingFileFilter = (req, file, cb) => {
-  const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/svg+xml', 'image/webp'];
-  if (allowedMimes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error('Logo muss ein Bild sein (JPG, PNG, SVG, WebP)'), false);
+    await spacesClient.send(new PutObjectCommand(uploadParams));
+    
+    const fileUrl = `${CDN_URL}/${fileName}`;
+    return fileUrl;
+  } catch (error) {
+    console.error('Upload to Spaces error:', error);
+    throw new Error('Failed to upload file');
   }
 };
 
-export const uploadBrandingLogo = multer({
-  storage: brandingStorage,
-  fileFilter: brandingFileFilter,
-  limits: {
-    fileSize: 2 * 1024 * 1024 // 2MB max for logo
-  }
-}).single('logo');
+// Middleware for multiple file uploads
+export const uploadMultipleToSpaces = (folder) => {
+  return async (req, res, next) => {
+    try {
+      if (!req.files || req.files.length === 0) {
+        return next();
+      }
+
+      const uploadPromises = req.files.map(file => uploadToSpaces(file, folder));
+      const uploadedUrls = await Promise.all(uploadPromises);
+      
+      req.uploadedFiles = uploadedUrls;
+      next();
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  };
+};
+
+// Middleware for single file upload
+export const uploadSingleToSpaces = (folder) => {
+  return async (req, res, next) => {
+    try {
+      if (!req.file) {
+        return next();
+      }
+
+      const fileUrl = await uploadToSpaces(req.file, folder);
+      req.uploadedFile = fileUrl;
+      next();
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  };
+};
 
 export default upload;

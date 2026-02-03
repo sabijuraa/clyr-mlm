@@ -1,238 +1,468 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Search, SlidersHorizontal, X, ChevronDown, ShoppingBag, Check, Droplets } from 'lucide-react';
-import { useLanguage } from '../../context/LanguageContext';
-import { useCart } from '../../context/CartContext';
-import { formatCurrency } from '../../config/app.config';
-import { debounce } from '../../utils/helpers';
-import { productsAPI } from '../../services/api';
+// client/src/pages/admin/ProductsPage.jsx
+import { useState, useEffect } from 'react';
 
-const ProductsPage = () => {
-  const { t, lang } = useLanguage();
-  const { addItem, isInCart } = useCart();
-  const [searchParams, setSearchParams] = useSearchParams();
-  
+export default function ProductsPage() {
   const [products, setProducts] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [showFilters, setShowFilters] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [productImages, setProductImages] = useState([]);
+  const [uploading, setUploading] = useState(false);
   
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
-  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'all');
-  const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'default');
-
-  const categories = [
-    { key: 'all', label: lang === 'de' ? 'Alle Produkte' : 'All Products' },
-    { key: 'wasserfilter', label: lang === 'de' ? 'Wasserfilter' : 'Water Filters' },
-    { key: 'komplett-sets', label: lang === 'de' ? 'Komplett-Sets' : 'Complete Sets' },
-    { key: 'ersatzfilter', label: lang === 'de' ? 'Ersatzfilter' : 'Replacement Filters' },
-    { key: 'zubehoer', label: lang === 'de' ? 'Zubehör' : 'Accessories' },
-  ];
-
-  const sortOptions = [
-    { key: 'default', label: lang === 'de' ? 'Empfohlen' : 'Recommended' },
-    { key: 'price-asc', label: lang === 'de' ? 'Preis aufsteigend' : 'Price: Low to High' },
-    { key: 'price-desc', label: lang === 'de' ? 'Preis absteigend' : 'Price: High to Low' },
-    { key: 'name-asc', label: lang === 'de' ? 'Name A-Z' : 'Name A-Z' },
-  ];
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    price: '',
+    category_id: '',
+    stock_quantity: '',
+    sku: '',
+    is_featured: false
+  });
 
   useEffect(() => {
-    const loadProducts = async () => {
-      setIsLoading(true);
-      try {
-        const response = await productsAPI.getAll();
-        setProducts(response.data.products || response.data || []);
-      } catch (error) {
-        console.error('Failed to load products:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadProducts();
+    fetchProducts();
+    fetchCategories();
   }, []);
 
-  const filteredProducts = useMemo(() => {
-    let result = [...products];
+  const fetchProducts = async () => {
+    try {
+      const res = await fetch('/api/products');
+      const data = await res.json();
+      setProducts(data);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(p => p.name.toLowerCase().includes(query));
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('/api/categories');
+      const data = await res.json();
+      setCategories(data);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
+
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    setUploading(true);
+    const formData = new FormData();
+    files.forEach(file => formData.append('images', file));
+
+    try {
+      const token = localStorage.getItem('token');
+      const endpoint = editingProduct 
+        ? `/api/admin/products/${editingProduct.id}/images`
+        : '/api/admin/products/temp-images'; // Adjust as needed
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setProductImages(data.images || data.uploadedFiles || []);
+        alert('Bilder erfolgreich hochgeladen!');
+      }
+    } catch (error) {
+      console.error('Error uploading images:', error);
+      alert('Fehler beim Hochladen der Bilder');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoveImage = async (imageUrl) => {
+    if (!editingProduct) {
+      // Just remove from state if creating new product
+      setProductImages(productImages.filter(img => img !== imageUrl));
+      return;
     }
 
-    if (selectedCategory !== 'all') {
-      result = result.filter(p => p.category?.slug === selectedCategory);
+    try {
+      const token = localStorage.getItem('token');
+      await fetch(`/api/admin/products/${editingProduct.id}/images`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ imageUrl })
+      });
+      
+      setProductImages(productImages.filter(img => img !== imageUrl));
+    } catch (error) {
+      console.error('Error removing image:', error);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    const token = localStorage.getItem('token');
+    const method = editingProduct ? 'PUT' : 'POST';
+    const endpoint = editingProduct 
+      ? `/api/admin/products/${editingProduct.id}`
+      : '/api/admin/products';
+
+    // If creating new product, upload images first
+    let uploadedImageUrls = productImages;
+    if (!editingProduct && productImages.length === 0) {
+      // No images yet, need to upload
+      const fileInput = document.getElementById('product-images-create');
+      if (fileInput?.files.length > 0) {
+        const uploadFormData = new FormData();
+        Array.from(fileInput.files).forEach(file => {
+          uploadFormData.append('images', file);
+        });
+
+        // Add other product data
+        Object.keys(formData).forEach(key => {
+          uploadFormData.append(key, formData[key]);
+        });
+
+        try {
+          const res = await fetch(endpoint, {
+            method,
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: uploadFormData
+          });
+
+          if (res.ok) {
+            alert('Produkt erfolgreich gespeichert!');
+            setShowModal(false);
+            fetchProducts();
+            resetForm();
+          }
+        } catch (error) {
+          console.error('Error saving product:', error);
+          alert('Fehler beim Speichern');
+        }
+        return;
+      }
     }
 
-    switch (sortBy) {
-      case 'price-asc': result.sort((a, b) => a.price - b.price); break;
-      case 'price-desc': result.sort((a, b) => b.price - a.price); break;
-      case 'name-asc': result.sort((a, b) => a.name.localeCompare(b.name)); break;
+    // Normal save (update or create without new images)
+    try {
+      const res = await fetch(endpoint, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(formData)
+      });
+
+      if (res.ok) {
+        alert('Produkt erfolgreich gespeichert!');
+        setShowModal(false);
+        fetchProducts();
+        resetForm();
+      }
+    } catch (error) {
+      console.error('Error saving product:', error);
+      alert('Fehler beim Speichern');
     }
+  };
 
-    return result;
-  }, [products, searchQuery, selectedCategory, sortBy]);
+  const handleEdit = (product) => {
+    setEditingProduct(product);
+    setFormData({
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      category_id: product.category_id || '',
+      stock_quantity: product.stock_quantity,
+      sku: product.sku || '',
+      is_featured: product.is_featured || false
+    });
+    setProductImages(product.images || []);
+    setShowModal(true);
+  };
 
-  const handleSearch = debounce((value) => setSearchQuery(value), 300);
-  const handleAddToCart = (e, product) => { e.preventDefault(); addItem(product); };
+  const handleDelete = async (id) => {
+    if (!confirm('Produkt wirklich löschen?')) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      await fetch(`/api/admin/products/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      fetchProducts();
+    } catch (error) {
+      console.error('Error deleting product:', error);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      description: '',
+      price: '',
+      category_id: '',
+      stock_quantity: '',
+      sku: '',
+      is_featured: false
+    });
+    setProductImages([]);
+    setEditingProduct(null);
+  };
+
+  if (loading) return <div className="p-6">Loading...</div>;
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header - Charcoal background */}
-      <div className="bg-gradient-to-br from-secondary-700 via-secondary-700 to-secondary-800 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <h1 className="text-4xl lg:text-5xl text-white font-bold mb-4">
-              {lang === 'de' ? 'Unsere Produkte' : 'Our Products'}
-            </h1>
-            <p className="text-xl text-gray-300 max-w-2xl">
-              {lang === 'de' 
-                ? 'Entdecken Sie unsere Premium Wasserfiltersysteme für reinstes Trinkwasser.'
-                : 'Discover our premium water filtration systems for the purest drinking water.'}
-            </p>
-          </motion.div>
-        </div>
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Produkte</h1>
+        <button
+          onClick={() => { resetForm(); setShowModal(true); }}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          + Neues Produkt
+        </button>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col lg:flex-row gap-8">
-          
-          {/* Sidebar */}
-          <aside className="hidden lg:block w-64 flex-shrink-0">
-            <div className="sticky top-24 space-y-6">
-              {/* Search */}
-              <div className="bg-white rounded-2xl p-5 border border-gray-200">
-                <h3 className="font-semibold text-secondary-700 mb-4">{lang === 'de' ? 'Suche' : 'Search'}</h3>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-primary-400" />
+      {/* Products Table */}
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <table className="min-w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Bild</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kategorie</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Preis</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lager</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aktionen</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {products.map(product => (
+              <tr key={product.id}>
+                <td className="px-6 py-4">
+                  {product.image_url ? (
+                    <img src={product.image_url} alt={product.name} className="w-16 h-16 object-cover rounded" />
+                  ) : (
+                    <div className="w-16 h-16 bg-gray-200 rounded flex items-center justify-center text-gray-400">
+                      Kein Bild
+                    </div>
+                  )}
+                </td>
+                <td className="px-6 py-4 font-medium">{product.name}</td>
+                <td className="px-6 py-4">{product.category_name || '-'}</td>
+                <td className="px-6 py-4">€{parseFloat(product.price).toFixed(2)}</td>
+                <td className="px-6 py-4">{product.stock_quantity}</td>
+                <td className="px-6 py-4">
+                  <button
+                    onClick={() => handleEdit(product)}
+                    className="text-blue-600 hover:text-blue-800 mr-3"
+                  >
+                    Bearbeiten
+                  </button>
+                  <button
+                    onClick={() => handleDelete(product.id)}
+                    className="text-red-600 hover:text-red-800"
+                  >
+                    Löschen
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold">
+                  {editingProduct ? 'Produkt bearbeiten' : 'Neues Produkt'}
+                </h2>
+                <button
+                  onClick={() => { setShowModal(false); resetForm(); }}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Product Images */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Produktbilder</label>
+                  
+                  {/* Image Upload */}
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      id={editingProduct ? 'product-images' : 'product-images-create'}
+                      disabled={uploading}
+                    />
+                    <label
+                      htmlFor={editingProduct ? 'product-images' : 'product-images-create'}
+                      className="cursor-pointer inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                      {uploading ? 'Hochladen...' : '📁 Bilder auswählen'}
+                    </label>
+                    <p className="text-sm text-gray-600 mt-2">
+                      PNG, JPG, WEBP bis zu 5MB. Mehrere Bilder möglich.
+                    </p>
+                  </div>
+
+                  {/* Display Uploaded Images */}
+                  {productImages.length > 0 && (
+                    <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {productImages.map((img, index) => (
+                        <div key={index} className="relative group">
+                          <img
+                            src={img}
+                            alt={`Product ${index + 1}`}
+                            className="w-full h-32 object-cover rounded border"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(img)}
+                            className="absolute top-2 right-2 bg-red-600 text-white w-6 h-6 rounded-full opacity-0 group-hover:opacity-100 transition flex items-center justify-center"
+                          >
+                            ✕
+                          </button>
+                          {index === 0 && (
+                            <span className="absolute bottom-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded">
+                              Hauptbild
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Product Name */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Produktname *</label>
                   <input
                     type="text"
-                    placeholder={lang === 'de' ? 'Produkt suchen...' : 'Search products...'}
-                    defaultValue={searchQuery}
-                    onChange={(e) => handleSearch(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-secondary-700 focus:border-transparent text-secondary-700"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    required
+                    className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-              </div>
 
-              {/* Categories */}
-              <div className="bg-white rounded-2xl p-5 border border-gray-200">
-                <h3 className="font-semibold text-secondary-700 mb-4">{lang === 'de' ? 'Kategorien' : 'Categories'}</h3>
-                <div className="space-y-1">
-                  {categories.map((cat) => (
-                    <button
-                      key={cat.key}
-                      onClick={() => setSelectedCategory(cat.key)}
-                      className={`w-full text-left px-4 py-2.5 rounded-xl transition-all ${
-                        selectedCategory === cat.key
-                          ? 'bg-secondary-700 text-white font-medium'
-                          : 'text-secondary-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      {cat.label}
-                    </button>
-                  ))}
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Beschreibung</label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    rows={4}
+                    className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
-              </div>
-            </div>
-          </aside>
 
-          {/* Main */}
-          <main className="flex-1">
-            {/* Toolbar */}
-            <div className="flex items-center justify-between mb-6">
-              <p className="text-secondary-600">
-                <span className="font-semibold text-secondary-700">{filteredProducts.length}</span> {lang === 'de' ? 'Produkte' : 'Products'}
-              </p>
-              <div className="relative">
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="appearance-none pl-4 pr-10 py-2.5 bg-white border border-gray-200 rounded-xl text-secondary-700 focus:outline-none focus:ring-2 focus:ring-secondary-700"
-                >
-                  {sortOptions.map((opt) => (
-                    <option key={opt.key} value={opt.key}>{opt.label}</option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary-400 pointer-events-none" />
-              </div>
-            </div>
-
-            {/* Products Grid */}
-            {isLoading ? (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[...Array(6)].map((_, i) => (
-                  <div key={i} className="bg-white rounded-2xl p-4 animate-pulse">
-                    <div className="aspect-square bg-slate-100 rounded-xl mb-4" />
-                    <div className="h-4 bg-slate-100 rounded w-3/4 mb-2" />
-                    <div className="h-6 bg-slate-100 rounded w-1/2" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Price */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Preis (€) *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.price}
+                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                      required
+                      className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                    />
                   </div>
-                ))}
-              </div>
-            ) : filteredProducts.length > 0 ? (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredProducts.map((product, index) => {
-                  const images = typeof product.images === 'string' ? JSON.parse(product.images) : product.images || [];
-                  const mainImage = images[0] || '/images/placeholder.jpg';
-                  const inCart = isInCart(product.id);
 
-                  return (
-                    <motion.div
-                      key={product.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ delay: index * 0.05 }}
+                  {/* Stock */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Lagerbestand</label>
+                    <input
+                      type="number"
+                      value={formData.stock_quantity}
+                      onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
+                      className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  {/* Category */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Kategorie</label>
+                    <select
+                      value={formData.category_id}
+                      onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                      className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
                     >
-                      <Link 
-                        to={`/product/${product.slug}`} 
-                        className="group block bg-white rounded-2xl overflow-hidden border border-gray-100 hover:border-secondary-300 hover:shadow-lg transition-all"
-                      >
-                        <div className="relative aspect-square bg-slate-50 p-6">
-                          {product.is_featured && (
-                            <span className="absolute top-3 left-3 px-2.5 py-1 bg-secondary-700 text-white text-xs font-bold rounded-full">BESTSELLER</span>
-                          )}
-                          {product.is_new && (
-                            <span className="absolute top-3 right-3 px-2.5 py-1 bg-primary-500 text-white text-xs font-bold rounded-full">{lang === 'de' ? 'NEU' : 'NEW'}</span>
-                          )}
-                          <img src={mainImage} alt={product.name} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
-                        </div>
-                        <div className="p-5">
-                          <h3 className="font-semibold text-secondary-700 mb-1 group-hover:text-primary-500 transition-colors">{product.name}</h3>
-                          {product.short_description && (
-                            <p className="text-sm text-secondary-500 mb-3 line-clamp-1">{product.short_description}</p>
-                          )}
-                          <div className="flex items-center justify-between">
-                            <span className="text-xl font-bold text-secondary-700">{formatCurrency(product.price)}</span>
-                            <button
-                              onClick={(e) => handleAddToCart(e, product)}
-                              disabled={inCart}
-                              className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                                inCart ? 'bg-green-100 text-green-600' : 'bg-secondary-700 text-white hover:bg-primary-500'
-                              }`}
-                            >
-                              {inCart ? <Check className="w-5 h-5" /> : <ShoppingBag className="w-5 h-5" />}
-                            </button>
-                          </div>
-                        </div>
-                      </Link>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-20">
-                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-secondary-700 flex items-center justify-center">
-                  <Droplets className="w-10 h-10 text-primary-400" />
+                      <option value="">Keine Kategorie</option>
+                      {categories.map(cat => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* SKU */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">SKU / Artikelnummer</label>
+                    <input
+                      type="text"
+                      value={formData.sku}
+                      onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                      className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                 </div>
-                <h3 className="text-xl font-semibold text-secondary-700 mb-2">{lang === 'de' ? 'Keine Produkte gefunden' : 'No products found'}</h3>
-                <p className="text-secondary-500">{lang === 'de' ? 'Versuchen Sie andere Filter' : 'Try different filters'}</p>
-              </div>
-            )}
-          </main>
+
+                {/* Featured */}
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="featured"
+                    checked={formData.is_featured}
+                    onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked })}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <label htmlFor="featured" className="ml-2 text-sm font-medium">
+                    Als hervorgehoben markieren
+                  </label>
+                </div>
+
+                {/* Buttons */}
+                <div className="flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => { setShowModal(false); resetForm(); }}
+                    className="px-4 py-2 border rounded hover:bg-gray-100"
+                  >
+                    Abbrechen
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    Speichern
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
-};
-
-export default ProductsPage;
+}

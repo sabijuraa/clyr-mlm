@@ -1,746 +1,245 @@
-import slugify from 'slugify';
-import { query } from '../config/database.js';
-import { asyncHandler, AppError } from '../middleware/error.middleware.js';
+// server/src/controllers/product.controller.js
+import pool from '../config/database.js';
 
-/**
- * Get all products with filtering and pagination
- */
-export const getAllProducts = asyncHandler(async (req, res) => {
-  const {
-    page = 1,
-    limit = 12,
-    category,
-    search,
-    minPrice,
-    maxPrice,
-    sort = 'featured',
-    inStock
-  } = req.query;
-
-  const offset = (page - 1) * limit;
-  const params = [];
-  let paramIndex = 1;
-
-  let whereClause = 'WHERE p.is_active = true';
-
-  if (category) {
-    whereClause += ` AND c.slug = $${paramIndex}`;
-    params.push(category);
-    paramIndex++;
-  }
-
-  if (search) {
-    whereClause += ` AND (p.name ILIKE $${paramIndex} OR p.description ILIKE $${paramIndex})`;
-    params.push(`%${search}%`);
-    paramIndex++;
-  }
-
-  if (minPrice) {
-    whereClause += ` AND p.price >= $${paramIndex}`;
-    params.push(parseFloat(minPrice));
-    paramIndex++;
-  }
-
-  if (maxPrice) {
-    whereClause += ` AND p.price <= $${paramIndex}`;
-    params.push(parseFloat(maxPrice));
-    paramIndex++;
-  }
-
-  if (inStock === 'true') {
-    whereClause += ' AND p.stock > 0';
-  }
-
-  let orderClause;
-  switch (sort) {
-    case 'price_asc':
-      orderClause = 'ORDER BY p.price ASC';
-      break;
-    case 'price_desc':
-      orderClause = 'ORDER BY p.price DESC';
-      break;
-    case 'name_asc':
-      orderClause = 'ORDER BY p.name ASC';
-      break;
-    case 'newest':
-      orderClause = 'ORDER BY p.created_at DESC';
-      break;
-    default:
-      orderClause = 'ORDER BY p.is_featured DESC, p.is_new DESC, p.created_at DESC';
-  }
-
-  const countResult = await query(
-    `SELECT COUNT(*) FROM products p
-     LEFT JOIN categories c ON p.category_id = c.id
-     ${whereClause}`,
-    params
-  );
-  const total = parseInt(countResult.rows[0].count);
-
-  const productsResult = await query(
-    `SELECT p.*, c.name as category_name, c.slug as category_slug
-     FROM products p
-     LEFT JOIN categories c ON p.category_id = c.id
-     ${whereClause}
-     ${orderClause}
-     LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
-    [...params, parseInt(limit), offset]
-  );
-
-  res.json({
-    products: productsResult.rows,
-    pagination: {
-      page: parseInt(page),
-      limit: parseInt(limit),
-      total,
-      totalPages: Math.ceil(total / limit)
+// Get all products
+export const getAllProducts = async (req, res) => {
+  try {
+    const { category } = req.query;
+    
+    let query = `
+      SELECT p.*, c.name as category_name
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE p.active = true
+    `;
+    
+    const params = [];
+    if (category) {
+      query += ' AND p.category_id = $1';
+      params.push(category);
     }
-  });
-});
-
-/**
- * Get all products for admin (including inactive)
- */
-export const getAllProductsAdmin = asyncHandler(async (req, res) => {
-  const {
-    page = 1,
-    limit = 20,
-    category,
-    search,
-    status,
-    sort = 'created_at',
-    order = 'desc'
-  } = req.query;
-
-  const offset = (page - 1) * limit;
-  const params = [];
-  let paramIndex = 1;
-
-  let whereClause = 'WHERE 1=1';
-
-  if (category) {
-    whereClause += ` AND c.slug = $${paramIndex}`;
-    params.push(category);
-    paramIndex++;
+    
+    query += ' ORDER BY p.order_index, p.created_at DESC';
+    
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get products error:', error);
+    res.status(500).json({ error: 'Failed to fetch products' });
   }
+};
 
-  if (search) {
-    whereClause += ` AND (p.name ILIKE $${paramIndex} OR p.sku ILIKE $${paramIndex})`;
-    params.push(`%${search}%`);
-    paramIndex++;
-  }
-
-  if (status === 'active') {
-    whereClause += ' AND p.is_active = true';
-  } else if (status === 'inactive') {
-    whereClause += ' AND p.is_active = false';
-  }
-
-  const allowedSorts = ['price', 'name', 'created_at', 'stock', 'sku'];
-  const sortColumn = allowedSorts.includes(sort) ? sort : 'created_at';
-  const sortOrder = order.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
-
-  const countResult = await query(
-    `SELECT COUNT(*) FROM products p
-     LEFT JOIN categories c ON p.category_id = c.id
-     ${whereClause}`,
-    params
-  );
-  const total = parseInt(countResult.rows[0].count);
-
-  const productsResult = await query(
-    `SELECT p.*, c.name as category_name, c.slug as category_slug
-     FROM products p
-     LEFT JOIN categories c ON p.category_id = c.id
-     ${whereClause}
-     ORDER BY p.${sortColumn} ${sortOrder}
-     LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
-    [...params, parseInt(limit), offset]
-  );
-
-  res.json({
-    products: productsResult.rows,
-    pagination: {
-      page: parseInt(page),
-      limit: parseInt(limit),
-      total,
-      totalPages: Math.ceil(total / limit)
+// Get single product
+export const getProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query(`
+      SELECT p.*, c.name as category_name
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE p.id = $1
+    `, [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Product not found' });
     }
-  });
-});
-
-/**
- * Get product statistics
- */
-export const getProductStats = asyncHandler(async (req, res) => {
-  const stats = await query(`
-    SELECT 
-      COUNT(*) as total_products,
-      COUNT(*) FILTER (WHERE is_active = true) as active_products,
-      COUNT(*) FILTER (WHERE is_featured = true) as featured_products,
-      COUNT(*) FILTER (WHERE stock <= 5 AND stock > 0) as low_stock_products,
-      COUNT(*) FILTER (WHERE stock = 0) as out_of_stock_products,
-      COUNT(*) FILTER (WHERE is_new = true) as new_products,
-      COALESCE(AVG(price), 0) as average_price,
-      COALESCE(SUM(stock), 0) as total_stock
-    FROM products
-  `);
-
-  const categoryStats = await query(`
-    SELECT 
-      c.name,
-      c.slug,
-      COUNT(p.id) as product_count
-    FROM categories c
-    LEFT JOIN products p ON c.id = p.category_id AND p.is_active = true
-    GROUP BY c.id, c.name, c.slug
-    ORDER BY product_count DESC
-  `);
-
-  res.json({
-    ...stats.rows[0],
-    categories: categoryStats.rows
-  });
-});
-
-/**
- * Get featured products
- */
-export const getFeaturedProducts = asyncHandler(async (req, res) => {
-  const { limit = 4 } = req.query;
-
-  const result = await query(
-    `SELECT p.*, c.name as category_name, c.slug as category_slug
-     FROM products p
-     LEFT JOIN categories c ON p.category_id = c.id
-     WHERE p.is_active = true AND p.is_featured = true
-     ORDER BY p.created_at DESC
-     LIMIT $1`,
-    [parseInt(limit)]
-  );
-
-  res.json({ products: result.rows });
-});
-
-/**
- * Get new products
- */
-export const getNewProducts = asyncHandler(async (req, res) => {
-  const { limit = 4 } = req.query;
-
-  const result = await query(
-    `SELECT p.*, c.name as category_name, c.slug as category_slug
-     FROM products p
-     LEFT JOIN categories c ON p.category_id = c.id
-     WHERE p.is_active = true AND p.is_new = true
-     ORDER BY p.created_at DESC
-     LIMIT $1`,
-    [parseInt(limit)]
-  );
-
-  res.json({ products: result.rows });
-});
-
-/**
- * Get all categories
- */
-export const getCategories = asyncHandler(async (req, res) => {
-  const result = await query(
-    `SELECT c.*, COUNT(p.id) as product_count
-     FROM categories c
-     LEFT JOIN products p ON c.id = p.category_id AND p.is_active = true
-     GROUP BY c.id
-     ORDER BY c.sort_order ASC`
-  );
-
-  res.json({ categories: result.rows });
-});
-
-/**
- * Get products by category slug
- */
-export const getProductsByCategory = asyncHandler(async (req, res) => {
-  const { slug } = req.params;
-  const { page = 1, limit = 12 } = req.query;
-  const offset = (page - 1) * limit;
-
-  const categoryResult = await query('SELECT * FROM categories WHERE slug = $1', [slug]);
-  
-  if (categoryResult.rows.length === 0) {
-    throw new AppError('Kategorie nicht gefunden', 404);
+    
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Get product error:', error);
+    res.status(500).json({ error: 'Failed to fetch product' });
   }
+};
 
-  const category = categoryResult.rows[0];
-
-  const countResult = await query(
-    'SELECT COUNT(*) FROM products WHERE category_id = $1 AND is_active = true',
-    [category.id]
-  );
-  const total = parseInt(countResult.rows[0].count);
-
-  const productsResult = await query(
-    `SELECT p.*, c.name as category_name, c.slug as category_slug
-     FROM products p
-     LEFT JOIN categories c ON p.category_id = c.id
-     WHERE p.category_id = $1 AND p.is_active = true
-     ORDER BY p.is_featured DESC, p.created_at DESC
-     LIMIT $2 OFFSET $3`,
-    [category.id, parseInt(limit), offset]
-  );
-
-  res.json({
-    category,
-    products: productsResult.rows,
-    pagination: {
-      page: parseInt(page),
-      limit: parseInt(limit),
-      total,
-      totalPages: Math.ceil(total / limit)
-    }
-  });
-});
-
-/**
- * Get single product by slug
- */
-export const getProductBySlug = asyncHandler(async (req, res) => {
-  const { slug } = req.params;
-
-  const result = await query(
-    `SELECT p.*, c.name as category_name, c.slug as category_slug
-     FROM products p
-     LEFT JOIN categories c ON p.category_id = c.id
-     WHERE p.slug = $1`,
-    [slug]
-  );
-
-  if (result.rows.length === 0) {
-    throw new AppError('Produkt nicht gefunden', 404);
-  }
-
-  const product = result.rows[0];
-
-  // Get related products from same category
-  const relatedResult = await query(
-    `SELECT p.*, c.name as category_name, c.slug as category_slug
-     FROM products p
-     LEFT JOIN categories c ON p.category_id = c.id
-     WHERE p.category_id = $1 AND p.id != $2 AND p.is_active = true
-     ORDER BY RANDOM()
-     LIMIT 4`,
-    [product.category_id, product.id]
-  );
-
-  res.json({
-    product,
-    relatedProducts: relatedResult.rows
-  });
-});
-
-/**
- * Get single product by ID
- */
-export const getProductById = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-
-  const result = await query(
-    `SELECT p.*, c.name as category_name, c.slug as category_slug
-     FROM products p
-     LEFT JOIN categories c ON p.category_id = c.id
-     WHERE p.id = $1`,
-    [id]
-  );
-
-  if (result.rows.length === 0) {
-    throw new AppError('Produkt nicht gefunden', 404);
-  }
-
-  res.json({ product: result.rows[0] });
-});
-
-/**
- * Create product (Admin)
- */
-export const createProduct = asyncHandler(async (req, res) => {
-  const {
-    name,
-    description,
-    shortDescription,
-    price,
-    originalPrice,
-    costPrice,
-    categoryId,
-    stock = 0,
-    sku,
-    features,
-    specifications,
-    isNew = true,
-    isFeatured = false,
-    isLargeItem = false,
-    metaTitle,
-    metaDescription
-  } = req.body;
-
-  const slug = slugify(name, { lower: true, strict: true, locale: 'de' });
-
-  // Check if slug exists
-  const existingProduct = await query('SELECT id FROM products WHERE slug = $1', [slug]);
-  let finalSlug = slug;
-  if (existingProduct.rows.length > 0) {
-    finalSlug = `${slug}-${Date.now()}`;
-  }
-
-  // Handle uploaded images
-  const images = req.files?.map(file => `/uploads/products/${file.filename}`) || [];
-
-  const result = await query(
-    `INSERT INTO products (
-      name, slug, description, short_description, price, original_price, cost_price,
-      category_id, stock, sku, images, features, specifications,
-      is_new, is_featured, is_large_item, meta_title, meta_description
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
-    RETURNING *`,
-    [
+// Create product
+export const createProduct = async (req, res) => {
+  try {
+    const {
       name,
-      finalSlug,
       description,
-      shortDescription,
       price,
-      originalPrice || null,
-      costPrice || null,
-      categoryId || null,
-      stock,
+      category_id,
+      stock_quantity,
+      sku,
+      meta_title,
+      meta_description,
+      is_featured
+    } = req.body;
+
+    // Handle uploaded images
+    const images = req.uploadedFiles || [];
+
+    const result = await pool.query(`
+      INSERT INTO products (
+        name, description, price, category_id, stock_quantity, sku,
+        images, image_url, meta_title, meta_description, is_featured, active
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, true)
+      RETURNING *
+    `, [
+      name,
+      description,
+      price,
+      category_id || null,
+      stock_quantity || 0,
       sku || null,
       JSON.stringify(images),
-      JSON.stringify(features || []),
-      JSON.stringify(specifications || {}),
-      isNew,
-      isFeatured,
-      isLargeItem,
-      metaTitle || name,
-      metaDescription || shortDescription
-    ]
-  );
+      images[0] || null,
+      meta_title || name,
+      meta_description || description,
+      is_featured || false
+    ]);
 
-  // Log activity
-  await query(
-    `INSERT INTO activity_log (user_id, action, entity_type, entity_id, details)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [req.user.id, 'product_created', 'product', result.rows[0].id, JSON.stringify({ name, price })]
-  );
-
-  res.status(201).json({
-    message: 'Produkt erstellt',
-    product: result.rows[0]
-  });
-});
-
-/**
- * Update product (Admin)
- */
-export const updateProduct = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const {
-    name,
-    description,
-    shortDescription,
-    price,
-    originalPrice,
-    costPrice,
-    categoryId,
-    stock,
-    sku,
-    features,
-    specifications,
-    isActive,
-    isNew,
-    isFeatured,
-    isLargeItem,
-    existingImages
-  } = req.body;
-
-  // Check product exists
-  const existingProduct = await query('SELECT * FROM products WHERE id = $1', [id]);
-  if (existingProduct.rows.length === 0) {
-    throw new AppError('Produkt nicht gefunden', 404);
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Create product error:', error);
+    res.status(500).json({ error: 'Failed to create product' });
   }
+};
 
-  // Generate new slug if name changed
-  let slug = existingProduct.rows[0].slug;
-  if (name && name !== existingProduct.rows[0].name) {
-    slug = slugify(name, { lower: true, strict: true, locale: 'de' });
-    
-    // Check if new slug exists
-    const slugCheck = await query('SELECT id FROM products WHERE slug = $1 AND id != $2', [slug, id]);
-    if (slugCheck.rows.length > 0) {
-      slug = `${slug}-${Date.now()}`;
-    }
-  }
-
-  // Handle images - combine existing with new uploads
-  let images = existingImages ? JSON.parse(existingImages) : existingProduct.rows[0].images;
-  if (req.files?.length > 0) {
-    const newImages = req.files.map(file => `/uploads/products/${file.filename}`);
-    images = [...images, ...newImages];
-  }
-
-  const result = await query(
-    `UPDATE products SET
-      name = COALESCE($1, name),
-      slug = $2,
-      description = COALESCE($3, description),
-      short_description = COALESCE($4, short_description),
-      price = COALESCE($5, price),
-      original_price = $6,
-      cost_price = $7,
-      category_id = $8,
-      stock = COALESCE($9, stock),
-      sku = COALESCE($10, sku),
-      images = $11,
-      features = COALESCE($12, features),
-      specifications = COALESCE($13, specifications),
-      is_active = COALESCE($14, is_active),
-      is_new = COALESCE($15, is_new),
-      is_featured = COALESCE($16, is_featured),
-      is_large_item = COALESCE($17, is_large_item),
-      updated_at = CURRENT_TIMESTAMP
-     WHERE id = $18
-     RETURNING *`,
-    [
+// Update product
+export const updateProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
       name,
-      slug,
       description,
-      shortDescription,
       price,
-      originalPrice || null,
-      costPrice || null,
-      categoryId || null,
-      stock,
+      category_id,
+      stock_quantity,
+      sku,
+      meta_title,
+      meta_description,
+      is_featured,
+      active
+    } = req.body;
+
+    const checkResult = await pool.query('SELECT * FROM products WHERE id = $1', [id]);
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    const existingProduct = checkResult.rows[0];
+    let images = existingProduct.images || [];
+
+    // Handle new uploaded images
+    if (req.uploadedFiles && req.uploadedFiles.length > 0) {
+      images = [...images, ...req.uploadedFiles];
+    }
+
+    const result = await pool.query(`
+      UPDATE products
+      SET name = COALESCE($1, name),
+          description = COALESCE($2, description),
+          price = COALESCE($3, price),
+          category_id = $4,
+          stock_quantity = COALESCE($5, stock_quantity),
+          sku = COALESCE($6, sku),
+          images = $7,
+          image_url = $8,
+          meta_title = COALESCE($9, meta_title),
+          meta_description = COALESCE($10, meta_description),
+          is_featured = COALESCE($11, is_featured),
+          active = COALESCE($12, active),
+          updated_at = NOW()
+      WHERE id = $13
+      RETURNING *
+    `, [
+      name,
+      description,
+      price,
+      category_id,
+      stock_quantity,
       sku,
       JSON.stringify(images),
-      features ? JSON.stringify(features) : null,
-      specifications ? JSON.stringify(specifications) : null,
-      isActive,
-      isNew,
-      isFeatured,
-      isLargeItem,
+      images[0] || existingProduct.image_url,
+      meta_title,
+      meta_description,
+      is_featured,
+      active,
       id
-    ]
-  );
+    ]);
 
-  // Log activity
-  await query(
-    `INSERT INTO activity_log (user_id, action, entity_type, entity_id, details)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [req.user.id, 'product_updated', 'product', id, JSON.stringify({ name: result.rows[0].name })]
-  );
-
-  res.json({
-    message: 'Produkt aktualisiert',
-    product: result.rows[0]
-  });
-});
-
-/**
- * Delete product (Admin) - Soft delete
- */
-export const deleteProduct = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-
-  const existingProduct = await query('SELECT * FROM products WHERE id = $1', [id]);
-  if (existingProduct.rows.length === 0) {
-    throw new AppError('Produkt nicht gefunden', 404);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Update product error:', error);
+    res.status(500).json({ error: 'Failed to update product' });
   }
+};
 
-  // Soft delete - just deactivate
-  await query('UPDATE products SET is_active = false WHERE id = $1', [id]);
+// Delete product
+export const deleteProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM products WHERE id = $1 RETURNING *', [id]);
 
-  // Log activity
-  await query(
-    `INSERT INTO activity_log (user_id, action, entity_type, entity_id, details)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [req.user.id, 'product_deleted', 'product', id, JSON.stringify({ name: existingProduct.rows[0].name })]
-  );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
 
-  res.json({ message: 'Produkt gelöscht' });
-});
-
-/**
- * Toggle product active status (Admin)
- */
-export const toggleProductActive = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-
-  const existingProduct = await query('SELECT * FROM products WHERE id = $1', [id]);
-  if (existingProduct.rows.length === 0) {
-    throw new AppError('Produkt nicht gefunden', 404);
+    res.json({ message: 'Product deleted successfully' });
+  } catch (error) {
+    console.error('Delete product error:', error);
+    res.status(500).json({ error: 'Failed to delete product' });
   }
+};
 
-  const newStatus = !existingProduct.rows[0].is_active;
+// Upload product images
+export const uploadProductImages = async (req, res) => {
+  try {
+    const { id } = req.params;
 
-  const result = await query(
-    'UPDATE products SET is_active = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
-    [newStatus, id]
-  );
+    if (!req.uploadedFiles || req.uploadedFiles.length === 0) {
+      return res.status(400).json({ error: 'No images uploaded' });
+    }
 
-  res.json({
-    message: newStatus ? 'Produkt aktiviert' : 'Produkt deaktiviert',
-    product: result.rows[0]
-  });
-});
+    const productResult = await pool.query('SELECT images FROM products WHERE id = $1', [id]);
+    if (productResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
 
-/**
- * Toggle product featured status (Admin)
- */
-export const toggleProductFeatured = asyncHandler(async (req, res) => {
-  const { id } = req.params;
+    let existingImages = productResult.rows[0].images || [];
+    const newImages = [...existingImages, ...req.uploadedFiles];
 
-  const existingProduct = await query('SELECT * FROM products WHERE id = $1', [id]);
-  if (existingProduct.rows.length === 0) {
-    throw new AppError('Produkt nicht gefunden', 404);
+    const result = await pool.query(`
+      UPDATE products
+      SET images = $1, image_url = COALESCE(image_url, $2), updated_at = NOW()
+      WHERE id = $3
+      RETURNING *
+    `, [JSON.stringify(newImages), req.uploadedFiles[0], id]);
+
+    res.json({ images: newImages, product: result.rows[0] });
+  } catch (error) {
+    console.error('Upload product images error:', error);
+    res.status(500).json({ error: 'Failed to upload images' });
   }
+};
 
-  const newStatus = !existingProduct.rows[0].is_featured;
+// Remove product image
+export const removeProductImage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { imageUrl } = req.body;
 
-  const result = await query(
-    'UPDATE products SET is_featured = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
-    [newStatus, id]
-  );
+    const productResult = await pool.query('SELECT images FROM products WHERE id = $1', [id]);
+    
+    if (productResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
 
-  res.json({
-    message: newStatus ? 'Als Featured markiert' : 'Featured entfernt',
-    product: result.rows[0]
-  });
-});
+    let images = productResult.rows[0].images || [];
+    images = images.filter(img => img !== imageUrl);
 
-/**
- * Update product stock (Admin)
- */
-export const updateProductStock = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const { stock, adjustment } = req.body;
+    const result = await pool.query(`
+      UPDATE products
+      SET images = $1, image_url = COALESCE($2, image_url), updated_at = NOW()
+      WHERE id = $3
+      RETURNING *
+    `, [JSON.stringify(images), images[0] || null, id]);
 
-  const existingProduct = await query('SELECT stock FROM products WHERE id = $1', [id]);
-  if (existingProduct.rows.length === 0) {
-    throw new AppError('Produkt nicht gefunden', 404);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Remove image error:', error);
+    res.status(500).json({ error: 'Failed to remove image' });
   }
-
-  let newStock;
-  if (stock !== undefined) {
-    newStock = parseInt(stock);
-  } else if (adjustment !== undefined) {
-    newStock = existingProduct.rows[0].stock + parseInt(adjustment);
-  } else {
-    throw new AppError('Stock oder Adjustment erforderlich', 400);
-  }
-
-  if (newStock < 0) {
-    throw new AppError('Bestand kann nicht negativ sein', 400);
-  }
-
-  const result = await query(
-    'UPDATE products SET stock = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, name, stock',
-    [newStock, id]
-  );
-
-  res.json({
-    message: 'Bestand aktualisiert',
-    product: result.rows[0]
-  });
-});
-
-/**
- * Bulk update products (Admin)
- */
-export const bulkUpdateProducts = asyncHandler(async (req, res) => {
-  const { productIds, updates } = req.body;
-
-  if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
-    throw new AppError('Produkt-IDs erforderlich', 400);
-  }
-
-  const allowedUpdates = ['is_active', 'is_featured', 'is_new', 'category_id'];
-  const updateFields = Object.keys(updates).filter(key => allowedUpdates.includes(key));
-
-  if (updateFields.length === 0) {
-    throw new AppError('Keine gültigen Update-Felder', 400);
-  }
-
-  const setClauses = updateFields.map((field, idx) => `${field} = $${idx + 1}`);
-  const values = updateFields.map(field => updates[field]);
-
-  const result = await query(
-    `UPDATE products 
-     SET ${setClauses.join(', ')}, updated_at = CURRENT_TIMESTAMP 
-     WHERE id = ANY($${updateFields.length + 1})
-     RETURNING id`,
-    [...values, productIds]
-  );
-
-  res.json({
-    message: `${result.rows.length} Produkte aktualisiert`,
-    updatedCount: result.rows.length
-  });
-});
-
-/**
- * Upload product image (Admin)
- */
-export const uploadProductImage = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-
-  const existingProduct = await query('SELECT images FROM products WHERE id = $1', [id]);
-  if (existingProduct.rows.length === 0) {
-    throw new AppError('Produkt nicht gefunden', 404);
-  }
-
-  if (!req.files || req.files.length === 0) {
-    throw new AppError('Keine Bilder hochgeladen', 400);
-  }
-
-  const currentImages = existingProduct.rows[0].images || [];
-  const newImages = req.files.map(file => `/uploads/products/${file.filename}`);
-  const allImages = [...currentImages, ...newImages];
-
-  const result = await query(
-    'UPDATE products SET images = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
-    [JSON.stringify(allImages), id]
-  );
-
-  res.json({
-    message: 'Bilder hochgeladen',
-    product: result.rows[0]
-  });
-});
-
-/**
- * Delete product image (Admin)
- */
-export const deleteProductImage = asyncHandler(async (req, res) => {
-  const { id, imageIndex } = req.params;
-
-  const existingProduct = await query('SELECT images FROM products WHERE id = $1', [id]);
-  if (existingProduct.rows.length === 0) {
-    throw new AppError('Produkt nicht gefunden', 404);
-  }
-
-  const images = existingProduct.rows[0].images || [];
-  const index = parseInt(imageIndex);
-
-  if (index < 0 || index >= images.length) {
-    throw new AppError('Ungültiger Bild-Index', 400);
-  }
-
-  // Remove image at index
-  images.splice(index, 1);
-
-  const result = await query(
-    'UPDATE products SET images = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
-    [JSON.stringify(images), id]
-  );
-
-  res.json({
-    message: 'Bild gelöscht',
-    product: result.rows[0]
-  });
-});
+};
