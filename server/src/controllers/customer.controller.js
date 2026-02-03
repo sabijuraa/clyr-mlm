@@ -3,6 +3,10 @@ import pool from '../config/database.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
+// ========================================
+// AUTHENTICATION
+// ========================================
+
 // Customer login (FIXED!)
 export const customerLogin = async (req, res) => {
   try {
@@ -42,16 +46,34 @@ export const customerLogin = async (req, res) => {
   }
 };
 
+// Alias for compatibility
+export const loginCustomer = customerLogin;
+
 // Customer registration
 export const customerRegister = async (req, res) => {
   try {
-    const { first_name, last_name, email, password, phone, address_line1, address_line2, city, postal_code, country } = req.body;
+    const { 
+      first_name, 
+      last_name, 
+      email, 
+      password, 
+      phone, 
+      address_line1, 
+      address_line2, 
+      city, 
+      postal_code, 
+      country 
+    } = req.body;
 
     if (!first_name || !last_name || !email || !password) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const existingCustomer = await pool.query('SELECT id FROM customers WHERE email = $1', [email.toLowerCase()]);
+    const existingCustomer = await pool.query(
+      'SELECT id FROM customers WHERE email = $1', 
+      [email.toLowerCase()]
+    );
+    
     if (existingCustomer.rows.length > 0) {
       return res.status(409).json({ error: 'Email already registered' });
     }
@@ -59,13 +81,32 @@ export const customerRegister = async (req, res) => {
     const password_hash = await bcrypt.hash(password, 10);
 
     const result = await pool.query(`
-      INSERT INTO customers (first_name, last_name, email, password_hash, phone, address_line1, address_line2, city, postal_code, country)
+      INSERT INTO customers (
+        first_name, last_name, email, password_hash, phone, 
+        address_line1, address_line2, city, postal_code, country
+      )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-      RETURNING id, first_name, last_name, email, phone, address_line1, address_line2, city, postal_code, country, created_at
-    `, [first_name, last_name, email.toLowerCase(), password_hash, phone, address_line1, address_line2, city, postal_code, country || 'Deutschland']);
+      RETURNING id, first_name, last_name, email, phone, 
+                address_line1, address_line2, city, postal_code, country, created_at
+    `, [
+      first_name, 
+      last_name, 
+      email.toLowerCase(), 
+      password_hash, 
+      phone, 
+      address_line1, 
+      address_line2, 
+      city, 
+      postal_code, 
+      country || 'Deutschland'
+    ]);
 
     const customer = result.rows[0];
-    const token = jwt.sign({ id: customer.id, email: customer.email, role: 'customer' }, process.env.JWT_SECRET || 'your-secret-key', { expiresIn: '7d' });
+    const token = jwt.sign(
+      { id: customer.id, email: customer.email, role: 'customer' },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    );
 
     res.status(201).json({ token, customer });
   } catch (error) {
@@ -74,12 +115,21 @@ export const customerRegister = async (req, res) => {
   }
 };
 
+// Alias
+export const registerCustomer = customerRegister;
+
+// ========================================
+// PROFILE MANAGEMENT
+// ========================================
+
 // Get customer profile
 export const getCustomerProfile = async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT id, first_name, last_name, email, phone, address_line1, address_line2, city, postal_code, country, created_at
-      FROM customers WHERE id = $1
+      SELECT id, first_name, last_name, email, phone, 
+             address_line1, address_line2, city, postal_code, country, created_at
+      FROM customers 
+      WHERE id = $1
     `, [req.user.id]);
 
     if (result.rows.length === 0) {
@@ -93,10 +143,22 @@ export const getCustomerProfile = async (req, res) => {
   }
 };
 
+// Alias
+export const getCurrentCustomer = getCustomerProfile;
+
 // Update customer profile (FIXED!)
 export const updateCustomerProfile = async (req, res) => {
   try {
-    const { first_name, last_name, phone, address_line1, address_line2, city, postal_code, country } = req.body;
+    const { 
+      first_name, 
+      last_name, 
+      phone, 
+      address_line1, 
+      address_line2, 
+      city, 
+      postal_code, 
+      country 
+    } = req.body;
 
     const result = await pool.query(`
       UPDATE customers
@@ -110,8 +172,19 @@ export const updateCustomerProfile = async (req, res) => {
           country = COALESCE($8, country),
           updated_at = NOW()
       WHERE id = $9
-      RETURNING id, first_name, last_name, email, phone, address_line1, address_line2, city, postal_code, country
-    `, [first_name, last_name, phone, address_line1, address_line2, city, postal_code, country, req.user.id]);
+      RETURNING id, first_name, last_name, email, phone, 
+                address_line1, address_line2, city, postal_code, country
+    `, [
+      first_name, 
+      last_name, 
+      phone, 
+      address_line1, 
+      address_line2, 
+      city, 
+      postal_code, 
+      country, 
+      req.user.id
+    ]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Customer not found' });
@@ -123,6 +196,10 @@ export const updateCustomerProfile = async (req, res) => {
     res.status(500).json({ error: 'Failed to update profile' });
   }
 };
+
+// ========================================
+// ORDERS
+// ========================================
 
 // Get customer orders
 export const getCustomerOrders = async (req, res) => {
@@ -143,11 +220,17 @@ export const getCustomerOrders = async (req, res) => {
   }
 };
 
+// ========================================
+// INVOICES
+// ========================================
+
 // Get customer invoices
 export const getCustomerInvoices = async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT * FROM invoices WHERE customer_id = $1 ORDER BY invoice_date DESC
+      SELECT * FROM invoices 
+      WHERE customer_id = $1 
+      ORDER BY invoice_date DESC
     `, [req.user.id]);
 
     res.json(result.rows);
