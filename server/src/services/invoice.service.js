@@ -2,9 +2,16 @@
 import PDFDocument from 'pdfkit';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import pool from '../config/database.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 class InvoiceService {
+  // ========================================
+  // GENERATE INVOICE (NEW - For Theresa's fixes)
+  // ========================================
   async generateInvoice(orderId) {
     try {
       const orderResult = await pool.query(`
@@ -61,11 +68,135 @@ class InvoiceService {
     }
   }
 
-  async getNextInvoiceNumber() {
-    const result = await pool.query('SELECT generate_invoice_number()');
-    return result.rows[0].generate_invoice_number;
+  // ========================================
+  // GENERATE INVOICE PDF (LEGACY - For order.controller.js)
+  // ========================================
+  async generateInvoicePDF(orderData, invoiceNumber) {
+    try {
+      // Get company settings
+      const companyResult = await pool.query('SELECT * FROM company_settings WHERE id = 1');
+      const company = companyResult.rows[0] || { 
+        company_name: 'CLYR', 
+        email: 'info@clyr.de',
+        address_line1: '',
+        postal_code: '',
+        city: '',
+        tax_id: ''
+      };
+
+      const doc = new PDFDocument({ size: 'A4', margin: 50 });
+      const filename = `${invoiceNumber || 'INV-' + Date.now()}.pdf`;
+      const invoiceDir = path.join(__dirname, '../../public/invoices');
+      
+      if (!fs.existsSync(invoiceDir)) {
+        fs.mkdirSync(invoiceDir, { recursive: true });
+      }
+      
+      const filepath = path.join(invoiceDir, filename);
+      const stream = fs.createWriteStream(filepath);
+      doc.pipe(stream);
+
+      // Header
+      doc.fontSize(20).text('RECHNUNG', 400, 50, { align: 'right' });
+      doc.fontSize(10)
+         .text(`Nr: ${invoiceNumber || 'DRAFT'}`, 400, 75, { align: 'right' })
+         .text(`Datum: ${new Date().toLocaleDateString('de-DE')}`, 400, 90, { align: 'right' });
+
+      // Company info
+      doc.fontSize(10)
+         .text(company.company_name, 50, 150)
+         .text(company.address_line1 || '', 50, 165)
+         .text(`${company.postal_code || ''} ${company.city || ''}`, 50, 180)
+         .text(`Email: ${company.email || ''}`, 50, 195);
+
+      // Customer info
+      doc.text('Rechnungsadresse:', 300, 150)
+         .text(`${orderData.customer_name || ''}`, 300, 165)
+         .text(orderData.shipping_address || '', 300, 180);
+
+      doc.moveTo(50, 260).lineTo(550, 260).stroke();
+
+      // Items table
+      const tableTop = 280;
+      doc.font('Helvetica-Bold')
+         .text('Pos', 50, tableTop)
+         .text('Beschreibung', 100, tableTop)
+         .text('Menge', 350, tableTop)
+         .text('Preis', 420, tableTop)
+         .text('Summe', 490, tableTop);
+
+      doc.font('Helvetica');
+      let yPosition = tableTop + 25;
+
+      if (orderData.items && orderData.items.length > 0) {
+        orderData.items.forEach((item, index) => {
+          doc.text(index + 1, 50, yPosition)
+             .text(item.name || item.product_name, 100, yPosition, { width: 230 })
+             .text(item.quantity, 350, yPosition)
+             .text(`€${parseFloat(item.price || item.unit_price).toFixed(2)}`, 420, yPosition)
+             .text(`€${parseFloat(item.total).toFixed(2)}`, 490, yPosition);
+          yPosition += 25;
+        });
+      }
+
+      yPosition += 10;
+      doc.moveTo(50, yPosition).lineTo(550, yPosition).stroke();
+      yPosition += 20;
+
+      // Totals
+      const subtotal = parseFloat(orderData.subtotal || 0);
+      const shipping = parseFloat(orderData.shipping_cost || 0);
+      const taxRate = 19;
+      const netAmount = subtotal + shipping;
+      const taxAmount = netAmount * (taxRate / 100);
+      const total = netAmount + taxAmount;
+
+      doc.text('Zwischensumme:', 350, yPosition).text(`€${subtotal.toFixed(2)}`, 490, yPosition);
+      yPosition += 20;
+
+      if (shipping > 0) {
+        doc.text('Versandkosten:', 350, yPosition).text(`€${shipping.toFixed(2)}`, 490, yPosition);
+        yPosition += 20;
+      }
+
+      doc.text('Netto:', 350, yPosition).text(`€${netAmount.toFixed(2)}`, 490, yPosition);
+      yPosition += 20;
+
+      doc.text(`MwSt (${taxRate}%):`, 350, yPosition).text(`€${taxAmount.toFixed(2)}`, 490, yPosition);
+      yPosition += 20;
+
+      doc.font('Helvetica-Bold').fontSize(12)
+         .text('GESAMT:', 350, yPosition)
+         .text(`€${total.toFixed(2)}`, 490, yPosition);
+
+      yPosition += 40;
+      doc.font('Helvetica').fontSize(10);
+      
+      if (company.iban) {
+        doc.text('Zahlungsinformationen:', 50, yPosition);
+        yPosition += 20;
+        doc.text(`IBAN: ${company.iban}`, 50, yPosition);
+        if (company.bic) {
+          yPosition += 15;
+          doc.text(`BIC: ${company.bic}`, 50, yPosition);
+        }
+      }
+
+      doc.end();
+
+      return new Promise((resolve, reject) => {
+        stream.on('finish', () => resolve(`/invoices/${filename}`));
+        stream.on('error', reject);
+      });
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      throw error;
+    }
   }
 
+  // ========================================
+  // GENERATE PDF (INTERNAL)
+  // ========================================
   async generatePDF(invoice, order, items) {
     return new Promise(async (resolve, reject) => {
       try {
@@ -74,7 +205,7 @@ class InvoiceService {
 
         const doc = new PDFDocument({ size: 'A4', margin: 50 });
         const filename = `${invoice.invoice_number}.pdf`;
-        const invoiceDir = path.join(process.cwd(), 'public', 'invoices');
+        const invoiceDir = path.join(__dirname, '../../public/invoices');
         
         if (!fs.existsSync(invoiceDir)) {
           fs.mkdirSync(invoiceDir, { recursive: true });
@@ -159,6 +290,17 @@ class InvoiceService {
     });
   }
 
+  // ========================================
+  // GET NEXT INVOICE NUMBER
+  // ========================================
+  async getNextInvoiceNumber() {
+    const result = await pool.query('SELECT generate_invoice_number()');
+    return result.rows[0].generate_invoice_number;
+  }
+
+  // ========================================
+  // GET ALL INVOICES
+  // ========================================
   async getAllInvoices() {
     const result = await pool.query(`
       SELECT i.*, c.first_name, c.last_name, o.order_number
@@ -169,6 +311,49 @@ class InvoiceService {
     `);
     return result.rows;
   }
+
+  // ========================================
+  // GET INVOICE BY ID
+  // ========================================
+  async getInvoiceById(invoiceId) {
+    const result = await pool.query(`
+      SELECT i.*, c.first_name, c.last_name, c.email, c.address_line1, c.city, c.postal_code
+      FROM invoices i
+      JOIN customers c ON i.customer_id = c.id
+      WHERE i.id = $1
+    `, [invoiceId]);
+    
+    if (result.rows.length === 0) {
+      throw new Error('Invoice not found');
+    }
+    
+    return result.rows[0];
+  }
+
+  // ========================================
+  // GET INVOICE BY ORDER ID
+  // ========================================
+  async getInvoiceByOrderId(orderId) {
+    const result = await pool.query(`
+      SELECT * FROM invoices WHERE order_id = $1
+    `, [orderId]);
+    
+    return result.rows[0] || null;
+  }
 }
 
-export default new InvoiceService();
+// ========================================
+// EXPORTS
+// ========================================
+
+const invoiceService = new InvoiceService();
+
+// Named exports (for compatibility)
+export const generateInvoice = (orderId) => invoiceService.generateInvoice(orderId);
+export const generateInvoicePDF = (orderData, invoiceNumber) => invoiceService.generateInvoicePDF(orderData, invoiceNumber);
+export const getAllInvoices = () => invoiceService.getAllInvoices();
+export const getInvoiceById = (invoiceId) => invoiceService.getInvoiceById(invoiceId);
+export const getInvoiceByOrderId = (orderId) => invoiceService.getInvoiceByOrderId(orderId);
+
+// Default export
+export default invoiceService;
