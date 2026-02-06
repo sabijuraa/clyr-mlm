@@ -4,7 +4,7 @@ import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { formatPrice } from '../../utils/format';
 import api from '../../utils/api';
-import toast from '../utils/toast';
+import toast from '../../utils/toast';
 
 export default function CheckoutPage() {
   const { items, subtotal, shippingCost, total, country, clearCart } = useCart();

@@ -4,7 +4,7 @@ import api from '../../utils/api';
 import { useCart } from '../../context/CartContext';
 import { formatPrice } from '../../utils/format';
 import { ShoppingCart, Check, ChevronLeft, ChevronRight } from 'lucide-react';
-import toast from '../utils/toast';
+import toast from '../../utils/toast';
 
 export default function ProductPage() {
   const { slug } = useParams();
