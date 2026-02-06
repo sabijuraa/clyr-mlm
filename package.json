@@ -1,0 +1,18 @@
+{
+  "name": "clyr-platform",
+  "version": "1.0.0",
+  "description": "CLYR Solutions GmbH - MLM Water Filtration Platform",
+  "private": true,
+  "scripts": {
+    "install:all": "cd server && npm install && cd ../client && npm install",
+    "dev": "concurrently \"cd server && npm run dev\" \"cd client && npm run dev\"",
+    "build": "cd client && npm run build",
+    "start": "cd server && npm start",
+    "db:migrate": "cd server && npm run db:migrate",
+    "db:seed": "cd server && npm run db:seed",
+    "setup": "npm run install:all && npm run db:migrate && npm run db:seed"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+}
