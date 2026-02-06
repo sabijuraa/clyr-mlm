@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../../utils/api';
 import { FileText, Plus, Edit2, Trash2, Save, X, ChevronDown, ChevronUp, Eye, HelpCircle, Upload } from 'lucide-react';
-import toast from 'react-hot-toast';
+import toast from '../../utils/toast';
 
 const PAGES = ['home', 'about', 'impressum', 'datenschutz', 'agb', 'widerruf'];
 
@@ -23,7 +23,7 @@ export default function AdminCMS() {
     try {
       setLoading(true);
       const { data } = await api.get(`/cms/sections/${selectedPage}`);
-      setSections(data || []);
+      setSections(Array.isArray(data) ? data : data?.sections || []);
     } catch (err) {
       setSections([]);
     } finally {
@@ -35,7 +35,7 @@ export default function AdminCMS() {
     try {
       setLoading(true);
       const { data } = await api.get('/cms/faq');
-      setFaqs(data || []);
+      setFaqs(Array.isArray(data) ? data : data?.faqs || []);
     } catch (err) {
       setFaqs([]);
     } finally {
@@ -55,7 +55,7 @@ export default function AdminCMS() {
   const openSectionCreate = () => {
     setEditItem({
       page_slug: selectedPage, section_key: '', title: '', subtitle: '', content: '',
-      image_url: '', button_text: '', button_url: '', sort_order: sections.length + 1,
+      image_url: '', button_text: '', button_url: '', sort_order: (Array.isArray(sections) ? sections.length : 0) + 1,
       is_active: true, settings: '{}'
     });
     setShowForm(true);
@@ -99,7 +99,7 @@ export default function AdminCMS() {
   };
 
   const openFaqCreate = () => {
-    setEditItem({ question: '', answer: '', category: 'Allgemein', sort_order: faqs.length + 1, is_active: true });
+    setEditItem({ question: '', answer: '', category: 'Allgemein', sort_order: (Array.isArray(faqs) ? faqs.length : 0) + 1, is_active: true });
     setShowForm(true);
   };
 
@@ -185,11 +185,11 @@ export default function AdminCMS() {
 
           {loading ? (
             <div className="text-center py-12 text-gray-400">Laden...</div>
-          ) : sections.length === 0 ? (
+          ) : (Array.isArray(sections) ? sections : []).length === 0 ? (
             <div className="text-center py-12 text-gray-400">Keine Sektionen für diese Seite.</div>
           ) : (
             <div className="space-y-3">
-              {sections.sort((a, b) => a.sort_order - b.sort_order).map(s => (
+              {[...(Array.isArray(sections) ? sections : [])].sort((a, b) => a.sort_order - b.sort_order).map(s => (
                 <div key={s.id} className="bg-white rounded-xl shadow-sm border p-4 flex items-center gap-4">
                   <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-sm font-bold text-gray-400">
                     {s.sort_order}
@@ -223,11 +223,11 @@ export default function AdminCMS() {
 
           {loading ? (
             <div className="text-center py-12 text-gray-400">Laden...</div>
-          ) : faqs.length === 0 ? (
+          ) : (Array.isArray(faqs) ? faqs : []).length === 0 ? (
             <div className="text-center py-12 text-gray-400">Keine FAQs vorhanden.</div>
           ) : (
             <div className="space-y-3">
-              {faqs.map(f => (
+              {(Array.isArray(faqs) ? faqs : []).map(f => (
                 <div key={f.id} className="bg-white rounded-xl shadow-sm border p-4 flex items-center gap-4">
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-clyr-dark">{f.question}</p>

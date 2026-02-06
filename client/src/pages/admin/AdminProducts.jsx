@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../../utils/api';
 import { formatPrice } from '../../utils/format';
 import { Plus, Edit2, Trash2, Image, X, Save, ChevronDown, ChevronUp, Upload } from 'lucide-react';
-import toast from 'react-hot-toast';
+import toast from '../../utils/toast';
 
 export default function AdminProducts() {
   const [products, setProducts] = useState([]);
@@ -26,7 +26,7 @@ export default function AdminProducts() {
   const fetchProducts = async () => {
     try {
       const { data } = await api.get('/products?limit=100');
-      setProducts(data.products || data || []);
+      setProducts(Array.isArray(data?.products) ? data.products : Array.isArray(data) ? data : []);
     } catch (err) {
       toast.error('Fehler beim Laden der Produkte');
     } finally {
@@ -37,7 +37,7 @@ export default function AdminProducts() {
   const fetchCategories = async () => {
     try {
       const { data } = await api.get('/products/categories/all');
-      setCategories(data || []);
+      setCategories(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
     }
@@ -165,7 +165,7 @@ export default function AdminProducts() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Kategorie</label>
                   <select className="input-field" value={editProduct.category_id || ''} onChange={e => updateField('category_id', e.target.value)}>
                     <option value="">Keine</option>
-                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    {(Array.isArray(categories) ? categories : []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
                 <div>
@@ -245,7 +245,7 @@ export default function AdminProducts() {
 
       {/* Product List */}
       <div className="space-y-3">
-        {products.map(product => (
+        {(Array.isArray(products) ? products : []).map(product => (
           <div key={product.id} className="bg-white rounded-xl shadow-sm border overflow-hidden">
             <div className="flex items-center gap-4 p-4">
               <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">

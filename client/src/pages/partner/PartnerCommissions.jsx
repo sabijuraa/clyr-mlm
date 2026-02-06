@@ -160,7 +160,7 @@ export default function PartnerCommissions() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {commissions.map((c) => (
+                {(Array.isArray(commissions) ? commissions : []).map((c) => (
                   <tr key={c.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-gray-500">{formatDateTime(c.created_at)}</td>
                     <td className="px-4 py-3 font-medium">{typeLabel(c.type)}</td>

@@ -4,7 +4,7 @@ import api from '../../utils/api';
 import { useCart } from '../../context/CartContext';
 import { formatPrice } from '../../utils/format';
 import { ShoppingCart, Check, ChevronLeft, ChevronRight } from 'lucide-react';
-import toast from 'react-hot-toast';
+import toast from '../utils/toast';
 
 export default function ProductPage() {
   const { slug } = useParams();
@@ -20,11 +20,11 @@ export default function ProductPage() {
 
   if (!product) return <div className="flex justify-center py-20"><div className="animate-spin w-8 h-8 border-4 border-clyr-teal border-t-transparent rounded-full" /></div>;
 
-  const images = product.images || [];
-  const variants = product.variants || [];
-  const features = product.features ? JSON.parse(product.features) : [];
-  const specs = product.specifications ? JSON.parse(product.specifications) : {};
-  const setIncludes = product.set_includes ? JSON.parse(product.set_includes) : [];
+  const images = Array.isArray(product.images) ? product.images : [];
+  const variants = Array.isArray(product.variants) ? product.variants : [];
+  const features = (() => { try { const f = typeof product.features === 'string' ? JSON.parse(product.features) : product.features; return Array.isArray(f) ? f : []; } catch { return []; } })();
+  const specs = (() => { try { const s = typeof product.specifications === 'string' ? JSON.parse(product.specifications) : product.specifications; return s && typeof s === 'object' && !Array.isArray(s) ? s : {}; } catch { return {}; } })();
+  const setIncludes = (() => { try { const s = typeof product.set_includes === 'string' ? JSON.parse(product.set_includes) : product.set_includes; return Array.isArray(s) ? s : []; } catch { return []; } })();
   const priceField = country === 'DE' ? 'price_de' : country === 'CH' ? 'price_ch' : 'price_at';
   const price = selectedVariant ? (selectedVariant[priceField] || selectedVariant.price_at) : (product[priceField] || product.price_at);
 
@@ -53,7 +53,7 @@ export default function ProductPage() {
           </div>
           {images.length > 1 && (
             <div className="flex gap-2 overflow-x-auto pb-2">
-              {images.map((img, i) => (
+              {(Array.isArray(images) ? images : []).map((img, i) => (
                 <button key={img.id} onClick={() => setSelectedImage(i)} className={`w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 border-2 ${i === selectedImage ? 'border-clyr-teal' : 'border-transparent'}`}>
                   <img src={img.url} alt="" className="w-full h-full object-contain" />
                 </button>
@@ -73,7 +73,7 @@ export default function ProductPage() {
             <div className="mb-6">
               <p className="text-sm font-medium mb-2">Variante wählen:</p>
               <div className="flex flex-wrap gap-2">
-                {variants.map(v => (
+                {(Array.isArray(variants) ? variants : []).map(v => (
                   <button key={v.id} onClick={() => setSelectedVariant(v)} className={`px-4 py-2 rounded-lg border-2 text-sm font-medium transition-colors ${selectedVariant?.id === v.id ? 'border-clyr-teal bg-clyr-light text-clyr-dark' : 'border-gray-200 hover:border-clyr-teal'}`}>
                     {v.name}
                   </button>
@@ -104,7 +104,7 @@ export default function ProductPage() {
             <div className="mb-8">
               <h3 className="text-lg font-semibold mb-3">Vorteile</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {features.map((f, i) => (
+                {(Array.isArray(features) ? features : []).map((f, i) => (
                   <div key={i} className="flex items-start gap-2"><Check className="w-5 h-5 text-clyr-teal flex-shrink-0 mt-0.5" /><span className="text-sm text-gray-600">{f}</span></div>
                 ))}
               </div>
@@ -126,7 +126,7 @@ export default function ProductPage() {
             <div>
               <h3 className="text-lg font-semibold mb-3">Im Set enthalten</h3>
               <ul className="space-y-1">
-                {setIncludes.map((item, i) => (
+                {(Array.isArray(setIncludes) ? setIncludes : []).map((item, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm text-gray-600"><Check className="w-4 h-4 text-clyr-teal" /> {item}</li>
                 ))}
               </ul>

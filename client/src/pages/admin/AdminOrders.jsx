@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../../utils/api';
 import { formatPrice, formatDateTime } from '../../utils/format';
 import { Package, Search, ChevronLeft, ChevronRight, Eye, X } from 'lucide-react';
-import toast from 'react-hot-toast';
+import toast from '../../utils/toast';
 
 const STATUS_OPTIONS = [
   { value: 'pending', label: 'Ausstehend', color: 'bg-yellow-100 text-yellow-800' },
@@ -131,7 +131,7 @@ export default function AdminOrders() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {orders.map(order => (
+                {(Array.isArray(orders) ? orders : []).map(order => (
                   <tr key={order.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-mono font-medium text-clyr-dark">{order.order_number}</td>
                     <td className="px-4 py-3 text-gray-500">{formatDateTime(order.created_at)}</td>

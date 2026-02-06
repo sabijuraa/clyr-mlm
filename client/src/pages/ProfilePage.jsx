@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
-import toast from 'react-hot-toast';
+import toast from '../utils/toast';
 import { User, Lock, Save } from 'lucide-react';
 
 export default function ProfilePage() {

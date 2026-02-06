@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../../utils/api';
 import { Users, ChevronDown, ChevronRight, Award, ShoppingBag, Calendar } from 'lucide-react';
 import { formatDate } from '../../utils/format';
-import toast from 'react-hot-toast';
+import toast from '../../utils/toast';
 
 export default function PartnerTeam() {
   const [team, setTeam] = useState([]);
@@ -15,7 +15,7 @@ export default function PartnerTeam() {
   const fetchTeam = async () => {
     try {
       const { data } = await api.get('/partners/team');
-      setTeam(data.team || []);
+      setTeam(Array.isArray(data?.team) ? data.team : Array.isArray(data) ? data : []);
     } catch (err) {
       toast.error('Team konnte nicht geladen werden');
     } finally {
@@ -52,7 +52,7 @@ export default function PartnerTeam() {
         </div>
       ) : (
         <div className="space-y-3">
-          {team.map(member => (
+          {(Array.isArray(team) ? team : []).map(member => (
             <TeamMember key={member.id} member={member} level={0} />
           ))}
         </div>

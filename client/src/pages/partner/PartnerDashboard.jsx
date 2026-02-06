@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import { formatPrice, formatDate, formatDateTime } from '../../utils/format';
 import { BarChart3, Users, Euro, TrendingUp, Award, Copy, Check, ShoppingBag, ArrowRight } from 'lucide-react';
-import toast from 'react-hot-toast';
+import toast from '../../utils/toast';
 
 export default function PartnerDashboard() {
   const { user, partner } = useAuth();
@@ -142,7 +142,7 @@ export default function PartnerDashboard() {
             <p className="text-gray-500 text-sm py-4">Noch keine Bestellungen über deinen Code.</p>
           ) : (
             <div className="space-y-3">
-              {recentOrders.map(order => (
+              {(Array.isArray(recentOrders) ? recentOrders : []).map(order => (
                 <div key={order.id} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
                   <div>
                     <p className="font-medium text-sm">{order.order_number}</p>
@@ -178,7 +178,7 @@ export default function PartnerDashboard() {
             <p className="text-gray-500 text-sm py-4">Noch keine Provisionen.</p>
           ) : (
             <div className="space-y-3">
-              {recentCommissions.map(comm => (
+              {(Array.isArray(recentCommissions) ? recentCommissions : []).map(comm => (
                 <div key={comm.id} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
                   <div>
                     <p className="font-medium text-sm">

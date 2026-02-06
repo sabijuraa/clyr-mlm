@@ -29,3 +29,10 @@ export const statusColors = {
   delivered: 'bg-green-100 text-green-800', cancelled: 'bg-red-100 text-red-800',
   refunded: 'bg-gray-100 text-gray-800', paid: 'bg-green-100 text-green-800', failed: 'bg-red-100 text-red-800'
 };
+
+// Safe array helper — prevents "t.reduce is not a function"
+export const toArray = (val) => {
+  if (Array.isArray(val)) return val;
+  if (val === null || val === undefined) return [];
+  return [];
+};

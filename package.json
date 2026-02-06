@@ -3,11 +3,14 @@
   "version": "1.0.0",
   "description": "CLYR Solutions GmbH - MLM Water Filtration Platform",
   "private": true,
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
+    "start": "cd server && npm start",
     "install:all": "cd server && npm install && cd ../client && npm install",
     "dev": "concurrently \"cd server && npm run dev\" \"cd client && npm run dev\"",
-    "build": "cd client && npm run build",
-    "start": "cd server && npm start",
+    "build": "cd client && npm install && npm run build",
     "db:migrate": "cd server && npm run db:migrate",
     "db:seed": "cd server && npm run db:seed",
     "setup": "npm run install:all && npm run db:migrate && npm run db:seed"

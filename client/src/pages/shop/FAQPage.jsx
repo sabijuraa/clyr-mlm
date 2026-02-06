@@ -5,13 +5,13 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 export default function FAQPage() {
   const [faqs, setFaqs] = useState([]);
   const [open, setOpen] = useState(null);
-  useEffect(() => { api.get('/cms/faq').then(r => setFaqs(r.data)).catch(() => {}); }, []);
+  useEffect(() => { api.get('/cms/faq').then(r => setFaqs(Array.isArray(r.data) ? r.data : r.data?.faqs || [])).catch(() => {}); }, []);
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12">
       <h1 className="text-3xl font-bold mb-8">Häufig gestellte Fragen</h1>
       <div className="space-y-3">
-        {faqs.map(faq => (
+        {(Array.isArray(faqs) ? faqs : []).map(faq => (
           <div key={faq.id} className="card">
             <button onClick={() => setOpen(open === faq.id ? null : faq.id)} className="w-full flex items-center justify-between text-left">
               <span className="font-medium pr-4">{faq.question}</span>

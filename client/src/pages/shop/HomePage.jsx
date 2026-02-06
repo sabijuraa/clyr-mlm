@@ -16,7 +16,7 @@ export default function HomePage() {
   const [sections, setSections] = useState({});
 
   useEffect(() => {
-    api.get('/products?featured=true').then(r => setProducts(r.data.products || r.data)).catch(() => {});
+    api.get('/products?featured=true').then(r => setProducts(Array.isArray(r.data.products) ? r.data.products : Array.isArray(r.data) ? r.data : [])).catch(() => {});
     api.get('/cms/pages/homepage').then(r => {
       const s = {};
       r.data.sections?.forEach(sec => s[sec.section_key] = sec);
@@ -78,7 +78,7 @@ export default function HomePage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6">
             <h2 className="text-3xl font-bold text-center mb-12">Unsere Produkte</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {products.map(p => (
+              {(Array.isArray(products) ? products : []).map(p => (
                 <Link key={p.id} to={`/shop/${p.slug}`} className="card hover:shadow-lg transition-all group">
                   <div className="aspect-square bg-gray-50 rounded-lg mb-4 overflow-hidden flex items-center justify-center">
                     {p.images?.[0] ? (

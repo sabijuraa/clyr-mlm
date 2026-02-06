@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../../utils/api';
 import { formatPrice, formatDate } from '../../utils/format';
 import { UserCheck, Search, ChevronLeft, ChevronRight, DollarSign, CheckCircle, AlertCircle } from 'lucide-react';
-import toast from 'react-hot-toast';
+import toast from '../../utils/toast';
 
 export default function AdminPartners() {
   const [partners, setPartners] = useState([]);
@@ -25,7 +25,7 @@ export default function AdminPartners() {
   const fetchPartners = async () => {
     try {
       const { data } = await api.get('/admin/partners');
-      setPartners(data || []);
+      setPartners(Array.isArray(data) ? data : data?.partners || []);
     } catch (err) {
       toast.error('Fehler beim Laden');
     } finally {
@@ -36,7 +36,7 @@ export default function AdminPartners() {
   const fetchRanks = async () => {
     try {
       const { data } = await api.get('/partners/ranks/all');
-      setRanks(data || []);
+      setRanks(Array.isArray(data) ? data : data?.ranks || []);
     } catch (err) {
       console.error(err);
     }
@@ -135,7 +135,7 @@ export default function AdminPartners() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {partners.map(p => (
+                {(Array.isArray(partners) ? partners : []).map(p => (
                   <tr key={p.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <p className="font-medium text-clyr-dark">{p.first_name} {p.last_name}</p>
@@ -149,7 +149,7 @@ export default function AdminPartners() {
                         onChange={e => updateRank(p.id, parseInt(e.target.value))}
                         className="text-xs font-medium rounded-full px-2 py-1 border bg-white cursor-pointer"
                       >
-                        {ranks.map(r => <option key={r.id} value={r.id}>{r.name} ({r.commission_percent}%)</option>)}
+                        {(Array.isArray(ranks) ? ranks : []).map(r => <option key={r.id} value={r.id}>{r.name} ({r.commission_percent}%)</option>)}
                       </select>
                     </td>
                     <td className="px-4 py-3 text-right">{p.personal_sales_count}</td>
@@ -198,7 +198,7 @@ export default function AdminPartners() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {commissions.map(c => (
+                  {(Array.isArray(commissions) ? commissions : []).map(c => (
                     <tr key={c.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-gray-500">{formatDate(c.created_at)}</td>
                       <td className="px-4 py-3 font-medium">{c.partner_name}</td>

@@ -5,8 +5,44 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <title>CLYR - Mehr als Wasser</title>
   <meta name="description" content="CLYR Solutions GmbH - Premium Wasseraufbereitungssysteme. Osmoseanlagen, Enthärtungsanlagen und Duschsysteme." />
+  <script>
+    // Protect against SES lockdown (MetaMask etc.) stripping Array/Object methods
+    (function(){
+      var AP = Array.prototype;
+      var _reduce = AP.reduce, _map = AP.map, _filter = AP.filter,
+          _find = AP.find, _some = AP.some, _every = AP.every,
+          _forEach = AP.forEach, _flat = AP.flat, _flatMap = AP.flatMap,
+          _sort = AP.sort, _indexOf = AP.indexOf, _includes = AP.includes;
+      function restore(){
+        if(!AP.reduce) AP.reduce = _reduce;
+        if(!AP.map) AP.map = _map;
+        if(!AP.filter) AP.filter = _filter;
+        if(!AP.find) AP.find = _find;
+        if(!AP.some) AP.some = _some;
+        if(!AP.every) AP.every = _every;
+        if(!AP.forEach) AP.forEach = _forEach;
+        if(!AP.flat) AP.flat = _flat;
+        if(!AP.flatMap) AP.flatMap = _flatMap;
+        if(!AP.sort) AP.sort = _sort;
+        if(!AP.indexOf) AP.indexOf = _indexOf;
+        if(!AP.includes) AP.includes = _includes;
+      }
+      restore();
+      // Re-check after SES lockdown runs (it runs async)
+      setTimeout(restore, 0);
+      setTimeout(restore, 50);
+      setTimeout(restore, 200);
+      // Also patch via MutationObserver for script injection
+      if(typeof MutationObserver!=='undefined'){
+        var obs = new MutationObserver(function(){restore();});
+        obs.observe(document.documentElement,{childList:true,subtree:true});
+        setTimeout(function(){obs.disconnect();},5000);
+      }
+    })();
+  </script>
 </head>
 <body class="bg-white text-gray-900 antialiased">
   <div id="root"></div>

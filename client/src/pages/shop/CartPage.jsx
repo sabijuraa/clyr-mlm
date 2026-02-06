@@ -21,7 +21,7 @@ export default function CartPage() {
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12">
       <h1 className="text-3xl font-bold mb-8">Warenkorb</h1>
       <div className="space-y-4 mb-8">
-        {items.map(item => (
+        {(Array.isArray(items) ? items : []).map(item => (
           <div key={item.key} className="card flex items-center gap-4">
             <div className="w-20 h-20 bg-gray-50 rounded-lg flex-shrink-0 overflow-hidden">
               {item.image && <img src={item.image} alt={item.name} className="w-full h-full object-contain" />}

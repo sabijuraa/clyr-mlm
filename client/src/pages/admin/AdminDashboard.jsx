@@ -24,13 +24,14 @@ export default function AdminDashboard() {
 
   if (loading) return <div className="flex items-center justify-center min-h-[60vh] text-gray-400">Laden...</div>;
 
+  const s = stats?.stats || stats || {};
   const cards = [
-    { label: 'Kunden', value: stats?.total_customers || 0, icon: Users, color: 'bg-blue-100 text-blue-600', link: '/admin/orders' },
-    { label: 'Partner', value: stats?.total_partners || 0, icon: UserCheck, color: 'bg-purple-100 text-purple-600', link: '/admin/partners' },
-    { label: 'Bestellungen', value: stats?.total_orders || 0, icon: ShoppingBag, color: 'bg-green-100 text-green-600', link: '/admin/orders' },
-    { label: 'Umsatz', value: formatPrice(stats?.total_revenue || 0), icon: DollarSign, color: 'bg-emerald-100 text-emerald-600' },
-    { label: 'Offene Bestellungen', value: stats?.pending_orders || 0, icon: Clock, color: 'bg-yellow-100 text-yellow-600', link: '/admin/orders' },
-    { label: 'Offene Provisionen', value: formatPrice(stats?.pending_commissions || 0), icon: TrendingUp, color: 'bg-orange-100 text-orange-600', link: '/admin/partners' },
+    { label: 'Kunden', value: s?.total_customers || 0, icon: Users, color: 'bg-blue-100 text-blue-600', link: '/admin/orders' },
+    { label: 'Partner', value: s?.total_partners || 0, icon: UserCheck, color: 'bg-purple-100 text-purple-600', link: '/admin/partners' },
+    { label: 'Bestellungen', value: s?.total_orders || 0, icon: ShoppingBag, color: 'bg-green-100 text-green-600', link: '/admin/orders' },
+    { label: 'Umsatz', value: formatPrice(s?.total_revenue || 0), icon: DollarSign, color: 'bg-emerald-100 text-emerald-600' },
+    { label: 'Offene Bestellungen', value: s?.pending_orders || 0, icon: Clock, color: 'bg-yellow-100 text-yellow-600', link: '/admin/orders' },
+    { label: 'Offene Provisionen', value: formatPrice(s?.pending_commissions || 0), icon: TrendingUp, color: 'bg-orange-100 text-orange-600', link: '/admin/partners' },
   ];
 
   return (

@@ -33,7 +33,7 @@ export default function MyOrders() {
         </div>
       ) : (
         <div className="space-y-4">
-          {orders.map(order => (
+          {(Array.isArray(orders) ? orders : []).map(order => (
             <div key={order.id} className="bg-white rounded-xl border shadow-sm overflow-hidden">
               <div className="p-4 flex items-center justify-between cursor-pointer" onClick={() => setExpandedId(expandedId === order.id ? null : order.id)}>
                 <div>

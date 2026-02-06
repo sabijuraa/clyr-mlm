@@ -164,7 +164,7 @@ router.get('/admin/all', authenticate, requireRole('admin'), async (req, res) =>
     
     const result = await db.query(query, params);
     const countResult = await db.query('SELECT COUNT(*) FROM orders');
-    res.json({ orders: result.rows, total: parseInt(countResult.rows[0].count), page: parseInt(page), limit: parseInt(limit) });
+    res.json({ orders: result.rows, total: parseInt(countResult.rows[0].count), totalPages: Math.ceil(parseInt(countResult.rows[0].count) / parseInt(limit)), page: parseInt(page), limit: parseInt(limit) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

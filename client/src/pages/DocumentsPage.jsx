@@ -7,10 +7,14 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/documents').then(r => setDocs(r.data || [])).catch(() => {}).finally(() => setLoading(false));
+    api.get('/documents').then(r => {
+      const data = r.data;
+      setDocs(Array.isArray(data) ? data : Array.isArray(data?.documents) ? data.documents : []);
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
-  const grouped = docs.reduce((acc, d) => {
+  const safeDocs = Array.isArray(docs) ? docs : [];
+  const grouped = safeDocs.reduce((acc, d) => {
     const cat = d.category || 'Allgemein';
     if (!acc[cat]) acc[cat] = [];
     acc[cat].push(d);
@@ -45,7 +49,7 @@ export default function DocumentsPage() {
               <h2 className="text-lg font-semibold text-clyr-dark">{category}</h2>
             </div>
             <div className="space-y-2">
-              {items.map(d => (
+              {(Array.isArray(items) ? items : []).map(d => (
                 <div key={d.id} className="bg-white rounded-lg border p-4 flex items-center gap-4 hover:shadow-sm transition-shadow">
                   <FileText className="w-8 h-8 text-gray-400 flex-shrink-0" />
                   <div className="flex-1 min-w-0">

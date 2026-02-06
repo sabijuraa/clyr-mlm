@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Droplets } from 'lucide-react';
-import toast from 'react-hot-toast';
+import toast from '../utils/toast';
 
 export default function RegisterPage() {
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', phone: '' });

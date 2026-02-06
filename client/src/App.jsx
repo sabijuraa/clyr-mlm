@@ -1,8 +1,11 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
-import { Toaster } from 'react-hot-toast';
+import Toaster from './components/Toaster';
 import Layout from './components/layout/Layout';
 import CookieConsent from './components/CookieConsent';
+
+// Build version marker — check console to verify new deployment
+console.log('%c CLYR v1.1.0 ', 'background:#5DADE2;color:#fff;font-weight:bold;padding:4px 8px;border-radius:4px');
 import HomePage from './pages/shop/HomePage';
 import ShopPage from './pages/shop/ShopPage';
 import ProductPage from './pages/shop/ProductPage';
@@ -39,7 +42,7 @@ function ProtectedRoute({ children, roles }) {
 export default function App() {
   return (
     <>
-      <Toaster position="top-right" toastOptions={{ duration: 3000, style: { background: '#2D3436', color: '#fff' } }} />
+      <Toaster />
       <Routes>
         <Route element={<Layout />}>
           {/* Public */}

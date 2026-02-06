@@ -4,7 +4,7 @@ import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { formatPrice } from '../../utils/format';
 import api from '../../utils/api';
-import toast from 'react-hot-toast';
+import toast from '../utils/toast';
 
 export default function CheckoutPage() {
   const { items, subtotal, shippingCost, total, country, clearCart } = useCart();
@@ -26,7 +26,7 @@ export default function CheckoutPage() {
     setLoading(true);
     try {
       const orderData = {
-        items: items.map(i => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity })),
+        items: ( Array.isArray(items) ? items : []).map(i => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity })),
         shippingAddress: {
           first_name: form.firstName, last_name: form.lastName,
           street: form.street, city: form.city, zip: form.postalCode, country: form.country
@@ -102,7 +102,7 @@ export default function CheckoutPage() {
         <div className="card h-fit">
           <h2 className="text-lg font-semibold mb-4">Bestellübersicht</h2>
           <div className="space-y-3 mb-4">
-            {items.map(i => (
+            {(Array.isArray(items) ? items : []).map(i => (
               <div key={i.key} className="flex justify-between text-sm"><span className="text-gray-600">{i.quantity}× {i.name}</span><span>{formatPrice(i.price * i.quantity)}</span></div>
             ))}
           </div>

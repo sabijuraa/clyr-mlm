@@ -106,15 +106,21 @@ router.get('/partners', authenticate, requireRole('admin'), async (req, res) => 
 // Get all commissions (admin view)
 router.get('/commissions', authenticate, requireRole('admin'), async (req, res) => {
   try {
-    const { status } = req.query;
-    let query = `
-      SELECT ct.*, u.first_name, u.last_name, p.referral_code
-      FROM commission_transactions ct JOIN partners p ON ct.partner_id = p.id JOIN users u ON p.user_id = u.id`;
+    const { status, page = 1, limit = 20 } = req.query;
+    let where = '';
     const params = [];
-    if (status) { params.push(status); query += ` WHERE ct.status = $${params.length}`; }
-    query += ' ORDER BY ct.created_at DESC LIMIT 100';
-    const result = await db.query(query, params);
-    res.json(result.rows);
+    if (status) { params.push(status); where = ` WHERE ct.status = $${params.length}`; }
+
+    const countResult = await db.query(`SELECT COUNT(*) FROM commission_transactions ct JOIN partners p ON ct.partner_id = p.id${where}`, params);
+    const total = parseInt(countResult.rows[0].count);
+
+    params.push(parseInt(limit));
+    params.push((parseInt(page) - 1) * parseInt(limit));
+    const result = await db.query(`
+      SELECT ct.*, u.first_name, u.last_name, p.referral_code
+      FROM commission_transactions ct JOIN partners p ON ct.partner_id = p.id JOIN users u ON p.user_id = u.id${where}
+      ORDER BY ct.created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`, params);
+    res.json({ commissions: result.rows, totalPages: Math.ceil(total / parseInt(limit)), total });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

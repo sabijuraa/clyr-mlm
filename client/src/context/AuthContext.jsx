@@ -3,6 +3,8 @@ import api from '../utils/api';
 
 const AuthContext = createContext(null);
 
+const EMPTY_AUTH = { user: null, partner: null, loading: false, login: async () => {}, register: async () => {}, registerPartner: async () => {}, logout: () => {}, setUser: () => {}, setPartner: () => {} };
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [partner, setPartner] = useState(null);
@@ -64,4 +66,7 @@ export function AuthProvider({ children }) {
   );
 }
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  const ctx = useContext(AuthContext);
+  return ctx || EMPTY_AUTH;
+};
