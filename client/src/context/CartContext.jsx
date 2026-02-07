@@ -1,67 +1,258 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import appConfig, { calculateShipping, calculateVAT, formatCurrency } from '../config/app.config';
 
 const CartContext = createContext(null);
 
-const EMPTY_CART = { items: [], addItem: () => {}, removeItem: () => {}, updateQuantity: () => {}, clearCart: () => {}, subtotal: 0, shippingCost: 0, total: 0, itemCount: 0, country: 'AT', setCountry: () => {} };
+export const useCart = () => {
+  const context = useContext(CartContext);
+  if (!context) {
+    throw new Error('useCart must be used within a CartProvider');
+  }
+  return context;
+};
 
-function loadCart() {
-  try {
-    const stored = JSON.parse(localStorage.getItem('clyr_cart') || '[]');
-    return Array.isArray(stored) ? stored : [];
-  } catch { return []; }
-}
+export const CartProvider = ({ children }) => {
+  // Cart items
+  const [items, setItems] = useState([]);
+  
+  // Cart drawer state
+  const [isOpen, setIsOpen] = useState(false);
+  
+  // Country for shipping/tax calculation
+  const [country, setCountry] = useState('DE');
+  
+  // VAT ID status (for reverse charge)
+  const [hasVatId, setHasVatId] = useState(false);
+  
+  // Referral code from URL
+  const [referral, setReferral] = useState(null);
 
-export function CartProvider({ children }) {
-  const [items, setItems] = useState(loadCart);
-  const [country, setCountry] = useState(() => localStorage.getItem('clyr_country') || 'AT');
-
+  // Load cart from localStorage
   useEffect(() => {
-    try { localStorage.setItem('clyr_cart', JSON.stringify(Array.isArray(items) ? items : [])); } catch {}
-  }, [items]);
-  useEffect(() => {
-    try { localStorage.setItem('clyr_country', country); } catch {}
-  }, [country]);
-
-  const addItem = (product, variant = null, quantity = 1) => {
-    setItems(prev => {
-      const arr = Array.isArray(prev) ? prev : [];
-      const key = variant ? `${product.id}-${variant.id}` : String(product.id);
-      const existing = arr.find(i => i.key === key);
-      if (existing) {
-        return arr.map(i => i.key === key ? { ...i, quantity: i.quantity + quantity } : i);
+    const savedCart = localStorage.getItem('clyr_cart');
+    if (savedCart) {
+      try {
+        const parsed = JSON.parse(savedCart);
+        setItems(parsed.items || []);
+        setCountry(parsed.country || 'DE');
+        setHasVatId(parsed.hasVatId || false);
+      } catch (err) {
+        console.error('Failed to parse cart:', err);
       }
-      const priceField = country === 'DE' ? 'price_de' : country === 'CH' ? 'price_ch' : 'price_at';
-      const price = variant ? (variant[priceField] || variant.price_at) : (product[priceField] || product.price_at);
-      return [...arr, {
-        key, productId: product.id, variantId: variant?.id || null,
-        name: variant ? `${product.name} - ${variant.name}` : product.name,
-        price: parseFloat(price) || 0, quantity, image: product.images?.[0]?.url || null,
-        sku: variant?.sku || product.sku
+    }
+
+    // Check for referral code in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const ref = urlParams.get('ref') || urlParams.get('referral');
+    if (ref) {
+      setReferral(ref);
+      localStorage.setItem('clyr_referral', ref);
+    } else {
+      // Check if we have a saved referral
+      const savedRef = localStorage.getItem('clyr_referral');
+      if (savedRef) {
+        setReferral(savedRef);
+      }
+    }
+  }, []);
+
+  // Save cart to localStorage
+  useEffect(() => {
+    localStorage.setItem('clyr_cart', JSON.stringify({
+      items,
+      country,
+      hasVatId
+    }));
+  }, [items, country, hasVatId]);
+
+  // Calculate subtotal (net prices)
+  const subtotal = useMemo(() => {
+    return items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  }, [items]);
+
+  // Calculate shipping (flat rate per country)
+  const shipping = useMemo(() => {
+    if (items.length === 0) return 0;
+    return calculateShipping(country);
+  }, [country, items.length]);
+
+  // Calculate VAT
+  const vat = useMemo(() => {
+    if (items.length === 0) return 0;
+    return calculateVAT(subtotal + shipping, country, hasVatId);
+  }, [subtotal, shipping, country, hasVatId, items.length]);
+
+  // Calculate total
+  const total = useMemo(() => {
+    return subtotal + shipping + vat;
+  }, [subtotal, shipping, vat]);
+
+  // VAT rate for display
+  const vatRate = useMemo(() => {
+    if (country === 'CH') return 0;
+    if (country === 'AT' && hasVatId) return 0;
+    return appConfig.countries[country]?.vatRate || 0.19;
+  }, [country, hasVatId]);
+
+  // Is reverse charge applicable
+  const isReverseCharge = useMemo(() => {
+    return country === 'AT' && hasVatId;
+  }, [country, hasVatId]);
+
+  // Formatted totals for display
+  const totals = useMemo(() => ({
+    subtotal,
+    shipping,
+    vat,
+    total,
+    vatRate,
+    isReverseCharge,
+    formatted: {
+      subtotal: formatCurrency(subtotal),
+      shipping: items.length > 0 ? formatCurrency(shipping) : '€0,00',
+      vat: formatCurrency(vat),
+      total: formatCurrency(total)
+    }
+  }), [subtotal, shipping, vat, total, vatRate, isReverseCharge, items.length]);
+
+  // Item count
+  const itemCount = useMemo(() => {
+    return items.reduce((sum, item) => sum + item.quantity, 0);
+  }, [items]);
+
+  // Is cart empty
+  const isEmpty = useMemo(() => items.length === 0, [items]);
+
+  // Add item to cart
+  const addItem = useCallback((product, quantity = 1) => {
+    setItems(currentItems => {
+      const existingIndex = currentItems.findIndex(item => item.id === product.id);
+      
+      if (existingIndex >= 0) {
+        const updatedItems = [...currentItems];
+        updatedItems[existingIndex] = {
+          ...updatedItems[existingIndex],
+          quantity: updatedItems[existingIndex].quantity + quantity
+        };
+        return updatedItems;
+      }
+
+      // Parse images if string
+      let images = product.images;
+      if (typeof images === 'string') {
+        try {
+          images = JSON.parse(images);
+        } catch (e) {
+          images = [];
+        }
+      }
+
+      return [...currentItems, {
+        id: product.id,
+        name: product.name,
+        slug: product.slug,
+        price: product.price,
+        images: images || [],
+        image: images?.[0] || null,
+        quantity,
+        isSubscription: product.is_subscription_eligible || product.isSubscription || false
       }];
     });
-  };
+    setIsOpen(true);
+  }, []);
 
-  const removeItem = (key) => setItems(prev => (Array.isArray(prev) ? prev : []).filter(i => i.key !== key));
-  const updateQuantity = (key, quantity) => {
-    if (quantity <= 0) return removeItem(key);
-    setItems(prev => (Array.isArray(prev) ? prev : []).map(i => i.key === key ? { ...i, quantity } : i));
-  };
-  const clearCart = () => setItems([]);
+  // Remove item from cart
+  const removeItem = useCallback((productId) => {
+    setItems(currentItems => currentItems.filter(item => item.id !== productId));
+  }, []);
 
-  const safeItems = Array.isArray(items) ? items : [];
-  const subtotal = safeItems.reduce((sum, i) => sum + (parseFloat(i.price) || 0) * (i.quantity || 0), 0);
-  const itemCount = safeItems.reduce((sum, i) => sum + (i.quantity || 0), 0);
-  const shippingThreshold = country === 'DE' ? 50 : country === 'CH' ? 180 : 69;
-  const shippingCost = subtotal >= shippingThreshold ? 0 : (country === 'CH' ? 15 : country === 'DE' ? 6.90 : 5.90);
+  // Update item quantity
+  const updateQuantity = useCallback((productId, quantity) => {
+    if (quantity < 1) {
+      removeItem(productId);
+      return;
+    }
+    setItems(currentItems => 
+      currentItems.map(item => 
+        item.id === productId ? { ...item, quantity } : item
+      )
+    );
+  }, [removeItem]);
+
+  // Clear entire cart
+  const clearCart = useCallback(() => {
+    setItems([]);
+    localStorage.removeItem('clyr_cart');
+  }, []);
+
+  // Clear referral code
+  const clearReferral = useCallback(() => {
+    setReferral(null);
+    localStorage.removeItem('clyr_referral');
+  }, []);
+
+  // Check if product is in cart
+  const isInCart = useCallback((productId) => {
+    return items.some(item => item.id === productId);
+  }, [items]);
+
+  // Get quantity of specific product in cart
+  const getItemQuantity = useCallback((productId) => {
+    const item = items.find(item => item.id === productId);
+    return item ? item.quantity : 0;
+  }, [items]);
+
+  // Cart drawer controls
+  const openCart = useCallback(() => setIsOpen(true), []);
+  const closeCart = useCallback(() => setIsOpen(false), []);
+  const toggleCart = useCallback(() => setIsOpen(prev => !prev), []);
+
+  const value = {
+    // Items
+    items,
+    itemCount,
+    isEmpty,
+    
+    // Item operations
+    addItem,
+    removeItem,
+    updateQuantity,
+    clearCart,
+    isInCart,
+    getItemQuantity,
+    
+    // Drawer
+    isOpen,
+    openCart,
+    closeCart,
+    toggleCart,
+    
+    // Country & Tax
+    country,
+    setCountry,
+    hasVatId,
+    setHasVatId,
+    
+    // Totals
+    subtotal,
+    shipping,
+    vat,
+    total,
+    totals,
+    vatRate,
+    isReverseCharge,
+    
+    // Referral
+    referral,
+    setReferral,
+    clearReferral
+  };
 
   return (
-    <CartContext.Provider value={{ items: safeItems, addItem, removeItem, updateQuantity, clearCart, subtotal, shippingCost, total: subtotal + shippingCost, itemCount, country, setCountry }}>
+    <CartContext.Provider value={value}>
       {children}
     </CartContext.Provider>
   );
-}
-
-export const useCart = () => {
-  const ctx = useContext(CartContext);
-  return ctx || EMPTY_CART;
 };
+
+export default CartContext;

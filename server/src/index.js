@@ -1,86 +1,256 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
-const cookieParser = require('cookie-parser');
-const rateLimit = require('express-rate-limit');
-const path = require('path');
-const errorHandler = require('./middleware/errorHandler');
+// server/src/index.js
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Import existing routes
+import authRoutes from './routes/auth.routes.js';
+import productRoutes from './routes/product.routes.js';
+import orderRoutes from './routes/order.routes.js';
+import customerRoutes from './routes/customer.routes.js';
+import partnerRoutes from './routes/partner.routes.js';
+import adminRoutes from './routes/admin.routes.js';
+import commissionRoutes from './routes/commission.routes.js';
+import payoutRoutes from './routes/payout.routes.js';
+import webhookRoutes from './routes/webhook.routes.js';
+import cmsRoutes from './routes/cms.routes.js';
+import academyRoutes from './routes/academy.routes.js';
+import gdprRoutes from './routes/gdpr.routes.js';
+import importRoutes from './routes/import.routes.js';
+import newsletterRoutes from './routes/newsletter.routes.js';
+import stockRoutes from './routes/stock.routes.js';
+import subscriptionRoutes from './routes/subscription.routes.js';
+import variantRoutes from './routes/variant.routes.js';
+import creditnoteRoutes from './routes/creditnote.routes.js';
+import vatreportRoutes from './routes/vatreport.routes.js';
+
+// Import NEW routes (for Theresa's WordPress-like features)
+import brandingRoutes from './routes/branding.routes.js';
+import settingsRoutes from './routes/settings.routes.js';
+import referralRoutes from './routes/referral.routes.js';
+import faqRoutes from './routes/faq.routes.js';
+import legalRoutes from './routes/legal.routes.js';
+import complianceRoutes from './routes/compliance.routes.js';
+
+// Import error middleware
+import { errorHandler } from './middleware/error.middleware.js';
+
+// Import commission service for cron jobs
+import { releaseHeldCommissions, checkRankDecay, resetQuarterlySales } from './services/commission.service.js';
+import { flagInactivePartners, sendInactivityWarnings } from './controllers/compliance.controller.js';
+import cron from 'node-cron';
+
+dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
+const PORT = process.env.PORT || 5000;
 
-// ─── HEALTH CHECK FIRST — before anything else ─────────────────────
-// DigitalOcean pings this immediately; must respond without any DB calls
-app.get('/health', (req, res) => res.status(200).send('ok'));
-app.get('/api/health', (req, res) => res.status(200).json({ status: 'ok', time: new Date().toISOString() }));
+// ========================================
+// MIDDLEWARE
+// ========================================
 
-// ─── MIDDLEWARE ─────────────────────────────────────────────────────
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
+  origin: process.env.CLIENT_URL || 'http://localhost:3000',
   credentials: true
 }));
-if (process.env.NODE_ENV !== 'production') app.use(morgan('dev'));
-app.use(cookieParser());
 
-// CRITICAL: Stripe webhook needs raw body BEFORE express.json()
-app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
-
-// JSON parsing for all other routes
 app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
-
-// Rate limiting
-app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: 30, message: { error: 'Zu viele Anfragen' } }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Static files
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-app.use('/documents', express.static(path.join(__dirname, '../documents')));
+app.use('/public', express.static(path.join(__dirname, '../public')));
+app.use('/images', express.static(path.join(__dirname, '../public/images')));
+app.use('/invoices', express.static(path.join(__dirname, '../public/invoices')));
 
-// Serve client build in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../../client/dist')));
+// Request logging (development)
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req, res, next) => {
+    console.log(`${req.method} ${req.path}`);
+    next();
+  });
 }
 
-// ─── API ROUTES ────────────────────────────────────────────────────
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/products', require('./routes/products'));
-app.use('/api/orders', require('./routes/orders'));
-app.use('/api/partners', require('./routes/partners'));
-app.use('/api/commissions', require('./routes/commissions'));
-app.use('/api/admin', require('./routes/admin'));
-app.use('/api/cms', require('./routes/cms'));
-app.use('/api/brand', require('./routes/brand'));
-app.use('/api/newsletter', require('./routes/newsletter'));
-app.use('/api/stripe', require('./routes/stripe'));
-app.use('/api/invoices', require('./routes/invoices'));
-app.use('/api/documents', require('./routes/documents'));
+// ========================================
+// HEALTH CHECK
+// ========================================
 
-// SPA fallback (production only)
-if (process.env.NODE_ENV === 'production') {
-  app.get('*', (req, res) => res.sendFile(path.join(__dirname, '../../client/dist/index.html')));
-}
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
 
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'CLYR MLM API',
+    version: '3.0.0',
+    status: 'running'
+  });
+});
+
+// ========================================
+// API ROUTES
+// ========================================
+
+// Authentication & User Management
+app.use('/api/auth', authRoutes);
+
+// E-commerce
+app.use('/api/products', productRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/variants', variantRoutes);
+app.use('/api/stock', stockRoutes);
+
+// Customer Portal
+app.use('/api/customers', customerRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
+
+// Partner/MLM
+app.use('/api/partners', partnerRoutes);
+app.use('/api/commissions', commissionRoutes);
+app.use('/api/payouts', payoutRoutes);
+app.use('/api/referral', referralRoutes);
+
+// Admin
+app.use('/api/admin', adminRoutes);
+
+// CMS & Content
+app.use('/api/cms', cmsRoutes);
+app.use('/api/academy', academyRoutes);
+app.use('/api/newsletter', newsletterRoutes);
+
+// Financial
+app.use('/api/creditnotes', creditnoteRoutes);
+app.use('/api/vatreports', vatreportRoutes);
+
+// Integrations
+app.use('/api/webhooks', webhookRoutes);
+app.use('/api/import', importRoutes);
+
+// Legal & Compliance
+app.use('/api/gdpr', gdprRoutes);
+
+// NEW ROUTES - WordPress-like Admin Features
+app.use('/api', brandingRoutes);        // Branding management (logo, colors)
+app.use('/api', settingsRoutes);        // Legal pages, company settings, invoices
+app.use('/api/faq', faqRoutes);         // FAQ management (#38)
+app.use('/api/legal', legalRoutes);     // Legal pages CMS (#41, #39)
+app.use('/api/compliance', complianceRoutes); // Legal compliance (#50, #55, #57)
+
+// ========================================
+// ERROR HANDLING
+// ========================================
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ 
+    error: 'Route not found',
+    path: req.path,
+    method: req.method
+  });
+});
+
+// Global error handler
 app.use(errorHandler);
 
-// ─── START SERVER ──────────────────────────────────────────────────
-// DigitalOcean sets PORT env var (usually 8080); bind to 0.0.0.0
-const PORT = parseInt(process.env.PORT, 10) || 8080;
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`CLYR Server running on 0.0.0.0:${PORT}`);
+// ========================================
+// CRON JOBS
+// ========================================
 
-  // Start scheduled jobs AFTER server is listening
+// Release held commissions daily at midnight
+cron.schedule('0 0 * * *', async () => {
   try {
-    const { startScheduledJobs } = require('./services/scheduler');
-    startScheduledJobs();
+    console.log('⏰ Cron: Releasing held commissions...');
+    const released = await releaseHeldCommissions();
+    console.log(`✅ Released ${released.length} commissions`);
   } catch (err) {
-    console.error('Scheduler failed to start:', err.message);
+    console.error('❌ Cron release failed:', err.message);
   }
 });
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down...');
-  server.close(() => process.exit(0));
+// Check rank decay on 1st of each month at 2:00 AM
+cron.schedule('0 2 1 * *', async () => {
+  try {
+    console.log('⏰ Cron: Checking rank decay (12-month inactivity)...');
+    const decayed = await checkRankDecay();
+    console.log(`✅ Rank decay: ${decayed.length} partners reset to Berater`);
+  } catch (err) {
+    console.error('❌ Cron rank decay failed:', err.message);
+  }
 });
+
+// Reset quarterly sales counts on 1st of Jan, Apr, Jul, Oct at 1:00 AM
+cron.schedule('0 1 1 1,4,7,10 *', async () => {
+  try {
+    console.log('⏰ Cron: Resetting quarterly sales counts...');
+    const result = await resetQuarterlySales();
+    console.log(`✅ Reset quarterly sales for ${result.length} partners`);
+  } catch (err) {
+    console.error('❌ Cron quarterly reset failed:', err.message);
+  }
+});
+
+// Check expired subscriptions daily at 3:00 AM (#37)
+cron.schedule('0 3 * * *', async () => {
+  try {
+    const { checkExpiredSubscriptions } = await import('./controllers/partner-subscription.controller.js');
+    console.log('⏰ Cron: Checking expired subscriptions...');
+    const expired = await checkExpiredSubscriptions();
+    console.log(`✅ ${expired.length} partner subscriptions expired`);
+  } catch (err) {
+    console.error('❌ Cron subscription check failed:', err.message);
+  }
+});
+
+// #57: Check inactivity - daily at 4:00 AM (warn at 10 months, terminate at 12)
+cron.schedule('0 4 * * *', async () => {
+  try {
+    console.log('⏰ Cron: Checking partner inactivity...');
+    const warnings = await sendInactivityWarnings();
+    const terminated = await flagInactivePartners();
+    console.log(`✅ Inactivity: ${warnings.length} warnings sent, ${terminated.length} partners terminated`);
+  } catch (err) {
+    console.error('❌ Cron inactivity check failed:', err.message);
+  }
+});
+
+// ========================================
+// START SERVER
+// ========================================
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log('='.repeat(50));
+  console.log('🚀 CLYR MLM Server Started');
+  console.log('='.repeat(50));
+  console.log(`📡 Port: ${PORT}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔗 URL: http://localhost:${PORT}`);
+  console.log(`💾 Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
+  console.log('='.repeat(50));
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+  console.error('❌ Unhandled Promise Rejection:', err);
+  // Don't exit in production, just log
+  if (process.env.NODE_ENV !== 'production') {
+    process.exit(1);
+  }
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('❌ Uncaught Exception:', err);
+  process.exit(1);
+});
+
+export default app;
