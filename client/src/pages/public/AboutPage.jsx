@@ -96,7 +96,7 @@ const AboutPage = () => {
             variants={fadeUp}
             className="relative rounded-3xl overflow-hidden shadow-2xl">
             <img src="/images/founders-together.jpeg" alt="Theresa Struger und Wolfgang Kronsteiner – Gründer von CLYR"
-              className="w-full h-64 md:h-96 object-cover object-top" />
+              className="w-full h-80 md:h-[32rem] object-cover object-top" />
             <div className="absolute inset-0 bg-gradient-to-t from-secondary-900/70 via-transparent to-transparent" />
             <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12">
               <p className="text-white/80 text-sm uppercase tracking-wider mb-2">Die Gründer</p>
