@@ -381,8 +381,8 @@ export const payoutsAPI = {
   getMy: (params = {}) => 
     api.get('/payouts/my', { params }),
 
-  request: () => 
-    api.post('/payouts/request'),
+  request: (amount) => 
+    api.post('/payouts/request', { amount }),
 
   getDetails: (id) => 
     api.get(`/payouts/${id}`),
@@ -581,28 +581,37 @@ const customerApi = () => {
 
 export const customerPortalAPI = {
   login: (email, password) =>
-    fetch('/api/customers/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) }).then(r => r.json()),
+    api.post('/customers/login', { email, password }),
   
   register: (data) =>
-    fetch('/api/customers/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(r => r.json()),
+    api.post('/customers/register', data),
 
   getProfile: () =>
-    fetch('/api/customers/profile', customerApi()).then(r => r.json()),
+    api.get('/customers/profile', { headers: { 'Authorization': `Bearer ${localStorage.getItem('customerToken')}` } }),
+
+  updateProfile: (data) =>
+    api.put('/customers/profile', data, { headers: { 'Authorization': `Bearer ${localStorage.getItem('customerToken')}` } }),
 
   getOrders: () =>
-    fetch('/api/customers/orders', customerApi()).then(r => r.json()),
+    api.get('/customers/orders', { headers: { 'Authorization': `Bearer ${localStorage.getItem('customerToken')}` } }),
+
+  getInvoices: () =>
+    api.get('/customers/invoices', { headers: { 'Authorization': `Bearer ${localStorage.getItem('customerToken')}` } }),
 
   getDocuments: () =>
-    fetch('/api/customers/documents', customerApi()).then(r => r.json()),
+    api.get('/customers/documents', { headers: { 'Authorization': `Bearer ${localStorage.getItem('customerToken')}` } }),
 
   getSubscriptions: () =>
-    fetch('/api/customers/subscriptions', customerApi()).then(r => r.json()),
+    api.get('/customers/subscriptions', { headers: { 'Authorization': `Bearer ${localStorage.getItem('customerToken')}` } }),
 
   createSubscription: (productId, intervalMonths) =>
-    fetch('/api/customers/subscriptions', { ...customerApi(), method: 'POST', body: JSON.stringify({ productId, intervalMonths }) }).then(r => r.json()),
+    api.post('/customers/subscriptions', { productId, intervalMonths }, { headers: { 'Authorization': `Bearer ${localStorage.getItem('customerToken')}` } }),
 
   cancelSubscription: (id) =>
-    fetch(`/api/customers/subscriptions/${id}/cancel`, { ...customerApi(), method: 'POST' }).then(r => r.json()),
+    api.post(`/customers/subscriptions/${id}/cancel`, {}, { headers: { 'Authorization': `Bearer ${localStorage.getItem('customerToken')}` } }),
+
+  downloadInvoice: (orderNumber) =>
+    api.get(`/customers/orders/${orderNumber}/invoice`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('customerToken')}` }, responseType: 'blob' }),
 };
 
 // ============ UTILITY FUNCTIONS ============

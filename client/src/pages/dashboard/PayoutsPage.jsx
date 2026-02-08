@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Banknote, Clock, CheckCircle, XCircle, ArrowUpRight, Wallet, Building, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { formatCurrency } from '../../config/app.config';
+import { payoutsAPI, partnerAPI } from '../../services/api';
 import StatCard from '../../components/dashboard/StatCard';
 import Button from '../../components/common/Button';
 import toast from 'react-hot-toast';
@@ -25,14 +26,9 @@ const PayoutsPage = () => {
 
   const loadPayouts = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/payouts/my', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setPayouts(data.data?.payouts || data.payouts || data.data || []);
-      }
+      const response = await payoutsAPI.getMy();
+      const data = response.data;
+      setPayouts(data.data?.payouts || data.payouts || data.data || []);
     } catch (err) {
       console.error('Failed to load payouts:', err);
     } finally {
@@ -42,19 +38,13 @@ const PayoutsPage = () => {
 
   const loadWallet = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/partners/wallet', {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const response = await partnerAPI.getWallet();
+      const w = response.data?.data || response.data || {};
+      setWallet({
+        balance: parseFloat(w.balance || w.wallet_balance || 0),
+        pending: parseFloat(w.pending || w.pendingAmount || 0),
+        totalPaid: parseFloat(w.totalPaid || w.total_paid_out || 0),
       });
-      if (res.ok) {
-        const data = await res.json();
-        const w = data.data || data;
-        setWallet({
-          balance: parseFloat(w.balance || w.wallet_balance || 0),
-          pending: parseFloat(w.pending || w.pendingAmount || 0),
-          totalPaid: parseFloat(w.totalPaid || w.total_paid_out || 0),
-        });
-      }
     } catch (err) {
       console.error('Failed to load wallet:', err);
     }
@@ -71,24 +61,14 @@ const PayoutsPage = () => {
 
     setRequesting(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/payouts/request', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ amount })
-      });
-      if (res.ok) {
-        toast.success('Auszahlungsanfrage erstellt!');
-        setShowRequestForm(false);
-        setRequestAmount('');
-        loadPayouts();
-        loadWallet();
-      } else {
-        const err = await res.json().catch(() => ({}));
-        toast.error(err.message || 'Fehler bei der Auszahlungsanfrage');
-      }
+      await payoutsAPI.request(amount);
+      toast.success('Auszahlungsanfrage erstellt!');
+      setShowRequestForm(false);
+      setRequestAmount('');
+      loadPayouts();
+      loadWallet();
     } catch (err) {
-      toast.error('Fehler bei der Anfrage');
+      toast.error(err.response?.data?.message || err.response?.data?.error || 'Fehler bei der Auszahlungsanfrage');
     } finally {
       setRequesting(false);
     }

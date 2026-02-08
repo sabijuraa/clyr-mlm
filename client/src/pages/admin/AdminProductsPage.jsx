@@ -129,7 +129,8 @@ const AdminProductsPage = () => {
     try {
       const formData = new FormData();
       Object.entries(form).forEach(([key, val]) => {
-        if (val !== '' && val !== null && val !== undefined) {
+        // Always send booleans (even false), numbers (even 0), and non-empty strings
+        if (typeof val === 'boolean' || typeof val === 'number' || (val !== '' && val !== null && val !== undefined)) {
           formData.append(key, val);
         }
       });

@@ -10,6 +10,7 @@ import {
   Building2, TrendingUp, Euro, CheckCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../../services/api';
 
 const AdminVatReportsPage = () => {
   const [reports, setReports] = useState([]);
@@ -20,8 +21,6 @@ const AdminVatReportsPage = () => {
     reportType: '',
     year: new Date().getFullYear()
   });
-  
-  const token = localStorage.getItem('token');
   
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
@@ -47,18 +46,13 @@ const AdminVatReportsPage = () => {
   
   const fetchReports = async () => {
     try {
-      const params = new URLSearchParams();
-      if (filters.country) params.append('country', filters.country);
-      if (filters.reportType) params.append('reportType', filters.reportType);
-      if (filters.year) params.append('year', filters.year);
+      const params = {};
+      if (filters.country) params.country = filters.country;
+      if (filters.reportType) params.reportType = filters.reportType;
+      if (filters.year) params.year = filters.year;
       
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/vat-reports?${params}`,
-        { headers: { 'Authorization': `Bearer ${token}` } }
-      );
-      
-      const data = await response.json();
-      if (response.ok) setReports(data.reports || []);
+      const response = await api.get('/vat-reports', { params });
+      setReports(response.data.reports || []);
     } catch (error) {
       console.error('Failed to fetch reports:', error);
     } finally {
@@ -70,7 +64,7 @@ const AdminVatReportsPage = () => {
     setGenerating(true);
     
     try {
-      let endpoint = '/api/vat-reports/generate/';
+      let endpoint = '/vat-reports/generate/';
       let body = { year: generateForm.year };
       
       switch (generateForm.type) {
@@ -87,24 +81,11 @@ const AdminVatReportsPage = () => {
           break;
       }
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL}${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(body)
-      });
-      
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Fehler beim Generieren');
-      }
-      
+      const response = await api.post(endpoint, body);
       toast.success('Berichte wurden generiert');
       fetchReports();
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error.response?.data?.error || 'Fehler beim Generieren');
     } finally {
       setGenerating(false);
     }
@@ -112,15 +93,8 @@ const AdminVatReportsPage = () => {
   
   const downloadExcel = async (reportId) => {
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/vat-reports/${reportId}/excel`,
-        { headers: { 'Authorization': `Bearer ${token}` } }
-      );
-      
-      if (!response.ok) throw new Error('Download fehlgeschlagen');
-      
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const response = await api.get(`/vat-reports/${reportId}/excel`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(response.data);
       const a = document.createElement('a');
       a.href = url;
       a.download = `USt-Bericht-${reportId}.xlsx`;

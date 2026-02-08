@@ -88,6 +88,22 @@ const AdminCommissionsPage = () => {
     }
   };
 
+  const generatePartnerStatement = async (partnerId, partnerName) => {
+    const period = prompt('Zeitraum eingeben (YYYY-MM):', new Date().toISOString().slice(0, 7));
+    if (!period || !/^\d{4}-\d{2}$/.test(period)) return;
+    
+    try {
+      const response = await commissionsAPI.generateStatement(partnerId, period);
+      downloadBlob(response.data, `Provisionsgutschrift-${partnerName}-${period}.pdf`);
+      toast.success('Provisionsgutschrift erstellt');
+    } catch (error) {
+      const msg = error.response?.status === 404 
+        ? 'Keine Provisionen für diesen Zeitraum' 
+        : 'Fehler beim Erstellen der Gutschrift';
+      toast.error(msg);
+    }
+  };
+
   const handleDistributeBonusPool = async () => {
     if (!confirm('Bonus Pool für diesen Monat verteilen? Diese Aktion kann nicht rückgängig gemacht werden.')) return;
     setDistributingPool(true);
@@ -246,6 +262,7 @@ const AdminCommissionsPage = () => {
                     <th className="px-6 py-4 text-left text-xs font-semibold text-secondary-500 uppercase">Bestellung</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-secondary-500 uppercase">Status</th>
                     <th className="px-6 py-4 text-right text-xs font-semibold text-secondary-500 uppercase">Betrag</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-secondary-500 uppercase">PDF</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -277,6 +294,15 @@ const AdminCommissionsPage = () => {
                       </td>
                       <td className="px-6 py-4 text-right font-semibold text-primary-400">
                         {formatCurrency(commission.amount)}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <button
+                          onClick={() => generatePartnerStatement(commission.user_id, `${commission.first_name}-${commission.last_name}`)}
+                          className="p-2 text-secondary-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-colors"
+                          title="Provisionsgutschrift erstellen"
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
                       </td>
                     </motion.tr>
                   ))}

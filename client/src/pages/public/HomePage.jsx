@@ -2,25 +2,10 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Phone, Mail, MapPin } from 'lucide-react';
-import { 
-  ArrowRight, 
-  Droplets, 
-  Shield, 
-  Leaf, 
-  Award,
-  Truck,
-  Headphones,
-  Check,
-  Star,
-  ChevronRight,
-  ShoppingBag,
-  Users,
-  GraduationCap,
-  Package,
-  Zap,
-  Clock,
-  Briefcase,
-  Heart
+import {
+  ArrowRight, Droplets, Shield, Leaf, Award, Truck, Headphones,
+  Check, Star, ChevronRight, ShoppingBag, Users, GraduationCap,
+  Package, Zap, Clock, Briefcase, Heart, Sparkles, Quote, Target
 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useCart } from '../../context/CartContext';
@@ -28,11 +13,20 @@ import { formatCurrency } from '../../config/app.config';
 import { productsAPI } from '../../services/api';
 import brandConfig from '../../config/brand.config';
 
+const fadeUp = {
+  hidden: { opacity: 0, y: 40 },
+  visible: (i = 0) => ({
+    opacity: 1, y: 0,
+    transition: { duration: 0.7, delay: i * 0.15, ease: [0.22, 1, 0.36, 1] }
+  })
+};
+
 const HomePage = () => {
   const { lang } = useLanguage();
   const { addItem, isInCart } = useCart();
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTestimonial, setActiveTestimonial] = useState(0);
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -54,381 +48,302 @@ const HomePage = () => {
     addItem(product);
   };
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveTestimonial((prev) => (prev + 1) % 3);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const t = (de, en) => lang === 'de' ? de : en;
+
+  const testimonials = [
+    { quote: t('Seit wir CLYR nutzen, trinken wir deutlich mehr Wasser und fühlen uns energiegeladener im Alltag.', 'Since using CLYR, we drink significantly more water and feel more energized in our daily lives.'), author: 'Familie M.', location: t('Kärnten', 'Carinthia') },
+    { quote: t('Die Kombination aus Technik, Design und Komfort hat uns sofort überzeugt.', 'The combination of technology, design and comfort convinced us immediately.'), author: 'Thomas & Sarah K.', location: 'Salzburg' },
+    { quote: t('Endlich eine Lösung, die Gesundheit und Alltag wirklich verbindet.', 'Finally a solution that truly connects health and everyday life.'), author: 'Dr. Anna W.', location: 'Wien' },
+  ];
+
   return (
     <div className="min-h-screen bg-white">
-      
-      {/* ====== HERO SECTION ====== */}
-      <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-secondary-700">
-        {/* Subtle Pattern Overlay */}
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute top-20 left-10 w-64 h-64 bg-primary-400 rounded-full blur-3xl" />
-          <div className="absolute bottom-20 right-20 w-96 h-96 bg-primary-300 rounded-full blur-3xl" />
-        </div>
-        
-        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            
-            {/* Left - Text Content */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-            >
-              {/* Brand Badge */}
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full text-primary-300 text-sm font-medium mb-8 border border-white/20">
-                <Droplets className="w-4 h-4" />
-                <span>{lang === 'de' ? 'Premium Wassersysteme' : 'Premium Water Systems'}</span>
-              </div>
-              
-              {/* Main Headline */}
-              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white leading-tight mb-8">
-                {lang === 'de' ? (
-                  <>
-                    <span className="text-primary-400">Klares</span> Wasser.<br />
-                    <span className="text-primary-400">Klares</span> Leben.
-                  </>
-                ) : (
-                  <>
-                    <span className="text-primary-400">Clear</span> Water.<br />
-                    <span className="text-primary-400">Clear</span> Life.
-                  </>
-                )}
-              </h1>
-              
-              {/* Subheadline */}
-              <p className="text-xl text-gray-300 mb-10 max-w-xl leading-relaxed">
-                {lang === 'de' 
-                  ? 'Entdecken Sie die Zukunft des Trinkwassers. Premium Wassersysteme für Ihr Zuhause - direkt aus dem Wasserhahn.'
-                  : 'Discover the future of drinking water. Premium water systems for your home - straight from the tap.'}
-              </p>
-              
-              {/* CTA Buttons - Correct Routes */}
-              <div className="flex flex-wrap gap-4 mb-12">
-                <Link 
-                  to="/products"
-                  className="group inline-flex items-center gap-3 px-8 py-4 bg-white text-secondary-700 font-semibold rounded-xl hover:bg-primary-400 hover:text-white transition-all shadow-lg hover:-translate-y-0.5"
-                >
-                  <ShoppingBag className="w-5 h-5" />
-                  {lang === 'de' ? 'Produkte entdecken' : 'Shop Products'}
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </Link>
-                <Link 
-                  to="/partner/register"
-                  className="inline-flex items-center gap-3 px-8 py-4 bg-transparent text-white font-semibold rounded-xl border-2 border-white/30 hover:border-primary-400 hover:text-primary-400 transition-all"
-                >
-                  <Users className="w-5 h-5" />
-                  {lang === 'de' ? 'Partner werden' : 'Become Partner'}
-                </Link>
-              </div>
 
-              {/* Trust Indicators */}
-              <div className="flex flex-wrap gap-8 text-sm text-gray-400">
-                <div className="flex items-center gap-2">
-                  <Shield className="w-5 h-5 text-primary-400" />
-                  <span>{lang === 'de' ? '2 Jahre Garantie' : '2 Year Warranty'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Truck className="w-5 h-5 text-primary-400" />
-                  <span>{lang === 'de' ? 'Schnelle Lieferung' : 'Fast Delivery'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Headphones className="w-5 h-5 text-primary-400" />
-                  <span>{lang === 'de' ? 'Premium Support' : 'Premium Support'}</span>
-                </div>
+      {/* SECTION 1 — PREMIUM HERO */}
+      <section className="relative min-h-[92vh] flex items-center overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-secondary-800 via-secondary-700 to-primary-900" />
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute top-1/4 -left-32 w-[500px] h-[500px] bg-primary-400/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 -right-32 w-[600px] h-[600px] bg-primary-300/8 rounded-full blur-3xl" />
+        </div>
+        <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+          <div className="text-center max-w-4xl mx-auto">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/10 backdrop-blur-sm rounded-full text-primary-300 text-sm font-medium mb-10 border border-white/15">
+              <Droplets className="w-4 h-4" /><span>CLYR Solutions GmbH</span>
+            </motion.div>
+            <motion.h1 initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.15 }}
+              className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-heading font-bold text-white leading-[1.1] mb-8">
+              {t(<>Mehr als Wasser.<br /><span className="text-primary-300">Ein neuer Standard</span> für<br />Gesundheit und Lebensqualität.</>,
+                <>More than Water.<br /><span className="text-primary-300">A New Standard</span> for<br />Health and Quality of Life.</>)}
+            </motion.h1>
+            <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.3 }}
+              className="text-lg md:text-xl text-secondary-200 max-w-2xl mx-auto leading-relaxed mb-12">
+              {t('CLYR verbindet modernste Wassertechnologie mit dem Anspruch, Gesundheit, Komfort und Lifestyle auf ein neues Niveau zu bringen.',
+                'CLYR combines cutting-edge water technology with the aspiration to elevate health, comfort and lifestyle to a new level.')}
+            </motion.p>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.45 }}
+              className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
+              <Link to="/products" className="group inline-flex items-center justify-center gap-3 px-8 py-4 bg-white text-secondary-800 font-semibold rounded-xl hover:bg-primary-50 transition-all shadow-xl hover:-translate-y-0.5">
+                <ShoppingBag className="w-5 h-5" />{t('Jetzt entdecken', 'Discover Now')}<ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+              <Link to="/partner/register" className="inline-flex items-center justify-center gap-3 px-8 py-4 bg-transparent text-white font-semibold rounded-xl border-2 border-white/25 hover:border-primary-400 hover:text-primary-300 transition-all">
+                <Users className="w-5 h-5" />{t('Partner werden', 'Become Partner')}
+              </Link>
+            </motion.div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.7, delay: 0.6 }}
+              className="flex flex-wrap justify-center gap-8 text-sm text-secondary-300">
+              {[{ icon: Shield, text: t('2 Jahre Garantie', '2 Year Warranty') }, { icon: Droplets, text: t('9-Stufen Filtration', '9-Stage Filtration') }, { icon: Leaf, text: t('Nachhaltig & plastikfrei', 'Sustainable & plastic-free') }].map((item, i) => (
+                <div key={i} className="flex items-center gap-2"><item.icon className="w-4 h-4 text-primary-400" /><span>{item.text}</span></div>
+              ))}
+            </motion.div>
+          </div>
+        </div>
+        <div className="absolute bottom-0 left-0 right-0">
+          <svg viewBox="0 0 1440 80" fill="none" className="w-full"><path d="M0,64 C360,0 720,80 1440,32 L1440,80 L0,80 Z" fill="white" /></svg>
+        </div>
+      </section>
+
+      {/* SECTION 2 — WHY WATER QUALITY MATTERS */}
+      <section className="py-20 md:py-28 bg-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-2 gap-16 items-center">
+            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={fadeUp}>
+              <p className="text-primary-500 uppercase tracking-[0.15em] text-sm font-semibold mb-4">{t('Wissen', 'Knowledge')}</p>
+              <h2 className="text-3xl md:text-4xl font-heading font-bold text-secondary-800 leading-tight mb-6">{t('Warum Wasserqualität entscheidend ist', 'Why Water Quality Matters')}</h2>
+              <div className="space-y-4 text-secondary-600 text-lg leading-relaxed">
+                <p>{t('Unser Körper besteht zu einem großen Teil aus Wasser. Trotzdem wird Wasserqualität im Alltag oft unterschätzt.', 'Our body is largely made up of water. Yet water quality is often underestimated in everyday life.')}</p>
+                <p>{t('Moderne Umweltbelastungen, Rückstände aus Medikamenten, Mikroplastik oder alte Leitungssysteme können die Qualität unseres Trinkwassers beeinflussen.', 'Modern environmental pollutants, medication residues, microplastics or old pipe systems can affect the quality of our drinking water.')}</p>
+                <p className="font-medium text-secondary-700">{t('CLYR entwickelt Lösungen, die Wasser wieder zu dem machen, was es sein sollte: rein, hochwertig und zuverlässig.', 'CLYR develops solutions that make water what it should be: pure, high-quality and reliable.')}</p>
               </div>
             </motion.div>
-            
-            {/* Right - Product Hero Image */}
-            <motion.div
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="relative flex justify-center items-center"
-            >
-              <div className="relative">
-                {/* Glow Effect Behind Product */}
-                <div className="absolute inset-0 bg-primary-400/20 rounded-full blur-3xl transform scale-75" />
-                
-                {/* Product Image */}
-                <img 
-                  src="/images/products/clyr-soda-set.png" 
-                  alt="CLYR Water System" 
-                  className="relative w-full max-w-lg h-auto drop-shadow-2xl"
-                />
-                
-                {/* Floating Stat Card - Top Right */}
-                <div className="absolute -top-4 -right-4 bg-white rounded-2xl p-4 shadow-xl">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-secondary-700 rounded-xl flex items-center justify-center">
-                      <Droplets className="w-6 h-6 text-primary-400" />
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-secondary-700">99.9%</div>
-                      <div className="text-sm text-secondary-500">{lang === 'de' ? 'Filtration' : 'Filtration'}</div>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Floating Stat Card - Bottom Left */}
-                <div className="absolute -bottom-4 -left-4 bg-white rounded-2xl p-4 shadow-xl">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-secondary-700 rounded-xl flex items-center justify-center">
-                      <Leaf className="w-6 h-6 text-primary-400" />
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-secondary-700">1000+</div>
-                      <div className="text-sm text-secondary-500">{lang === 'de' ? 'Flaschen gespart' : 'Bottles Saved'}</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={fadeUp} custom={2} className="grid grid-cols-2 gap-5">
+              {[{ value: '99.9%', label: t('Schadstoff-Filtration', 'Contaminant Filtration'), icon: Shield }, { value: '9', label: t('Filterstufen', 'Filter Stages'), icon: Droplets }, { value: '0%', label: t('Mikroplastik', 'Microplastics'), icon: Leaf }, { value: '24/7', label: t('Reines Wasser', 'Pure Water'), icon: Zap }].map((stat, i) => (
+                <motion.div key={i} variants={fadeUp} custom={i * 0.3} className="bg-gray-50 rounded-2xl p-6 text-center hover:shadow-lg transition-all duration-300 border border-gray-100">
+                  <div className="w-12 h-12 mx-auto rounded-xl bg-primary-100 flex items-center justify-center mb-4"><stat.icon className="w-6 h-6 text-primary-600" /></div>
+                  <div className="text-3xl font-heading font-bold text-secondary-800 mb-1">{stat.value}</div>
+                  <div className="text-sm text-secondary-500">{stat.label}</div>
+                </motion.div>
+              ))}
             </motion.div>
           </div>
         </div>
       </section>
 
-      {/* ====== WHY CLYR SECTION ====== */}
-      <section className="py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl sm:text-5xl font-bold text-secondary-700 mb-6">
-              {lang === 'de' ? 'Warum CLYR?' : 'Why CLYR?'}
-            </h2>
-            <p className="text-xl text-secondary-500 max-w-3xl mx-auto">
-              {lang === 'de'
-                ? 'Premium Qualität trifft auf Innovation - für reines Wasser direkt aus Ihrem Wasserhahn'
-                : 'Premium quality meets innovation - for pure water straight from your tap'}
-            </p>
+      {/* SECTION 3 — WHAT MAKES CLYR DIFFERENT */}
+      <section className="py-20 md:py-28 bg-gradient-to-b from-secondary-800 via-secondary-700 to-secondary-800 relative overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute top-1/4 -left-32 w-[400px] h-[400px] bg-primary-400/8 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 -right-32 w-[500px] h-[500px] bg-primary-300/6 rounded-full blur-3xl" />
+        </div>
+        <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp} className="text-center mb-16">
+            <p className="text-primary-400 uppercase tracking-[0.15em] text-sm font-semibold mb-4">{t('Unsere Stärken', 'Our Strengths')}</p>
+            <h2 className="text-3xl md:text-4xl font-heading font-bold text-white mb-6">{t('Was CLYR anders macht', 'What Makes CLYR Different')}</h2>
+            <p className="text-secondary-200 text-lg max-w-2xl mx-auto">{t('CLYR steht für kompromisslose Qualität und Innovation. Unsere Systeme kombinieren modernste Filtertechnologie mit hochwertiger Verarbeitung und intelligentem Design.', 'CLYR stands for uncompromising quality and innovation. Our systems combine cutting-edge filter technology with premium craftsmanship and intelligent design.')}</p>
           </motion.div>
-
-          {/* Feature Cards */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              {
-                icon: Droplets,
-                title: lang === 'de' ? 'Kristallklares Wasser' : 'Crystal Clear Water',
-                description: lang === 'de' 
-                  ? '99.9% Filtration für reinstes Trinkwasser'
-                  : '99.9% filtration for purest drinking water',
-              },
-              {
-                icon: Leaf,
-                title: lang === 'de' ? 'Umweltfreundlich' : 'Eco-Friendly',
-                description: lang === 'de'
-                  ? 'Keine Plastikflaschen mehr - gut für die Umwelt'
-                  : 'No more plastic bottles - good for the environment',
-              },
-              {
-                icon: Zap,
-                title: lang === 'de' ? 'Sofort verfügbar' : 'Instant Access',
-                description: lang === 'de'
-                  ? 'Gekühltes, gefiltertes Wasser auf Knopfdruck'
-                  : 'Chilled, filtered water at the touch of a button',
-              },
-              {
-                icon: Shield,
-                title: lang === 'de' ? 'Deutsche Qualität' : 'German Quality',
-                description: lang === 'de'
-                  ? 'Höchste Standards in Design und Verarbeitung'
-                  : 'Highest standards in design and workmanship',
-              },
-            ].map((feature, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className="bg-secondary-700 rounded-2xl p-8 hover:bg-secondary-800 transition-all hover:-translate-y-1"
-              >
-                <div className="w-14 h-14 bg-secondary-600 rounded-xl flex items-center justify-center mb-6">
-                  <feature.icon className="w-7 h-7 text-primary-400" />
+              { icon: Droplets, title: t('Höchste Wasserqualität', 'Highest Water Quality'), desc: t('9-Stufen Filtration eliminiert Schadstoffe, Mikroplastik und Medikamentenrückstände.', '9-stage filtration eliminates contaminants, microplastics and medication residues.') },
+              { icon: Sparkles, title: t('Modernes, elegantes Design', 'Modern, Elegant Design'), desc: t('Kompakte Systeme, die sich harmonisch in jede Küche integrieren.', 'Compact systems that blend harmoniously into any kitchen.') },
+              { icon: Zap, title: t('Alltagstaugliche Bedienung', 'Everyday Usability'), desc: t('Intuitiv und einfach – reines Wasser auf Knopfdruck, ohne komplizierte Routinen.', 'Intuitive and simple – pure water at the push of a button.') },
+              { icon: Leaf, title: t('Nachhaltige Lösungen', 'Sustainable Solutions'), desc: t('Schluss mit Plastikflaschen. Gut für Ihre Familie und die Umwelt.', 'No more plastic bottles. Good for your family and the environment.') },
+              { icon: Shield, title: t('Technologie auf höchstem Niveau', 'Top-Level Technology'), desc: t('LED-UVC Entkeimung, Bio-Tuner und automatische Membranspülung.', 'LED-UVC disinfection, Bio-Tuner and automatic membrane flushing.') },
+              { icon: Heart, title: t('Für die ganze Familie', 'For the Whole Family'), desc: t('Gesundes Wasser für Kochen, Trinken und das Wohlbefinden der ganzen Familie.', 'Healthy water for cooking, drinking and the wellbeing of your whole family.') },
+            ].map((item, i) => (
+              <motion.div key={i} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-40px" }} variants={fadeUp} custom={i * 0.5}
+                className="bg-secondary-600/50 backdrop-blur-sm rounded-2xl p-8 border border-white/10 hover:border-primary-400/30 hover:bg-secondary-600/70 transition-all duration-300">
+                <div className="w-14 h-14 rounded-2xl bg-primary-400/15 flex items-center justify-center mb-5">
+                  <item.icon className="w-7 h-7 text-primary-400" />
                 </div>
-                <h3 className="text-xl font-semibold text-white mb-3">{feature.title}</h3>
-                <p className="text-gray-400 leading-relaxed">{feature.description}</p>
+                <h3 className="text-lg font-heading font-semibold text-white mb-3">{item.title}</h3>
+                <p className="text-secondary-200 leading-relaxed">{item.desc}</p>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ====== PRODUCTS SECTION ====== */}
-      <section className="py-24 bg-slate-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* SECTION 4 — ABOUT CLYR TEASER */}
+      <section className="py-20 md:py-28 bg-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-2 gap-12 md:gap-16 items-center">
+            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={fadeUp} className="relative">
+              <div className="absolute -inset-4 bg-gradient-to-br from-primary-100 to-primary-50 rounded-3xl -rotate-2" />
+              <img src="/images/founders-together.jpeg" alt="CLYR Gründer" className="relative rounded-2xl w-full shadow-xl object-cover" />
+              <div className="absolute -bottom-6 -right-6 bg-white rounded-2xl p-5 shadow-xl border border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center"><Target className="w-6 h-6 text-primary-600" /></div>
+                  <div>
+                    <p className="font-heading font-bold text-secondary-800">{t('Gegründet aus', 'Founded from')}</p>
+                    <p className="text-sm text-primary-600 font-medium">{t('Überzeugung', 'Conviction')}</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={fadeUp} custom={1}>
+              <p className="text-primary-500 uppercase tracking-[0.15em] text-sm font-semibold mb-4">{t('Über CLYR', 'About CLYR')}</p>
+              <h2 className="text-3xl md:text-4xl font-heading font-bold text-secondary-800 leading-tight mb-6">{t('Gesundheit einfacher, zugänglicher und moderner machen', 'Making health simpler, more accessible and more modern')}</h2>
+              <div className="space-y-4 text-secondary-600 text-lg leading-relaxed">
+                <p>{t('CLYR entstand aus der Vision, Gesundheit einfacher, zugänglicher und moderner zu machen.', 'CLYR was born from the vision of making health simpler, more accessible and more modern.')}</p>
+                <p>{t('Gegründet von Menschen, die medizinisches Verständnis, technische Expertise und unternehmerische Leidenschaft vereinen.', 'Founded by people who combine medical understanding, technical expertise and entrepreneurial passion.')}</p>
+                <p>{t('Unser Ziel ist es, Wasserqualität neu zu denken – für Familien, Gesundheitsbewusste und Menschen, die ihren Alltag bewusst gestalten möchten.', 'Our goal is to rethink water quality – for families, health-conscious people and those who want to consciously shape their everyday lives.')}</p>
+              </div>
+              <Link to="/about" className="inline-flex items-center gap-2 mt-8 px-6 py-3 bg-secondary-800 text-white font-semibold rounded-xl hover:bg-primary-600 transition-colors">
+                {t('Mehr über uns erfahren', 'Learn More About Us')}<ArrowRight className="w-5 h-5" />
+              </Link>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 5 — LIFESTYLE / EMOTIONAL */}
+      <section className="relative py-32 md:py-44 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-secondary-800 via-secondary-700 to-primary-900" />
+        <div className="absolute inset-0 opacity-20"><div className="absolute top-0 left-0 w-full h-full bg-[url('/images/products/clyr-kitchen-undersink.jpg')] bg-cover bg-center" /></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-secondary-900/90 via-secondary-800/80 to-primary-900/70" />
+        <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp}>
+            <p className="text-primary-300 uppercase tracking-[0.2em] text-sm font-medium mb-6">Lifestyle</p>
+            <h2 className="text-3xl md:text-5xl font-heading font-bold text-white leading-tight mb-8">{t('CLYR ist nicht nur Technologie – es ist ein Lebensgefühl.', "CLYR is not just technology – it's a way of life.")}</h2>
+            <p className="text-xl text-secondary-200 max-w-2xl mx-auto leading-relaxed mb-4">{t('Reines Wasser beeinflusst Energie, Wohlbefinden und Lebensqualität im Alltag.', 'Pure water influences energy, wellbeing and quality of life in everyday life.')}</p>
+            <p className="text-lg text-secondary-300 max-w-2xl mx-auto leading-relaxed">{t('Unsere Systeme sind dafür entwickelt, sich harmonisch in moderne Haushalte zu integrieren – stilvoll, effizient und komfortabel.', 'Our systems are designed to integrate harmoniously into modern households – stylish, efficient and comfortable.')}</p>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* SECTION 6 — TESTIMONIALS */}
+      <section className="py-20 md:py-28 bg-gray-50">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp} className="text-center mb-16">
+            <p className="text-primary-500 uppercase tracking-[0.15em] text-sm font-semibold mb-4">{t('Erfahrungen', 'Testimonials')}</p>
+            <h2 className="text-3xl md:text-4xl font-heading font-bold text-secondary-800">{t('Was unsere Kunden sagen', 'What Our Customers Say')}</h2>
+          </motion.div>
+          <div className="relative">
+            <motion.div key={activeTestimonial} initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}
+              className="bg-white rounded-3xl p-10 md:p-14 shadow-lg border border-gray-100 text-center">
+              <Quote className="w-12 h-12 text-primary-200 mx-auto mb-6" />
+              <p className="text-xl md:text-2xl text-secondary-700 font-medium leading-relaxed mb-8 italic">&#8222;{testimonials[activeTestimonial].quote}&#8220;</p>
+              <p className="font-heading font-semibold text-secondary-800">{testimonials[activeTestimonial].author}</p>
+              <p className="text-secondary-500 text-sm">{testimonials[activeTestimonial].location}</p>
+            </motion.div>
+            <div className="flex justify-center gap-3 mt-8">
+              {testimonials.map((_, i) => (
+                <button key={i} onClick={() => setActiveTestimonial(i)}
+                  className={`w-3 h-3 rounded-full transition-all duration-300 ${i === activeTestimonial ? 'bg-primary-500 w-8' : 'bg-secondary-300 hover:bg-secondary-400'}`} />
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 7A — FEATURED PRODUCTS */}
+      <section className="py-20 md:py-28 bg-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-end mb-12">
             <div>
-              <h2 className="text-4xl sm:text-5xl font-bold text-secondary-700 mb-4">
-                {lang === 'de' ? 'Unsere Produkte' : 'Our Products'}
-              </h2>
-              <p className="text-lg text-secondary-500">
-                {lang === 'de' ? 'Premium Wassersysteme für Ihr Zuhause' : 'Premium water systems for your home'}
-              </p>
+              <p className="text-primary-500 uppercase tracking-[0.15em] text-sm font-semibold mb-3">Shop</p>
+              <h2 className="text-3xl md:text-4xl font-heading font-bold text-secondary-800 mb-2">{t('Unsere Produkte', 'Our Products')}</h2>
+              <p className="text-secondary-500 text-lg">{t('Premium Wassersysteme für Ihr Zuhause', 'Premium water systems for your home')}</p>
             </div>
-            <Link
-              to="/products"
-              className="hidden sm:inline-flex items-center gap-2 px-6 py-3 bg-secondary-700 text-white font-semibold rounded-xl hover:bg-secondary-800 transition-colors"
-            >
-              {lang === 'de' ? 'Alle Produkte' : 'All Products'}
-              <ChevronRight className="w-5 h-5" />
+            <Link to="/products" className="hidden sm:inline-flex items-center gap-2 px-6 py-3 bg-secondary-800 text-white font-semibold rounded-xl hover:bg-primary-600 transition-colors">
+              {t('Alle Produkte', 'All Products')}<ChevronRight className="w-5 h-5" />
             </Link>
           </div>
-
           {loading ? (
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="bg-white rounded-2xl h-96 animate-pulse" />
-              ))}
-            </div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">{[1,2,3,4].map(i => <div key={i} className="bg-gray-50 rounded-2xl h-96 animate-pulse" />)}</div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {featuredProducts.slice(0, 4).map((product, index) => (
-                <motion.div
-                  key={product.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.1 }}
-                >
-                  <Link
-                    to={`/products/${product.id}`}
-                    className="group block bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all hover:-translate-y-1 border border-gray-100"
-                  >
-                    <div className="aspect-square bg-gradient-to-br from-slate-50 to-slate-100 p-6 flex items-center justify-center">
-                      <img
-                        src={product.image_url || '/images/products/complete-set.png'}
-                        alt={product.name}
-                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
-                      />
-                    </div>
-                    <div className="p-6">
-                      <h3 className="font-semibold text-secondary-700 mb-2 text-lg group-hover:text-primary-500 transition-colors">
-                        {product.name}
-                      </h3>
-                      <div className="flex items-center justify-between">
-                        <div className="text-2xl font-bold text-secondary-700">
-                          {formatCurrency(product.price_gross || product.price)}
-                        </div>
-                        <button
-                          onClick={(e) => handleAddToCart(e, product)}
-                          disabled={isInCart(product.id)}
-                          className={`p-3 rounded-xl transition-all ${
-                            isInCart(product.id)
-                              ? 'bg-green-100 text-green-600'
-                              : 'bg-secondary-700 text-white hover:bg-primary-500'
-                          }`}
-                        >
-                          {isInCart(product.id) ? (
-                            <Check className="w-5 h-5" />
-                          ) : (
-                            <ShoppingBag className="w-5 h-5" />
-                          )}
-                        </button>
+              {featuredProducts.slice(0, 4).map((product, index) => {
+                const images = product.images || [];
+                const imgSrc = images.length > 0 ? images[0] : '/images/products/complete-set.png';
+                return (
+                  <motion.div key={product.id} initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp} custom={index * 0.5}>
+                    <Link to={`/product/${product.slug || product.id}`} className="group block bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all hover:-translate-y-1 border border-gray-100">
+                      <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 p-6 flex items-center justify-center">
+                        <img src={imgSrc} alt={product.name} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300" />
                       </div>
-                    </div>
-                  </Link>
-                </motion.div>
-              ))}
+                      <div className="p-6">
+                        <h3 className="font-semibold text-secondary-800 mb-2 text-lg group-hover:text-primary-500 transition-colors">{product.name}</h3>
+                        <div className="flex items-center justify-between">
+                          <div className="text-2xl font-bold text-secondary-800">{formatCurrency(product.price_gross || product.price)}</div>
+                          <button onClick={(e) => handleAddToCart(e, product)} disabled={isInCart(product.id)}
+                            className={`p-3 rounded-xl transition-all ${isInCart(product.id) ? 'bg-green-100 text-green-600' : 'bg-secondary-800 text-white hover:bg-primary-500'}`}>
+                            {isInCart(product.id) ? <Check className="w-5 h-5" /> : <ShoppingBag className="w-5 h-5" />}
+                          </button>
+                        </div>
+                      </div>
+                    </Link>
+                  </motion.div>
+                );
+              })}
             </div>
           )}
-
           <div className="text-center mt-10 sm:hidden">
-            <Link
-              to="/products"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-secondary-700 text-white font-semibold rounded-xl"
-            >
-              {lang === 'de' ? 'Alle Produkte ansehen' : 'View All Products'}
-              <ChevronRight className="w-5 h-5" />
+            <Link to="/products" className="inline-flex items-center gap-2 px-6 py-3 bg-secondary-800 text-white font-semibold rounded-xl">
+              {t('Alle Produkte ansehen', 'View All Products')}<ChevronRight className="w-5 h-5" />
             </Link>
           </div>
         </div>
       </section>
 
-      {/* ====== PARTNER CTA SECTION - NO COMMISSION RATES ====== */}
-      <section className="py-24 bg-secondary-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* SECTION 7B — PARTNER / COMMUNITY */}
+      <section className="py-20 md:py-28 bg-secondary-800">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-            >
-              <h2 className="text-4xl sm:text-5xl font-bold text-white mb-6">
-                {lang === 'de' ? 'Werden Sie CLYR Partner' : 'Become a CLYR Partner'}
-              </h2>
-              <p className="text-xl text-gray-300 mb-10 leading-relaxed">
-                {lang === 'de'
-                  ? 'Starten Sie Ihr eigenes Geschäft mit CLYR. Profitieren Sie von attraktiven Vorteilen und einem bewährten Geschäftsmodell.'
-                  : 'Start your own business with CLYR. Benefit from attractive advantages and a proven business model.'}
-              </p>
-              
-              {/* Benefits Grid - NO COMMISSION RATES */}
+            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={fadeUp}>
+              <p className="text-primary-400 uppercase tracking-[0.15em] text-sm font-semibold mb-4">{t('Karriere', 'Career')}</p>
+              <h2 className="text-3xl md:text-4xl font-heading font-bold text-white leading-tight mb-6">{t('Werden Sie Teil einer wachsenden Community', 'Become Part of a Growing Community')}</h2>
+              <p className="text-secondary-200 text-lg leading-relaxed mb-6">{t('CLYR bietet nicht nur innovative Wasserlösungen, sondern auch die Möglichkeit, Teil einer wachsenden Community zu werden.', 'CLYR offers not only innovative water solutions, but also the opportunity to become part of a growing community.')}</p>
+              <p className="text-secondary-300 text-lg leading-relaxed mb-10">{t('Wir geben Menschen die Chance, Gesundheit zu fördern und gleichzeitig neue berufliche Perspektiven aufzubauen.', 'We give people the opportunity to promote health while building new professional perspectives.')}</p>
               <div className="grid sm:grid-cols-2 gap-4 mb-10">
                 {[
-                  { icon: Briefcase, text: lang === 'de' ? 'Eigenes Business aufbauen' : 'Build Your Own Business' },
-                  { icon: Users, text: lang === 'de' ? 'Team aufbauen' : 'Build Your Team' },
-                  { icon: GraduationCap, text: lang === 'de' ? 'CLYR Academy Schulungen' : 'CLYR Academy Training' },
-                  { icon: Package, text: lang === 'de' ? 'Premium Produkte' : 'Premium Products' },
-                  { icon: Clock, text: lang === 'de' ? 'Flexible Arbeitszeiten' : 'Flexible Working Hours' },
-                  { icon: Heart, text: lang === 'de' ? 'Persönlicher Support' : 'Personal Support' },
-                ].map((item, index) => (
-                  <div key={index} className="flex items-center gap-4 bg-secondary-600 rounded-xl p-4">
-                    <div className="w-12 h-12 bg-secondary-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <item.icon className="w-6 h-6 text-primary-400" />
-                    </div>
-                    <span className="font-medium text-white">{item.text}</span>
+                  { icon: Briefcase, text: t('Eigenes Business aufbauen', 'Build Your Own Business') },
+                  { icon: Users, text: t('Starkes Team & Community', 'Strong Team & Community') },
+                  { icon: GraduationCap, text: t('CLYR Academy Schulungen', 'CLYR Academy Training') },
+                  { icon: Clock, text: t('Flexible Arbeitszeiten', 'Flexible Working Hours') },
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center gap-3 bg-secondary-700/50 rounded-xl p-4 border border-secondary-600/30">
+                    <div className="w-10 h-10 bg-secondary-600 rounded-lg flex items-center justify-center flex-shrink-0"><item.icon className="w-5 h-5 text-primary-400" /></div>
+                    <span className="font-medium text-white text-sm">{item.text}</span>
                   </div>
                 ))}
               </div>
-              
-              <Link
-                to="/partner/register"
-                className="inline-flex items-center gap-3 px-8 py-4 bg-white text-secondary-700 font-semibold rounded-xl hover:bg-primary-400 hover:text-white transition-all shadow-lg"
-              >
-                {lang === 'de' ? 'Jetzt Partner werden' : 'Become Partner Now'}
-                <ArrowRight className="w-5 h-5" />
-              </Link>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Link to="/partner/register" className="inline-flex items-center justify-center gap-3 px-8 py-4 bg-white text-secondary-800 font-semibold rounded-xl hover:bg-primary-50 transition-all shadow-lg">
+                  {t('Partner werden', 'Become Partner')}<ArrowRight className="w-5 h-5" />
+                </Link>
+                <Link to="/about" className="inline-flex items-center justify-center gap-3 px-8 py-4 border-2 border-white/25 text-white font-semibold rounded-xl hover:border-primary-400 hover:text-primary-300 transition-all">
+                  {t('Mehr erfahren', 'Learn More')}
+                </Link>
+              </div>
             </motion.div>
-            
-            {/* Right Side - Benefits Card (NO COMMISSION RATES) */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-            >
+            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={fadeUp} custom={2}>
               <div className="bg-white rounded-3xl p-8 shadow-2xl">
                 <div className="text-center mb-8 pb-8 border-b border-gray-100">
-                  <div className="w-20 h-20 bg-secondary-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <Users className="w-10 h-10 text-primary-400" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-secondary-700">
-                    {lang === 'de' ? 'Ihre Karriere bei CLYR' : 'Your Career at CLYR'}
-                  </h3>
-                  <p className="text-secondary-500 mt-2">
-                    {lang === 'de' ? '6 Karrierestufen warten auf Sie' : '6 career levels await you'}
-                  </p>
+                  <div className="w-20 h-20 bg-gradient-to-br from-primary-100 to-primary-200 rounded-2xl flex items-center justify-center mx-auto mb-4"><Users className="w-10 h-10 text-primary-700" /></div>
+                  <h3 className="text-2xl font-heading font-bold text-secondary-800">{t('Ihre Karriere bei CLYR', 'Your Career at CLYR')}</h3>
+                  <p className="text-secondary-500 mt-2">{t('6 Karrierestufen warten auf Sie', '6 career levels await you')}</p>
                 </div>
                 <div className="space-y-4">
                   {[
-                    { icon: Star, title: lang === 'de' ? 'Attraktive Vergütung' : 'Attractive Compensation', desc: lang === 'de' ? 'Leistungsbasierte Provisionen' : 'Performance-based rewards' },
-                    { icon: GraduationCap, title: lang === 'de' ? 'Umfassende Schulung' : 'Comprehensive Training', desc: lang === 'de' ? 'CLYR Academy für Ihren Erfolg' : 'CLYR Academy for your success' },
-                    { icon: Shield, title: lang === 'de' ? 'Premium Marke' : 'Premium Brand', desc: lang === 'de' ? 'Hochwertige Produkte verkaufen' : 'Sell high-quality products' },
-                    { icon: Heart, title: lang === 'de' ? 'Starke Community' : 'Strong Community', desc: lang === 'de' ? 'Teil eines wachsenden Teams' : 'Part of a growing team' },
-                  ].map((item, index) => (
-                    <div 
-                      key={index} 
-                      className="flex items-start gap-4 p-4 bg-slate-50 rounded-xl hover:bg-secondary-700 transition-colors group"
-                    >
-                      <div className="w-10 h-10 bg-secondary-700 group-hover:bg-secondary-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <item.icon className="w-5 h-5 text-primary-400" />
-                      </div>
+                    { icon: Star, title: t('Attraktive Vergütung', 'Attractive Compensation'), desc: t('Leistungsbasierte Provisionen', 'Performance-based rewards') },
+                    { icon: GraduationCap, title: t('Umfassende Schulung', 'Comprehensive Training'), desc: t('CLYR Academy für Ihren Erfolg', 'CLYR Academy for your success') },
+                    { icon: Shield, title: t('Premium Marke', 'Premium Brand'), desc: t('Hochwertige Produkte verkaufen', 'Sell high-quality products') },
+                    { icon: Heart, title: t('Starke Community', 'Strong Community'), desc: t('Teil eines wachsenden Teams', 'Part of a growing team') },
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl hover:bg-secondary-800 transition-colors group cursor-default">
+                      <div className="w-10 h-10 bg-secondary-800 group-hover:bg-primary-500 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors"><item.icon className="w-5 h-5 text-primary-400 group-hover:text-white transition-colors" /></div>
                       <div>
-                        <h4 className="font-semibold text-secondary-700 group-hover:text-white transition-colors">{item.title}</h4>
-                        <p className="text-sm text-secondary-500 group-hover:text-gray-300 transition-colors">{item.desc}</p>
+                        <h4 className="font-semibold text-secondary-800 group-hover:text-white transition-colors">{item.title}</h4>
+                        <p className="text-sm text-secondary-500 group-hover:text-secondary-300 transition-colors">{item.desc}</p>
                       </div>
                     </div>
                   ))}
@@ -439,84 +354,42 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* ====== CONTACT SECTION ====== */}
-      <section className="py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-4xl sm:text-5xl font-bold text-secondary-700 mb-4">
-              {lang === 'de' ? 'Kontakt' : 'Contact Us'}
-            </h2>
-            <p className="text-lg text-secondary-500">
-              {lang === 'de' ? 'Wir sind für Sie da' : 'We are here for you'}
-            </p>
+      {/* SECTION 8 — FINAL CTA */}
+      <section className="py-20 md:py-28 bg-white">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp}>
+            <div className="w-16 h-16 rounded-2xl bg-primary-100 flex items-center justify-center mx-auto mb-8"><Droplets className="w-8 h-8 text-primary-600" /></div>
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-heading font-bold text-secondary-800 leading-tight mb-6">{t('Entdecke die neue Dimension von Wasserqualität.', 'Discover the New Dimension of Water Quality.')}</h2>
+            <p className="text-secondary-500 text-lg max-w-2xl mx-auto mb-12">{t('Machen Sie den ersten Schritt zu reinerem Wasser, mehr Gesundheit und einem bewussteren Lebensstil.', 'Take the first step towards purer water, better health and a more conscious lifestyle.')}</p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link to="/products" className="group inline-flex items-center justify-center gap-3 px-8 py-4 bg-secondary-800 text-white font-semibold rounded-xl hover:bg-primary-600 transition-all shadow-lg hover:-translate-y-0.5">
+                <ShoppingBag className="w-5 h-5" />{t('Produkte entdecken', 'Discover Products')}<ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+              <Link to="/partner/register" className="inline-flex items-center justify-center gap-3 px-8 py-4 border-2 border-secondary-200 text-secondary-700 font-semibold rounded-xl hover:border-primary-400 hover:text-primary-600 transition-all">
+                <Users className="w-5 h-5" />{t('Partner werden', 'Become Partner')}
+              </Link>
+              <a href={`mailto:${brandConfig.company.email}`} className="inline-flex items-center justify-center gap-3 px-8 py-4 border-2 border-secondary-200 text-secondary-700 font-semibold rounded-xl hover:border-primary-400 hover:text-primary-600 transition-all">
+                <Mail className="w-5 h-5" />{t('Beratung anfragen', 'Request Consultation')}
+              </a>
+            </div>
           </motion.div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {[
-              {
-                icon: Phone,
-                title: lang === 'de' ? 'Telefon' : 'Phone',
-                value: brandConfig.company.phone,
-                link: `tel:${brandConfig.company.phone}`,
-              },
-              {
-                icon: Mail,
-                title: 'E-Mail',
-                value: brandConfig.company.email,
-                link: `mailto:${brandConfig.company.email}`,
-              },
-              {
-                icon: MapPin,
-                title: lang === 'de' ? 'Adresse' : 'Address',
-                value: `${brandConfig.company.address.city}, ${brandConfig.company.address.country}`,
-                link: '#',
-              },
-            ].map((contact, index) => (
-              <motion.a
-                key={index}
-                href={contact.link}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className="flex flex-col items-center p-8 bg-secondary-700 rounded-2xl hover:bg-secondary-800 transition-all hover:-translate-y-1"
-              >
-                <div className="w-16 h-16 bg-secondary-600 rounded-xl flex items-center justify-center mb-4">
-                  <contact.icon className="w-8 h-8 text-primary-400" />
-                </div>
-                <h3 className="font-semibold text-white mb-2 text-lg">{contact.title}</h3>
-                <p className="text-gray-400 text-center">{contact.value}</p>
-              </motion.a>
-            ))}
-          </div>
         </div>
       </section>
 
-      {/* ====== TRUST BAR ====== */}
-      <section className="py-12 bg-slate-50 border-t border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-wrap justify-center gap-12 items-center">
-            {[
-              { icon: Shield, text: lang === 'de' ? '2 Jahre Garantie' : '2 Year Warranty' },
-              { icon: Truck, text: lang === 'de' ? 'Schnelle Lieferung' : 'Fast Delivery' },
-              { icon: Headphones, text: lang === 'de' ? 'Premium Support' : 'Premium Support' },
-              { icon: Award, text: lang === 'de' ? 'Zertifizierte Qualität' : 'Certified Quality' },
-            ].map((item, index) => (
-              <div key={index} className="flex items-center gap-3 text-secondary-700">
-                <div className="w-10 h-10 bg-secondary-700 rounded-lg flex items-center justify-center">
-                  <item.icon className="w-5 h-5 text-primary-400" />
-                </div>
+      {/* TRUST BAR */}
+      <section className="py-12 bg-gray-50 border-t border-gray-100">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-wrap justify-center gap-10 items-center">
+            {[{ icon: Shield, text: t('2 Jahre Garantie', '2 Year Warranty') }, { icon: Truck, text: t('Schnelle Lieferung', 'Fast Delivery') }, { icon: Headphones, text: t('Premium Support', 'Premium Support') }, { icon: Award, text: t('Zertifizierte Qualität', 'Certified Quality') }].map((item, i) => (
+              <div key={i} className="flex items-center gap-3 text-secondary-700">
+                <div className="w-10 h-10 bg-secondary-800 rounded-lg flex items-center justify-center"><item.icon className="w-5 h-5 text-primary-400" /></div>
                 <span className="font-medium">{item.text}</span>
               </div>
             ))}
           </div>
         </div>
       </section>
+
     </div>
   );
 };

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Palette, Image, Globe, Save, Upload, Check, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../../services/api';
 
 export default function BrandingPage() {
   const [branding, setBranding] = useState({
@@ -18,28 +19,23 @@ export default function BrandingPage() {
 
   const fetchBranding = async () => {
     try {
-      const res = await fetch('/api/branding');
-      if (res.ok) {
-        const data = await res.json();
-        setBranding(prev => ({ ...prev, ...data }));
-      }
+      const response = await api.get('/branding');
+      setBranding(prev => ({ ...prev, ...response.data }));
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
 
-  const token = localStorage.getItem('token');
-  const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
-
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch('/api/admin/branding', { method: 'PUT', headers, body: JSON.stringify(branding) });
-      if (res.ok) {
+      const response = await api.put('/admin/branding', branding);
+      if (response.data) {
+        setBranding(prev => ({ ...prev, ...response.data }));
         toast.success('Branding gespeichert!');
         document.documentElement.style.setProperty('--color-primary', branding.primary_color);
         document.documentElement.style.setProperty('--color-secondary', branding.secondary_color);
         document.documentElement.style.setProperty('--color-accent', branding.accent_color);
-      } else { toast.error('Fehler beim Speichern'); }
+      }
     } catch (e) { toast.error('Fehler beim Speichern'); }
     finally { setSaving(false); }
   };
@@ -50,17 +46,16 @@ export default function BrandingPage() {
     const formData = new FormData();
     formData.append(type === 'favicon' ? 'favicon' : 'logo', file);
     try {
-      const endpoint = type === 'light' ? '/api/admin/branding/logo-light'
-                     : type === 'dark' ? '/api/admin/branding/logo-dark'
-                     : '/api/admin/branding/favicon';
-      const res = await fetch(endpoint, {
-        method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: formData
+      const endpoint = type === 'light' ? '/admin/branding/logo-light'
+                     : type === 'dark' ? '/admin/branding/logo-dark'
+                     : '/admin/branding/favicon';
+      const response = await api.post(endpoint, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
-      if (res.ok) {
-        const data = await res.json();
-        setBranding(prev => ({ ...prev, ...data.branding }));
+      if (response.data?.branding) {
+        setBranding(prev => ({ ...prev, ...response.data.branding }));
         toast.success('Bild hochgeladen!');
-      } else { toast.error('Upload fehlgeschlagen'); }
+      }
     } catch (e) { toast.error('Upload fehlgeschlagen'); }
   };
 
@@ -112,7 +107,7 @@ export default function BrandingPage() {
         </button>
       </div>
 
-      {/* Colors (#2) */}
+      {/* Colors */}
       <section className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
@@ -121,22 +116,21 @@ export default function BrandingPage() {
           <h2 className="text-lg font-semibold">Farben</h2>
         </div>
         <div className="grid md:grid-cols-3 gap-6">
-          <ColorField label="Primaerfarbe" field="primary_color" />
-          <ColorField label="Sekundaerfarbe" field="secondary_color" />
+          <ColorField label="Primärfarbe" field="primary_color" />
+          <ColorField label="Sekundärfarbe" field="secondary_color" />
           <ColorField label="Akzentfarbe" field="accent_color" />
         </div>
-        {/* Preview */}
         <div className="mt-6 p-4 bg-gray-50 rounded-lg">
           <p className="text-sm text-gray-500 mb-3">Vorschau:</p>
           <div className="flex gap-3">
-            <button style={{ backgroundColor: branding.primary_color }} className="px-4 py-2 rounded-lg text-white text-sm">Primaer</button>
-            <button style={{ backgroundColor: branding.secondary_color }} className="px-4 py-2 rounded-lg text-white text-sm">Sekundaer</button>
+            <button style={{ backgroundColor: branding.primary_color }} className="px-4 py-2 rounded-lg text-white text-sm">Primär</button>
+            <button style={{ backgroundColor: branding.secondary_color }} className="px-4 py-2 rounded-lg text-white text-sm">Sekundär</button>
             <button style={{ backgroundColor: branding.accent_color }} className="px-4 py-2 rounded-lg text-white text-sm">Akzent</button>
           </div>
         </div>
       </section>
 
-      {/* Logo (#3) */}
+      {/* Logo */}
       <section className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">

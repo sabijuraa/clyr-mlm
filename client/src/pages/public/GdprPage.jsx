@@ -8,6 +8,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Shield, Download, Trash2, Mail, CheckCircle, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../../services/api';
 
 const GdprPage = () => {
   const [searchParams] = useSearchParams();
@@ -29,24 +30,14 @@ const GdprPage = () => {
     
     try {
       const endpoint = type === 'delete' 
-        ? '/api/gdpr/delete-request' 
-        : '/api/gdpr/export-request';
+        ? '/gdpr/delete-request' 
+        : '/gdpr/export-request';
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL}${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, reason })
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Ein Fehler ist aufgetreten');
-      }
+      await api.post(endpoint, { email, reason });
       
       setSuccess(true);
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error.response?.data?.error || 'Ein Fehler ist aufgetreten');
     } finally {
       setLoading(false);
     }

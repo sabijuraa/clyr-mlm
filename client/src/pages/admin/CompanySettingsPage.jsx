@@ -1,5 +1,6 @@
 // client/src/pages/admin/CompanySettingsPage.jsx
 import { useState, useEffect } from 'react';
+import api from '../../services/api';
 
 export default function CompanySettingsPage() {
   const [settings, setSettings] = useState({
@@ -29,9 +30,8 @@ export default function CompanySettingsPage() {
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch('/api/company');
-      const data = await res.json();
-      setSettings(data);
+      const response = await api.get('/company');
+      setSettings(response.data);
     } catch (error) {
       console.error('Error fetching settings:', error);
     } finally {
@@ -43,22 +43,9 @@ export default function CompanySettingsPage() {
     setSaving(true);
     setMessage('');
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/admin/company', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(settings)
-      });
-
-      if (res.ok) {
-        setMessage('Einstellungen erfolgreich gespeichert!');
-        fetchSettings();
-      } else {
-        setMessage('Fehler beim Speichern');
-      }
+      await api.put('/admin/company', settings);
+      setMessage('Einstellungen erfolgreich gespeichert!');
+      fetchSettings();
     } catch (error) {
       setMessage('Fehler beim Speichern');
       console.error('Error:', error);

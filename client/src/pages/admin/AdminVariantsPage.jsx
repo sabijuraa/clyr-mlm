@@ -5,6 +5,7 @@ import {
   Package, DollarSign, Image, GripVertical
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../../services/api';
 
 const AdminVariantsPage = () => {
   const [options, setOptions] = useState({});
@@ -21,18 +22,12 @@ const AdminVariantsPage = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      
-      // Fetch variant options
-      const optionsRes = await fetch('/api/variants/options', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      const optionsData = await optionsRes.json();
-      setOptions(optionsData.options || {});
-      
-      // Fetch products
-      const productsRes = await fetch('/api/products');
-      const productsData = await productsRes.json();
-      setProducts(productsData.products || []);
+      const [optionsRes, productsRes] = await Promise.all([
+        api.get('/variants/options'),
+        api.get('/products'),
+      ]);
+      setOptions(optionsRes.data.options || {});
+      setProducts(productsRes.data.products || []);
     } catch (error) {
       console.error('Failed to fetch data:', error);
       toast.error('Fehler beim Laden');
@@ -48,22 +43,10 @@ const AdminVariantsPage = () => {
     }
     
     try {
-      const response = await fetch('/api/variants/options', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(newOption)
-      });
-      
-      if (response.ok) {
-        toast.success('Variante erstellt');
-        setNewOption(null);
-        fetchData();
-      } else {
-        throw new Error('Create failed');
-      }
+      await api.post('/variants/options', newOption);
+      toast.success('Variante erstellt');
+      setNewOption(null);
+      fetchData();
     } catch (error) {
       toast.error('Fehler beim Erstellen');
     }
@@ -71,22 +54,10 @@ const AdminVariantsPage = () => {
 
   const handleUpdateOption = async (option) => {
     try {
-      const response = await fetch(`/api/variants/options/${option.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(option)
-      });
-      
-      if (response.ok) {
-        toast.success('Gespeichert');
-        setEditingOption(null);
-        fetchData();
-      } else {
-        throw new Error('Update failed');
-      }
+      await api.put(`/variants/options/${option.id}`, option);
+      toast.success('Gespeichert');
+      setEditingOption(null);
+      fetchData();
     } catch (error) {
       toast.error('Fehler beim Speichern');
     }
@@ -94,19 +65,9 @@ const AdminVariantsPage = () => {
 
   const handleAssignToProduct = async (productId, optionId, isDefault = false) => {
     try {
-      const response = await fetch('/api/variants/assign', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ productId, optionId, isDefault })
-      });
-      
-      if (response.ok) {
-        toast.success('Variante zugewiesen');
-        fetchData();
-      }
+      await api.post('/variants/assign', { productId, optionId, isDefault });
+      toast.success('Variante zugewiesen');
+      fetchData();
     } catch (error) {
       toast.error('Fehler beim Zuweisen');
     }

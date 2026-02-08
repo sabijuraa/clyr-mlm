@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { adminAPI } from '../../services/api';
+import api from '../../services/api';
 import toast from 'react-hot-toast';
 
 const SECTIONS = [
@@ -32,13 +33,8 @@ const AdminCMSPage = () => {
   const fetchContent = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/cms', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      const data = await response.json();
-      setContent(data.content || {});
+      const response = await api.get('/cms');
+      setContent(response.data.content || {});
     } catch (error) {
       console.error('Failed to fetch CMS content:', error);
       toast.error('Fehler beim Laden der Inhalte');
@@ -50,22 +46,10 @@ const AdminCMSPage = () => {
   const handleSave = async (item) => {
     try {
       setSaving(true);
-      const response = await fetch(`/api/cms/${item.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(item)
-      });
-      
-      if (response.ok) {
-        toast.success('Gespeichert!');
-        fetchContent();
-        setEditingItem(null);
-      } else {
-        throw new Error('Save failed');
-      }
+      await api.put(`/cms/${item.id}`, item);
+      toast.success('Gespeichert!');
+      fetchContent();
+      setEditingItem(null);
     } catch (error) {
       toast.error('Fehler beim Speichern');
     } finally {
@@ -85,19 +69,9 @@ const AdminCMSPage = () => {
         sort_order: (content[activeSection]?.length || 0) + 1
       };
       
-      const response = await fetch('/api/cms', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(newItem)
-      });
-      
-      if (response.ok) {
-        toast.success('Neuer Inhalt erstellt');
-        fetchContent();
-      }
+      await api.post('/cms', newItem);
+      toast.success('Neuer Inhalt erstellt');
+      fetchContent();
     } catch (error) {
       toast.error('Fehler beim Erstellen');
     }
@@ -107,12 +81,7 @@ const AdminCMSPage = () => {
     if (!confirm('Diesen Inhalt wirklich löschen?')) return;
     
     try {
-      await fetch(`/api/cms/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      await api.delete(`/cms/${id}`);
       toast.success('Gelöscht');
       fetchContent();
     } catch (error) {
@@ -132,17 +101,12 @@ const AdminCMSPage = () => {
     formData.append('image', file);
     
     try {
-      const response = await fetch('/api/cms/upload', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: formData
+      const response = await api.post('/cms/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
       
-      const data = await response.json();
-      if (data.url) {
-        await handleSave({ ...item, image_url: data.url });
+      if (response.data.url) {
+        await handleSave({ ...item, image_url: response.data.url });
         toast.success('Bild hochgeladen');
       }
     } catch (error) {

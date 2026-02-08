@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Search, HelpCircle } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
+import api from '../../services/api';
 
 const FaqPage = () => {
   const { lang } = useLanguage();
@@ -14,9 +15,8 @@ const FaqPage = () => {
   const [activeCategory, setActiveCategory] = useState('alle');
 
   useEffect(() => {
-    fetch('/api/faq')
-      .then(r => r.json())
-      .then(d => setFaqItems(d.items || []))
+    api.get('/faq')
+      .then(r => setFaqItems(r.data.items || []))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);

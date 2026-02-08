@@ -5,6 +5,8 @@ import {
   User, Building, Receipt, CreditCard, RefreshCw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../../services/api';
+import { downloadBlob } from '../../services/api';
 
 const AdminInvoicesPage = () => {
   const [invoices, setInvoices] = useState([]);
@@ -20,13 +22,8 @@ const AdminInvoicesPage = () => {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/admin/invoices?type=${filter}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      const data = await response.json();
-      setInvoices(data.invoices || []);
+      const response = await api.get('/admin/invoices', { params: { type: filter } });
+      setInvoices(response.data.invoices || []);
     } catch (error) {
       console.error('Failed to fetch invoices:', error);
       toast.error('Fehler beim Laden der Rechnungen');
@@ -38,38 +35,30 @@ const AdminInvoicesPage = () => {
   const handleDownloadPDF = async (invoice) => {
     try {
       setGenerating(invoice.id);
-      // Use admin invoice PDF endpoint for both types
       let endpoint;
       if (invoice.type === 'customer' && invoice.order_id) {
-        endpoint = `/api/orders/${invoice.order_id}/invoice`;
+        endpoint = `/orders/${invoice.order_id}/invoice`;
       } else {
-        endpoint = `/api/admin/invoices/${invoice.id}/pdf`;
+        endpoint = `/admin/invoices/${invoice.id}/pdf`;
       }
       
-      const response = await fetch(endpoint, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${invoice.invoice_number || 'Rechnung'}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
-        toast.success('PDF heruntergeladen');
-      } else {
-        throw new Error('Download failed');
-      }
+      const response = await api.get(endpoint, { responseType: 'blob' });
+      downloadBlob(response.data, `${invoice.invoice_number || 'Rechnung'}.pdf`);
+      toast.success('PDF heruntergeladen');
     } catch (error) {
       toast.error('Fehler beim Herunterladen');
     } finally {
       setGenerating(null);
+    }
+  };
+
+  const handleGenerateMissing = async () => {
+    try {
+      const response = await api.post('/admin/invoices/generate-missing');
+      toast.success(`${response.data.generated || 0} Rechnungen erstellt`);
+      fetchInvoices();
+    } catch (err) {
+      toast.error('Fehler beim Erstellen');
     }
   };
 
@@ -149,20 +138,7 @@ const AdminInvoicesPage = () => {
           </p>
         </div>
         <button
-          onClick={async () => {
-            try {
-              const token = localStorage.getItem('token');
-              const res = await fetch('/api/admin/invoices/generate-missing', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-              });
-              const data = await res.json();
-              toast.success(`${data.generated || 0} Rechnungen erstellt`);
-              fetchInvoices();
-            } catch (err) {
-              toast.error('Fehler beim Erstellen');
-            }
-          }}
+          onClick={handleGenerateMissing}
           className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition text-sm"
         >
           Fehlende Rechnungen erstellen

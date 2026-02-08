@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import appConfig, { calculateShipping, calculateVAT, formatCurrency } from '../config/app.config';
+import { referralAPI } from '../services/api';
 
 const CartContext = createContext(null);
 
@@ -26,6 +27,9 @@ export const CartProvider = ({ children }) => {
   
   // Referral code from URL
   const [referral, setReferral] = useState(null);
+  
+  // Partner name from referral lookup
+  const [partnerName, setPartnerName] = useState(null);
 
   // Load cart from localStorage
   useEffect(() => {
@@ -47,14 +51,36 @@ export const CartProvider = ({ children }) => {
     if (ref) {
       setReferral(ref);
       localStorage.setItem('clyr_referral', ref);
+      lookupPartner(ref);
     } else {
       // Check if we have a saved referral
       const savedRef = localStorage.getItem('clyr_referral');
+      const savedName = localStorage.getItem('clyr_referral_partner');
       if (savedRef) {
         setReferral(savedRef);
+        if (savedName) {
+          setPartnerName(savedName);
+        } else {
+          lookupPartner(savedRef);
+        }
       }
     }
   }, []);
+
+  // Look up partner name from referral code
+  const lookupPartner = async (code) => {
+    try {
+      const response = await referralAPI.check(code);
+      if (response.data?.valid && response.data?.partnerName) {
+        setPartnerName(response.data.partnerName);
+        localStorage.setItem('clyr_referral_partner', response.data.partnerName);
+        // Also track the click
+        referralAPI.trackClick(code, window.location.href).catch(() => {});
+      }
+    } catch (err) {
+      console.log('Referral lookup failed:', err);
+    }
+  };
 
   // Save cart to localStorage
   useEffect(() => {
@@ -188,7 +214,9 @@ export const CartProvider = ({ children }) => {
   // Clear referral code
   const clearReferral = useCallback(() => {
     setReferral(null);
+    setPartnerName(null);
     localStorage.removeItem('clyr_referral');
+    localStorage.removeItem('clyr_referral_partner');
   }, []);
 
   // Check if product is in cart
@@ -245,6 +273,7 @@ export const CartProvider = ({ children }) => {
     // Referral
     referral,
     setReferral,
+    partnerName,
     clearReferral
   };
 

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import api from '../../services/api';
 import {
   ShoppingBag,
   Search,
@@ -426,30 +427,20 @@ const AdminOrdersPage = () => {
                 icon={FileText}
                 onClick={async () => {
                   try {
-                    const token = localStorage.getItem('token');
                     // First try to generate if not exists
-                    await fetch(`/api/admin/invoices/generate/${selectedOrder.id}`, {
-                      method: 'POST',
-                      headers: { 'Authorization': `Bearer ${token}` }
-                    }).catch(() => {});
+                    await api.post(`/admin/invoices/generate/${selectedOrder.id}`).catch(() => {});
                     // Then download
-                    const res = await fetch(`/api/orders/${selectedOrder.id}/invoice`, {
-                      headers: { 'Authorization': `Bearer ${token}` }
-                    });
-                    if (res.ok) {
-                      const blob = await res.blob();
-                      const url = window.URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = `Rechnung-${selectedOrder.order_number || selectedOrder.id}.pdf`;
-                      document.body.appendChild(a);
-                      a.click();
-                      a.remove();
-                    } else {
-                      alert('Rechnung konnte nicht erstellt werden');
-                    }
+                    const res = await api.get(`/orders/${selectedOrder.id}/invoice`, { responseType: 'blob' });
+                    const url = window.URL.createObjectURL(res.data);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Rechnung-${selectedOrder.order_number || selectedOrder.id}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
                   } catch (err) {
-                    alert('Fehler: ' + err.message);
+                    alert('Rechnung konnte nicht erstellt werden');
                   }
                 }}
               >

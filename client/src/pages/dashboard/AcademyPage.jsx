@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen, Video, FileText, Award, CheckCircle, Clock, Play, Download, Filter, Search, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../../services/api';
 
 const AcademyPage = () => {
   const [content, setContent] = useState([]);
@@ -12,23 +13,20 @@ const AcademyPage = () => {
   const [activeCategory, setActiveCategory] = useState('all');
   const [search, setSearch] = useState('');
 
-  const token = localStorage.getItem('token');
-  const headers = { 'Authorization': `Bearer ${token}` };
-
   useEffect(() => { loadAcademy(); }, []);
 
   const loadAcademy = async () => {
     try {
       const [contentRes, progressRes] = await Promise.allSettled([
-        fetch('/api/academy', { headers }),
-        fetch('/api/academy/progress', { headers }),
+        api.get('/academy'),
+        api.get('/academy/progress'),
       ]);
-      if (contentRes.status === 'fulfilled' && contentRes.value.ok) {
-        const d = await contentRes.value.json();
+      if (contentRes.status === 'fulfilled') {
+        const d = contentRes.value.data;
         setContent(d.content || d.data || d.items || []);
       }
-      if (progressRes.status === 'fulfilled' && progressRes.value.ok) {
-        const d = await progressRes.value.json();
+      if (progressRes.status === 'fulfilled') {
+        const d = progressRes.value.data;
         setProgress(d.progress || d.data || []);
       }
     } catch (e) { console.error(e); }
@@ -37,13 +35,9 @@ const AcademyPage = () => {
 
   const markComplete = async (contentId) => {
     try {
-      const res = await fetch(`/api/academy/complete/${contentId}`, {
-        method: 'POST', headers
-      });
-      if (res.ok) {
-        toast.success('Als abgeschlossen markiert!');
-        loadAcademy();
-      }
+      await api.post(`/academy/complete/${contentId}`);
+      toast.success('Als abgeschlossen markiert!');
+      loadAcademy();
     } catch (e) { toast.error('Fehler'); }
   };
 

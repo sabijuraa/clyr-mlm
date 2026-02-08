@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { FileText, Save, Plus, Trash2, ChevronDown, ChevronUp, HelpCircle, GripVertical } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../../services/api';
 
 export default function LegalPagesPage() {
   const [activeTab, setActiveTab] = useState('legal');
@@ -14,24 +15,19 @@ export default function LegalPagesPage() {
   const [newFaq, setNewFaq] = useState({ question: '', answer: '', category: 'allgemein' });
   const [saving, setSaving] = useState(false);
 
-  const token = localStorage.getItem('token');
-  const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
-
   useEffect(() => { loadAll(); }, []);
 
   const loadAll = async () => {
     try {
       const [legalRes, faqRes] = await Promise.allSettled([
-        fetch('/api/legal/admin/all', { headers }),
-        fetch('/api/faq/admin/all', { headers }),
+        api.get('/legal/admin/all'),
+        api.get('/faq/admin/all'),
       ]);
-      if (legalRes.status === 'fulfilled' && legalRes.value.ok) {
-        const d = await legalRes.value.json();
-        setLegalPages(d.pages || []);
+      if (legalRes.status === 'fulfilled') {
+        setLegalPages(legalRes.value.data.pages || []);
       }
-      if (faqRes.status === 'fulfilled' && faqRes.value.ok) {
-        const d = await faqRes.value.json();
-        setFaqItems(d.items || []);
+      if (faqRes.status === 'fulfilled') {
+        setFaqItems(faqRes.value.data.items || []);
       }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
@@ -46,15 +42,11 @@ export default function LegalPagesPage() {
   const saveLegalPage = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`/api/legal/admin/${editingPage}`, {
-        method: 'PUT', headers, body: JSON.stringify(editContent)
-      });
-      if (res.ok) {
-        toast.success('Seite gespeichert!');
-        setEditingPage(null);
-        loadAll();
-      } else { toast.error('Fehler beim Speichern'); }
-    } catch (e) { toast.error('Fehler'); }
+      await api.put(`/legal/admin/${editingPage}`, editContent);
+      toast.success('Seite gespeichert!');
+      setEditingPage(null);
+      loadAll();
+    } catch (e) { toast.error('Fehler beim Speichern'); }
     finally { setSaving(false); }
   };
 
@@ -62,31 +54,25 @@ export default function LegalPagesPage() {
   const addFaq = async () => {
     if (!newFaq.question || !newFaq.answer) return toast.error('Frage und Antwort erforderlich');
     try {
-      const res = await fetch('/api/faq/admin', {
-        method: 'POST', headers, body: JSON.stringify(newFaq)
-      });
-      if (res.ok) {
-        toast.success('FAQ erstellt!');
-        setNewFaq({ question: '', answer: '', category: 'allgemein' });
-        loadAll();
-      }
+      await api.post('/faq/admin', newFaq);
+      toast.success('FAQ erstellt!');
+      setNewFaq({ question: '', answer: '', category: 'allgemein' });
+      loadAll();
     } catch (e) { toast.error('Fehler'); }
   };
 
   const deleteFaq = async (id) => {
-    if (!confirm('FAQ loeschen?')) return;
+    if (!confirm('FAQ löschen?')) return;
     try {
-      await fetch(`/api/faq/admin/${id}`, { method: 'DELETE', headers });
-      toast.success('Geloescht');
+      await api.delete(`/faq/admin/${id}`);
+      toast.success('Gelöscht');
       loadAll();
     } catch (e) { toast.error('Fehler'); }
   };
 
   const toggleFaqActive = async (item) => {
     try {
-      await fetch(`/api/faq/admin/${item.id}`, {
-        method: 'PUT', headers, body: JSON.stringify({ is_active: !item.is_active })
-      });
+      await api.put(`/faq/admin/${item.id}`, { is_active: !item.is_active });
       loadAll();
     } catch (e) { toast.error('Fehler'); }
   };

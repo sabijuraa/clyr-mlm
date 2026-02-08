@@ -39,6 +39,7 @@ const Navbar = () => {
   // Navigation links with correct routes
   const navLinks = [
     { to: '/', label: lang === 'de' ? 'Home' : 'Home' },
+    { to: '/about', label: lang === 'de' ? 'Über uns' : 'About Us' },
     { to: '/products', label: lang === 'de' ? 'Produkte' : 'Products' },
     { to: '/partner/register', label: lang === 'de' ? 'Partner werden' : 'Become Partner' },
   ];

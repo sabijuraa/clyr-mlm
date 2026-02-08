@@ -24,7 +24,12 @@ import {
   Layers,
   Upload,
   Calculator,
-  CreditCard
+  CreditCard,
+  Palette,
+  BookOpen,
+  Mail,
+  Scale,
+  Building
 } from 'lucide-react';
 
 const AdminLayout = () => {
@@ -40,20 +45,25 @@ const AdminLayout = () => {
     navigate('/login');
   };
 
-  // Updated routes with new pages
+  // All admin navigation items
   const navItems = [
-    { label: t('admin.menu.dashboard'), icon: LayoutDashboard, path: '/admin' },
-    { label: t('admin.menu.partners'), icon: Users, path: '/admin/partners' },
-    { label: t('admin.menu.orders'), icon: ShoppingBag, path: '/admin/orders' },
-    { label: t('admin.menu.products'), icon: Package, path: '/admin/products' },
+    { label: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
+    { label: 'Partner', icon: Users, path: '/admin/partners' },
+    { label: 'Bestellungen', icon: ShoppingBag, path: '/admin/orders' },
+    { label: 'Produkte', icon: Package, path: '/admin/products' },
     { label: 'Varianten', icon: Layers, path: '/admin/variants' },
-    { label: t('admin.menu.commissions'), icon: Wallet, path: '/admin/commissions' },
+    { label: 'Provisionen', icon: Wallet, path: '/admin/commissions' },
     { label: 'Rechnungen', icon: FileText, path: '/admin/invoices' },
     { label: 'Gutschriften', icon: CreditCard, path: '/admin/credit-notes' },
     { label: 'USt-Berichte', icon: Calculator, path: '/admin/vat-reports' },
-    { label: 'Daten-Import', icon: Upload, path: '/admin/imports' },
+    { label: 'Daten-Import', icon: Upload, path: '/admin/import' },
     { label: 'Website-Inhalt', icon: Layout, path: '/admin/cms' },
-    { label: 'Settings', icon: Settings, path: '/admin/settings' },
+    { label: 'Branding & Design', icon: Palette, path: '/admin/branding' },
+    { label: 'Academy', icon: BookOpen, path: '/admin/academy' },
+    { label: 'Newsletter', icon: Mail, path: '/admin/newsletter' },
+    { label: 'Rechtliches & FAQ', icon: Scale, path: '/admin/legal' },
+    { label: 'Firmendaten', icon: Building, path: '/admin/company' },
+    { label: 'Einstellungen', icon: Settings, path: '/admin/settings' },
   ];
 
   return (
@@ -156,7 +166,7 @@ const AdminLayout = () => {
       </aside>
 
       {/* Main Content */}
-      <div className="lg:ml-72">
+      <div className="lg:ml-72 min-w-0 overflow-x-hidden">
         {/* Top Header */}
         <header className="sticky top-0 bg-white/80 backdrop-blur-xl border-b border-secondary-200 z-30">
           <div className="flex items-center justify-between px-6 py-4">

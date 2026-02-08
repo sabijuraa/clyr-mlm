@@ -152,7 +152,7 @@ const DashboardLayout = () => {
       </aside>
 
       {/* Main Content */}
-      <div className="lg:ml-72">
+      <div className="lg:ml-72 min-w-0 overflow-x-hidden">
         {/* Top Header */}
         <header className="sticky top-0 bg-white/80 backdrop-blur-xl border-b border-secondary-200 z-30">
           <div className="flex items-center justify-between px-6 py-4">

@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, ArrowRight, Package, ShieldCheck, User } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { customerPortalAPI } from '../../services/api';
 
 const CustomerLoginPage = () => {
   const navigate = useNavigate();
@@ -25,20 +26,21 @@ const CustomerLoginPage = () => {
         return;
       }
 
-      const endpoint = isLogin ? '/api/customers/login' : '/api/customers/register';
-      const body = isLogin
-        ? { email: formData.email, password: formData.password }
-        : { email: formData.email, password: formData.password, first_name: formData.firstName, last_name: formData.lastName };
+      let data;
+      if (isLogin) {
+        const response = await customerPortalAPI.login(formData.email, formData.password);
+        data = response.data;
+      } else {
+        const response = await customerPortalAPI.register({
+          email: formData.email,
+          password: formData.password,
+          first_name: formData.firstName,
+          last_name: formData.lastName
+        });
+        data = response.data;
+      }
 
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
+      if (!data.token) {
         throw new Error(data.error || 'Ein Fehler ist aufgetreten');
       }
 
@@ -47,7 +49,8 @@ const CustomerLoginPage = () => {
       toast.success(isLogin ? 'Erfolgreich angemeldet!' : 'Konto erstellt!');
       navigate('/customer/dashboard');
     } catch (error) {
-      toast.error(error.message);
+      const msg = error.response?.data?.error || error.message || 'Ein Fehler ist aufgetreten';
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }

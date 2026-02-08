@@ -11,6 +11,7 @@ import {
   ChevronRight, Trash2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../../services/api';
 
 const AdminImportPage = () => {
   const [imports, setImports] = useState([]);
@@ -25,7 +26,6 @@ const AdminImportPage = () => {
   });
   
   const fileInputRef = useRef(null);
-  const token = localStorage.getItem('token');
   
   const importTypes = [
     { id: 'partners', label: 'Partner', icon: Users, description: 'Partner-Accounts importieren' },
@@ -47,11 +47,8 @@ const AdminImportPage = () => {
   
   const fetchImports = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/imports`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await response.json();
-      if (response.ok) setImports(data.imports || []);
+      const response = await api.get('/imports');
+      setImports(response.data.imports || []);
     } catch (error) {
       console.error('Failed to fetch imports:', error);
     } finally {
@@ -61,19 +58,13 @@ const AdminImportPage = () => {
   
   const downloadTemplate = async (type) => {
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/imports/template/${type}`,
-        { headers: { 'Authorization': `Bearer ${token}` } }
-      );
-      
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const response = await api.get(`/imports/template/${type}`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(response.data);
       const a = document.createElement('a');
       a.href = url;
       a.download = `${type}-template.csv`;
       a.click();
       window.URL.revokeObjectURL(url);
-      
       toast.success('Template heruntergeladen');
     } catch (error) {
       toast.error('Download fehlgeschlagen');
@@ -96,17 +87,11 @@ const AdminImportPage = () => {
     formData.append('type', selectedType);
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/imports`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
+      const response = await api.post('/imports', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
       
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Upload fehlgeschlagen');
-      }
+      const data = response.data;
       
       setCurrentImport(data);
       setUploadProgress({ status: 'mapping', percent: 100 });
@@ -148,25 +133,10 @@ const AdminImportPage = () => {
     setUploadProgress({ status: 'importing', percent: 0 });
     
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/imports/${currentImport.importId}/start`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            columnMapping,
-            options: importOptions
-          })
-        }
-      );
-      
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Import fehlgeschlagen');
-      }
+      await api.post(`/imports/${currentImport.importId}/start`, {
+        columnMapping,
+        options: importOptions
+      });
       
       toast.success('Import gestartet');
       setCurrentImport(null);
@@ -185,11 +155,8 @@ const AdminImportPage = () => {
   const pollImportStatus = async (importId) => {
     const interval = setInterval(async () => {
       try {
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL}/api/imports/${importId}`,
-          { headers: { 'Authorization': `Bearer ${token}` } }
-        );
-        const data = await response.json();
+        const response = await api.get(`/imports/${importId}`);
+        const data = response.data;
         
         if (data.import.status === 'completed' || data.import.status === 'failed') {
           clearInterval(interval);

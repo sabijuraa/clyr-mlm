@@ -26,6 +26,7 @@ const CheckoutPage = lazy(() => import('./pages/public/CheckoutPage'));
 const OrderConfirmationPage = lazy(() => import('./pages/public/OrderConfirmationPage'));
 const GdprPage = lazy(() => import('./pages/public/GdprPage'));
 const FaqPage = lazy(() => import('./pages/public/FaqPage'));
+const AboutPage = lazy(() => import('./pages/public/AboutPage'));
 
 // Cookie Consent
 import CookieConsent from './components/common/CookieConsent';
@@ -75,6 +76,7 @@ const AdminImportPage = lazy(() => import('./pages/admin/AdminImportPage'));
 const BrandingPage = lazy(() => import('./pages/admin/BrandingPage'));
 const LegalPagesPage = lazy(() => import('./pages/admin/LegalPagesPage'));
 const CompanySettingsPage = lazy(() => import('./pages/admin/CompanySettingsPage'));
+const AdminAcademyPage = lazy(() => import('./pages/admin/AdminAcademyPage'));
 
 // Route guards
 const ProtectedRoute = ({ children, requiredRole }) => {
@@ -143,6 +145,8 @@ function App() {
               <Route path="/imprint" element={<ImprintPage />} />
               <Route path="/withdrawal" element={<WithdrawalPage />} />
               <Route path="/faq" element={<FaqPage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/ueber-uns" element={<AboutPage />} />
               
               {/* ====== AUTH ====== */}
               <Route path="/login" element={<LoginPage />} />
@@ -189,6 +193,7 @@ function App() {
               <Route path="branding" element={<BrandingPage />} />
               <Route path="legal" element={<LegalPagesPage />} />
               <Route path="newsletter" element={<AdminNewsletterPage />} />
+              <Route path="academy" element={<AdminAcademyPage />} />
               <Route path="company" element={<CompanySettingsPage />} />
             </Route>
             

@@ -10,6 +10,7 @@ import {
   Calendar, Euro, CheckCircle, XCircle, Building2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../../services/api';
 
 const AdminCreditNotesPage = () => {
   const [creditNotes, setCreditNotes] = useState([]);
@@ -25,26 +26,19 @@ const AdminCreditNotesPage = () => {
     reason: ''
   });
   
-  const token = localStorage.getItem('token');
-  
   useEffect(() => {
     fetchCreditNotes();
   }, [filters]);
   
   const fetchCreditNotes = async () => {
     try {
-      const params = new URLSearchParams();
-      if (filters.status) params.append('status', filters.status);
-      if (filters.startDate) params.append('startDate', filters.startDate);
-      if (filters.endDate) params.append('endDate', filters.endDate);
+      const params = {};
+      if (filters.status) params.status = filters.status;
+      if (filters.startDate) params.startDate = filters.startDate;
+      if (filters.endDate) params.endDate = filters.endDate;
       
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/credit-notes?${params}`,
-        { headers: { 'Authorization': `Bearer ${token}` } }
-      );
-      
-      const data = await response.json();
-      if (response.ok) setCreditNotes(data.creditNotes || []);
+      const response = await api.get('/credit-notes', { params });
+      setCreditNotes(response.data.creditNotes || []);
     } catch (error) {
       console.error('Failed to fetch credit notes:', error);
     } finally {
@@ -59,49 +53,28 @@ const AdminCreditNotesPage = () => {
     }
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/credit-notes`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(createForm)
-      });
-      
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Fehler beim Erstellen');
-      }
-      
+      await api.post('/credit-notes', createForm);
       toast.success('Gutschrift erstellt');
       setShowCreateModal(false);
       setCreateForm({ orderId: '', reason: '' });
       fetchCreditNotes();
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error.response?.data?.error || 'Fehler beim Erstellen');
     }
   };
   
   const downloadPDF = async (id, creditNoteNumber) => {
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/credit-notes/${id}/pdf`,
-        { headers: { 'Authorization': `Bearer ${token}` } }
-      );
-      
-      if (!response.ok) throw new Error('Download fehlgeschlagen');
-      
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const response = await api.get(`/credit-notes/${id}/pdf`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(response.data);
       const a = document.createElement('a');
       a.href = url;
       a.download = `Gutschrift-${creditNoteNumber}.pdf`;
       a.click();
       window.URL.revokeObjectURL(url);
-      
       toast.success('PDF heruntergeladen');
     } catch (error) {
-      toast.error(error.message);
+      toast.error('Download fehlgeschlagen');
     }
   };
   

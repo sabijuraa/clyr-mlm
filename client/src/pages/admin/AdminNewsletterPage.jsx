@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Mail, Users, Send, Plus, BarChart3, Trash2, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../../services/api';
 
 export default function AdminNewsletterPage() {
   const [activeTab, setActiveTab] = useState('subscribers');
@@ -13,28 +14,25 @@ export default function AdminNewsletterPage() {
   const [newCampaign, setNewCampaign] = useState({ name: '', subject: '', html_content: '' });
   const [sending, setSending] = useState(false);
 
-  const token = localStorage.getItem('token');
-  const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
-
   useEffect(() => { loadAll(); }, []);
 
   const loadAll = async () => {
     try {
       const [subsRes, statsRes, campRes] = await Promise.allSettled([
-        fetch('/api/newsletter/admin/subscribers', { headers }),
-        fetch('/api/newsletter/admin/stats', { headers }),
-        fetch('/api/newsletter/admin/campaigns', { headers }),
+        api.get('/newsletter/admin/subscribers'),
+        api.get('/newsletter/admin/stats'),
+        api.get('/newsletter/admin/campaigns'),
       ]);
-      if (subsRes.status === 'fulfilled' && subsRes.value.ok) {
-        const d = await subsRes.value.json();
+      if (subsRes.status === 'fulfilled') {
+        const d = subsRes.value.data;
         setSubscribers(d.subscribers || d.data || []);
       }
-      if (statsRes.status === 'fulfilled' && statsRes.value.ok) {
-        const d = await statsRes.value.json();
+      if (statsRes.status === 'fulfilled') {
+        const d = statsRes.value.data;
         setStats(d.stats || d);
       }
-      if (campRes.status === 'fulfilled' && campRes.value.ok) {
-        const d = await campRes.value.json();
+      if (campRes.status === 'fulfilled') {
+        const d = campRes.value.data;
         setCampaigns(d.campaigns || d.data || []);
       }
     } catch (e) { console.error(e); }
@@ -43,32 +41,24 @@ export default function AdminNewsletterPage() {
 
   const createCampaign = async () => {
     if (!newCampaign.name || !newCampaign.subject || !newCampaign.html_content) {
-      return toast.error('Alle Felder ausfuellen');
+      return toast.error('Alle Felder ausfüllen');
     }
     try {
-      const res = await fetch('/api/newsletter/admin/campaigns', {
-        method: 'POST', headers, body: JSON.stringify(newCampaign)
-      });
-      if (res.ok) {
-        toast.success('Kampagne erstellt!');
-        setNewCampaign({ name: '', subject: '', html_content: '' });
-        loadAll();
-      } else { toast.error('Fehler beim Erstellen'); }
-    } catch (e) { toast.error('Fehler'); }
+      await api.post('/newsletter/admin/campaigns', newCampaign);
+      toast.success('Kampagne erstellt!');
+      setNewCampaign({ name: '', subject: '', html_content: '' });
+      loadAll();
+    } catch (e) { toast.error('Fehler beim Erstellen'); }
   };
 
   const sendCampaign = async (id) => {
     if (!confirm('Kampagne jetzt an alle aktiven Abonnenten senden?')) return;
     setSending(true);
     try {
-      const res = await fetch(`/api/newsletter/admin/campaigns/${id}/send`, {
-        method: 'POST', headers
-      });
-      if (res.ok) {
-        toast.success('Kampagne wird versendet!');
-        loadAll();
-      } else { toast.error('Versand fehlgeschlagen'); }
-    } catch (e) { toast.error('Fehler'); }
+      await api.post(`/newsletter/admin/campaigns/${id}/send`);
+      toast.success('Kampagne wird versendet!');
+      loadAll();
+    } catch (e) { toast.error('Versand fehlgeschlagen'); }
     finally { setSending(false); }
   };
 

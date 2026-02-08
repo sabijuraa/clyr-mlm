@@ -46,10 +46,17 @@
     @apply scroll-smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
   }
   
   body {
     @apply font-sans text-secondary-700 bg-white;
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+  
+  *, *::before, *::after {
+    box-sizing: border-box;
   }
   
   h1, h2, h3, h4, h5, h6 {

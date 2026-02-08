@@ -2,6 +2,7 @@
 // GROUP 9 #44: Newsletter subscribe widget
 import { useState } from 'react';
 import { Mail, Check, Loader2 } from 'lucide-react';
+import api from '../../services/api';
 
 const NewsletterSignup = ({ variant = 'inline' }) => {
   const [email, setEmail] = useState('');
@@ -13,21 +14,11 @@ const NewsletterSignup = ({ variant = 'inline' }) => {
     if (!email) return;
     setStatus('loading');
     try {
-      const res = await fetch('/api/newsletter/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, source: 'footer' })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setStatus('success');
-        setMessage(data.message || 'Erfolgreich angemeldet!');
-        setEmail('');
-      } else {
-        setStatus('error');
-        setMessage(data.error || 'Fehler bei der Anmeldung');
-      }
-    } catch {
+      const response = await api.post('/newsletter/subscribe', { email, source: 'footer' });
+      setStatus('success');
+      setMessage(response.data.message || 'Erfolgreich angemeldet!');
+      setEmail('');
+    } catch (err) {
       setStatus('error');
       setMessage('Verbindungsfehler');
     }

@@ -1,17 +1,14 @@
 // client/src/pages/public/CheckoutPage.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-
-// Helper: get referral code from cookie or URL
-function getReferralFromCookie() {
-  const match = document.cookie.match(/(?:^|;\s*)clyr_ref=([^;]*)/);
-  return match ? decodeURIComponent(match[1]) : '';
-}
+import { useCart } from '../../context/CartContext';
+import { referralAPI, ordersAPI } from '../../services/api';
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
+  const { items: cartItems, referral: cartReferral, partnerName: cartPartnerName, clearCart, total, subtotal, vat, shipping } = useCart();
   
   // Form data
   const [formData, setFormData] = useState({
@@ -28,13 +25,12 @@ export default function CheckoutPage() {
     country: 'AT'
   });
 
-  // Referral code state - auto-fill from URL or cookie (#35)
+  // Referral code state - auto-fill from CartContext, URL, or cookie
   const urlRef = searchParams.get('ref') || '';
-  const cookieRef = getReferralFromCookie();
-  const initialRef = urlRef || cookieRef || '';
+  const initialRef = urlRef || cartReferral || localStorage.getItem('clyr_referral') || '';
   const [referralCode, setReferralCode] = useState(initialRef);
   const [referralValid, setReferralValid] = useState(false);
-  const [referralPartner, setReferralPartner] = useState(null);
+  const [referralPartner, setReferralPartner] = useState(cartPartnerName ? { first_name: cartPartnerName.split(' ')[0], last_name: cartPartnerName.split(' ')[1] || '' } : null);
   const [verifyingCode, setVerifyingCode] = useState(false);
 
   // Auto-verify referral code on mount if present
@@ -47,13 +43,13 @@ export default function CheckoutPage() {
   // Tax calculation state
   const [taxInfo, setTaxInfo] = useState({ vatRate: 20, vatAmount: 0, isReverseCharge: false, vatNote: '' });
 
-  // Cart (get from context or props - adjust as needed)
-  const cartItems = JSON.parse(localStorage.getItem('cart') || '[]');
-  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  // Use cart items from context - fallback to localStorage for backward compatibility
+  const effectiveCartItems = cartItems.length > 0 ? cartItems : JSON.parse(localStorage.getItem('cart') || '[]');
+  const effectiveSubtotal = cartItems.length > 0 ? subtotal : effectiveCartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   
   // Shipping costs per country
   const shippingByCountry = { DE: 50, AT: 69, CH: 180 };
-  const shipping = shippingByCountry[formData.country] || 69;
+  const effectiveShipping = cartItems.length > 0 ? shipping : (shippingByCountry[formData.country] || 69);
   
   // VAT calculation based on country and VAT ID
   const getClientVatRate = () => {
@@ -65,9 +61,9 @@ export default function CheckoutPage() {
     return 0;
   };
   const vatRate = getClientVatRate();
-  const taxableAmount = subtotal + shipping;
+  const taxableAmount = effectiveSubtotal + effectiveShipping;
   const vatAmount = Math.round(taxableAmount * (vatRate / 100) * 100) / 100;
-  const total = Math.round((taxableAmount + vatAmount) * 100) / 100;
+  const effectiveTotal = cartItems.length > 0 ? total : Math.round((taxableAmount + vatAmount) * 100) / 100;
   const isReverseCharge = formData.country === 'DE' && !!formData.vatId;
 
   const handleChange = (e) => {
@@ -80,25 +76,26 @@ export default function CheckoutPage() {
     
     setVerifyingCode(true);
     try {
-      const res = await fetch('/api/referral/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: codeToCheck })
-      });
+      const response = await referralAPI.verify(codeToCheck);
+      const data = response.data;
       
-      if (res.ok) {
-        const data = await res.json();
+      if (data.valid !== false) {
         setReferralCode(codeToCheck);
         setReferralValid(true);
         setReferralPartner(data.partner);
-        // Store in cookie for 30 days (#35)
-        document.cookie = `clyr_ref=${encodeURIComponent(codeToCheck)};path=/;max-age=${30*86400};SameSite=Lax`;
+        // Store in localStorage for persistence
+        localStorage.setItem('clyr_referral', codeToCheck);
+        if (data.partner) {
+          localStorage.setItem('clyr_referral_partner', `${data.partner.first_name} ${data.partner.last_name}`);
+        }
       } else {
         setReferralValid(false);
         setReferralPartner(null);
       }
     } catch (error) {
       console.error('Error verifying referral code:', error);
+      setReferralValid(false);
+      setReferralPartner(null);
     } finally {
       setVerifyingCode(false);
     }
@@ -111,7 +108,6 @@ export default function CheckoutPage() {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem('token');
       const orderData = {
         customer: {
           firstName: formData.firstName,
@@ -127,7 +123,7 @@ export default function CheckoutPage() {
           city: formData.city,
           country: formData.country
         },
-        items: cartItems.map(item => ({
+        items: effectiveCartItems.map(item => ({
           productId: item.id || item.productId,
           quantity: item.quantity
         })),
@@ -135,26 +131,18 @@ export default function CheckoutPage() {
         paymentMethod: 'invoice'
       };
 
-      const res = await fetch('/api/orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
-        },
-        body: JSON.stringify(orderData)
-      });
+      const response = await ordersAPI.create(orderData);
+      const data = response.data;
 
-      if (res.ok) {
-        const data = await res.json();
-        localStorage.removeItem('cart');
-        navigate(`/order-confirmation/${data.order?.id || data.id}`);
-      } else {
-        const errData = await res.json().catch(() => ({}));
-        alert(errData.error || 'Fehler beim Erstellen der Bestellung');
-      }
+      // Clear cart from both context and localStorage
+      if (typeof clearCart === 'function') clearCart();
+      localStorage.removeItem('cart');
+      localStorage.removeItem('clyr_cart');
+      navigate(`/order-confirmation/${data.order?.id || data.id}`);
     } catch (error) {
       console.error('Error creating order:', error);
-      alert('Fehler beim Erstellen der Bestellung');
+      const msg = error.response?.data?.error || 'Fehler beim Erstellen der Bestellung';
+      alert(msg);
     } finally {
       setLoading(false);
     }
@@ -393,7 +381,7 @@ export default function CheckoutPage() {
 
               {/* Cart Items */}
               <div className="space-y-4 mb-6">
-                {cartItems.map((item, index) => (
+                {effectiveCartItems.map((item, index) => (
                   <div key={index} className="flex justify-between items-center border-b pb-4">
                     <div className="flex-1">
                       <p className="font-medium">{item.name}</p>
@@ -408,11 +396,11 @@ export default function CheckoutPage() {
               <div className="space-y-2 mb-6">
                 <div className="flex justify-between">
                   <span>Zwischensumme (netto)</span>
-                  <span>{'\u20AC'}{subtotal.toFixed(2)}</span>
+                  <span>{'\u20AC'}{effectiveSubtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Versand ({formData.country === 'DE' ? 'Deutschland' : formData.country === 'AT' ? 'Oesterreich' : 'Schweiz'})</span>
-                  <span>{'\u20AC'}{shipping.toFixed(2)}</span>
+                  <span>{'\u20AC'}{effectiveShipping.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>
@@ -430,7 +418,7 @@ export default function CheckoutPage() {
                 )}
                 <div className="border-t pt-2 flex justify-between text-lg font-bold">
                   <span>Gesamt (brutto)</span>
-                  <span>{'\u20AC'}{total.toFixed(2)}</span>
+                  <span>{'\u20AC'}{effectiveTotal.toFixed(2)}</span>
                 </div>
               </div>
 

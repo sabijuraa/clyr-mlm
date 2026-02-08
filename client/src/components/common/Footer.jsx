@@ -33,6 +33,7 @@ const Footer = () => {
       title: lang === 'de' ? 'Unternehmen' : 'Company',
       links: [
         { to: '/', label: lang === 'de' ? 'Home' : 'Home' },
+        { to: '/about', label: lang === 'de' ? 'Über uns' : 'About Us' },
         { to: '/faq', label: 'FAQ' },
         { to: '/partner/register', label: lang === 'de' ? 'Partner werden' : 'Become Partner' },
         { to: '/login', label: lang === 'de' ? 'Partner Login' : 'Partner Login' },

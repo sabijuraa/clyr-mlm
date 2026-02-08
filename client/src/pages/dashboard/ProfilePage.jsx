@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import Button from '../../components/common/Button';
 import toast from 'react-hot-toast';
+import api from '../../services/api';
 
 const ProfilePage = () => {
   const { user, updateUser } = useAuth();
@@ -40,22 +41,11 @@ const ProfilePage = () => {
   const onSubmit = async (data) => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/auth/update-profile', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(data)
-      });
-      if (res.ok) {
-        const result = await res.json();
-        if (updateUser) updateUser(result.user || data);
-        toast.success('Profil erfolgreich aktualisiert!');
-      } else {
-        const err = await res.json().catch(() => ({}));
-        toast.error(err.error || 'Fehler beim Speichern');
-      }
+      const response = await api.put('/auth/update-profile', data);
+      if (updateUser) updateUser(response.data.user || data);
+      toast.success('Profil erfolgreich aktualisiert!');
     } catch (error) {
-      toast.error('Fehler beim Speichern');
+      toast.error(error.response?.data?.error || 'Fehler beim Speichern');
     } finally {
       setIsLoading(false);
     }
@@ -70,21 +60,11 @@ const ProfilePage = () => {
     }
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/auth/change-password', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ currentPassword: passwordData.currentPassword, newPassword: passwordData.newPassword })
-      });
-      if (res.ok) {
-        toast.success('Passwort geaendert!');
-        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      } else {
-        const err = await res.json().catch(() => ({}));
-        toast.error(err.error || err.message || 'Falsches aktuelles Passwort');
-      }
+      await api.put('/auth/change-password', { currentPassword: passwordData.currentPassword, newPassword: passwordData.newPassword });
+      toast.success('Passwort geändert!');
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (error) {
-      toast.error('Fehler beim Aendern');
+      toast.error(error.response?.data?.error || error.response?.data?.message || 'Falsches aktuelles Passwort');
     } finally {
       setIsLoading(false);
     }

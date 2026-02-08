@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { AlertTriangle, Calendar, CreditCard, ShieldAlert, FileText, CheckCircle, Clock, XCircle, Ban } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../../services/api';
 
 const CompliancePage = () => {
   const [termination, setTermination] = useState(null);
@@ -13,44 +14,35 @@ const CompliancePage = () => {
   const [showTermForm, setShowTermForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const token = localStorage.getItem('token');
-  const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
-
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     try {
       const [termRes, feeRes] = await Promise.allSettled([
-        fetch('/api/compliance/termination/status', { headers }),
-        fetch('/api/compliance/intranet-fee/status', { headers }),
+        api.get('/compliance/termination/status'),
+        api.get('/compliance/intranet-fee/status'),
       ]);
-      if (termRes.status === 'fulfilled' && termRes.value.ok) {
-        const d = await termRes.value.json();
-        setTermination(d.termination);
+      if (termRes.status === 'fulfilled') {
+        setTermination(termRes.value.data.termination);
       }
-      if (feeRes.status === 'fulfilled' && feeRes.value.ok) {
-        const d = await feeRes.value.json();
-        setFeeStatus(d);
+      if (feeRes.status === 'fulfilled') {
+        setFeeStatus(feeRes.value.data);
       }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
 
   const submitTermination = async () => {
-    if (!confirm('Sind Sie sicher, dass Sie Ihren Partnervertrag kuendigen moechten? Es gilt eine 3-monatige Kuendigungsfrist.')) return;
+    if (!confirm('Sind Sie sicher, dass Sie Ihren Partnervertrag kündigen möchten? Es gilt eine 3-monatige Kündigungsfrist.')) return;
     setSubmitting(true);
     try {
-      const res = await fetch('/api/compliance/termination/request', {
-        method: 'POST', headers, body: JSON.stringify({ reason })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        toast.success(data.message);
-        loadData();
-        setShowTermForm(false);
-      } else { toast.error(data.error); }
-    } catch (e) { toast.error('Fehler'); }
-    finally { setSubmitting(false); }
+      const response = await api.post('/compliance/termination/request', { reason });
+      toast.success(response.data.message);
+      loadData();
+      setShowTermForm(false);
+    } catch (e) {
+      toast.error(e.response?.data?.error || 'Fehler');
+    } finally { setSubmitting(false); }
   };
 
   const fmt = (d) => d ? new Date(d).toLocaleDateString('de-DE') : '-';

@@ -2,6 +2,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import Navbar from '../components/common/Navbar';
 import Footer from '../components/common/Footer';
+import PartnerBanner from '../components/common/PartnerBanner';
 
 const PublicLayout = () => {
   const location = useLocation();
@@ -24,7 +25,8 @@ const PublicLayout = () => {
   }, [location]);
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col overflow-x-hidden">
+      <PartnerBanner />
       <Navbar />
       <main className="flex-1 pt-20">
         <Outlet />

@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Package, RefreshCw, User, LogOut, Download, Calendar, Shield, FileText, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { customerPortalAPI, downloadBlob } from '../../services/api';
 
 const CustomerDashboardPage = () => {
   const navigate = useNavigate();
@@ -17,13 +18,6 @@ const CustomerDashboardPage = () => {
 
   const token = localStorage.getItem('customerToken');
 
-  const apiFetch = async (url, options = {}) => {
-    return fetch(url, {
-      ...options,
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', ...options.headers }
-    });
-  };
-
   useEffect(() => {
     if (!token) { navigate('/customer/login'); return; }
     fetchAll();
@@ -32,26 +26,26 @@ const CustomerDashboardPage = () => {
   const fetchAll = async () => {
     try {
       const [profileRes, ordersRes, docsRes, subsRes] = await Promise.allSettled([
-        apiFetch('/api/customers/profile'),
-        apiFetch('/api/customers/orders'),
-        apiFetch('/api/customers/documents'),
-        apiFetch('/api/customers/subscriptions'),
+        customerPortalAPI.getProfile(),
+        customerPortalAPI.getOrders(),
+        customerPortalAPI.getDocuments(),
+        customerPortalAPI.getSubscriptions(),
       ]);
 
-      if (profileRes.status === 'fulfilled' && profileRes.value.ok) {
-        const d = await profileRes.value.json();
+      if (profileRes.status === 'fulfilled') {
+        const d = profileRes.value.data;
         setCustomer(d.customer || d);
       }
-      if (ordersRes.status === 'fulfilled' && ordersRes.value.ok) {
-        const d = await ordersRes.value.json();
+      if (ordersRes.status === 'fulfilled') {
+        const d = ordersRes.value.data;
         setOrders(d.orders || []);
       }
-      if (docsRes.status === 'fulfilled' && docsRes.value.ok) {
-        const d = await docsRes.value.json();
+      if (docsRes.status === 'fulfilled') {
+        const d = docsRes.value.data;
         setDocuments(d.documents || []);
       }
-      if (subsRes.status === 'fulfilled' && subsRes.value.ok) {
-        const d = await subsRes.value.json();
+      if (subsRes.status === 'fulfilled') {
+        const d = subsRes.value.data;
         setSubscriptions(d.subscriptions || []);
       }
     } catch (error) {
@@ -70,34 +64,22 @@ const CustomerDashboardPage = () => {
 
   const downloadInvoice = async (orderNumber) => {
     try {
-      const response = await fetch(`/api/customers/orders/${orderNumber}/invoice`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!response.ok) throw new Error('Download fehlgeschlagen');
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Rechnung-${orderNumber}.pdf`;
-      a.click();
-      window.URL.revokeObjectURL(url);
+      const response = await customerPortalAPI.downloadInvoice(orderNumber);
+      downloadBlob(response.data, `Rechnung-${orderNumber}.pdf`);
       toast.success('Rechnung heruntergeladen');
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error.response?.data?.error || 'Download fehlgeschlagen');
     }
   };
 
   const cancelSubscription = async (subId) => {
     if (!confirm('Moechten Sie dieses Abonnement wirklich kuendigen?')) return;
     try {
-      const res = await apiFetch(`/api/customers/subscriptions/${subId}/cancel`, {
-        method: 'POST', body: JSON.stringify({ reason: 'Vom Kunden gekuendigt' })
-      });
-      if (!res.ok) throw new Error('Kuendigung fehlgeschlagen');
+      await customerPortalAPI.cancelSubscription(subId);
       toast.success('Abonnement gekuendigt');
       fetchAll();
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error.response?.data?.error || 'Kuendigung fehlgeschlagen');
     }
   };
 

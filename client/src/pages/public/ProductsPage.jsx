@@ -7,6 +7,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { useCart } from '../../context/CartContext';
 import { formatCurrency } from '../../config/app.config';
 import { productsAPI } from '../../services/api';
+import api from '../../services/api';
 
 export default function ProductsPage() {
   const { lang } = useLanguage();
@@ -33,24 +34,18 @@ export default function ProductsPage() {
       // Set cookie for 30 days
       document.cookie = `clyr_ref=${encodeURIComponent(refCode)};path=/;max-age=${30*86400};SameSite=Lax`;
       // Track click
-      fetch('/api/referral/click', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: refCode, landingUrl: window.location.href })
-      }).catch(() => {});
+      api.post('/referral/click', { code: refCode, landingUrl: window.location.href }).catch(() => {});
       // Verify and show partner name
-      fetch(`/api/referral/check/${refCode}`)
-        .then(r => r.json())
-        .then(data => { if (data.valid) setReferralPartner(data); })
+      api.get(`/referral/check/${refCode}`)
+        .then(r => { if (r.data.valid) setReferralPartner(r.data); })
         .catch(() => {});
     } else {
       // Check cookie
       const match = document.cookie.match(/(?:^|;\s*)clyr_ref=([^;]*)/);
       if (match) {
         const cookieCode = decodeURIComponent(match[1]);
-        fetch(`/api/referral/check/${cookieCode}`)
-          .then(r => r.json())
-          .then(data => { if (data.valid) setReferralPartner(data); })
+        api.get(`/referral/check/${cookieCode}`)
+          .then(r => { if (r.data.valid) setReferralPartner(r.data); })
           .catch(() => {});
       }
     }
