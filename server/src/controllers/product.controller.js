@@ -218,6 +218,19 @@ export const createProduct = async (req, res) => {
       meta_title, meta_description
     } = req.body;
 
+    // Helper: parse FormData booleans
+    const parseBool = (val, fallback = false) => {
+      if (val === true || val === 'true' || val === '1') return true;
+      if (val === false || val === 'false' || val === '0') return false;
+      return fallback;
+    };
+
+    const parseNum = (val) => {
+      if (val === '' || val === null || val === undefined) return null;
+      const n = Number(val);
+      return isNaN(n) ? null : n;
+    };
+
     // Generate slug
     const slug = (name || 'product').toLowerCase()
       .replace(/[äöüß]/g, c => ({ 'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'ß': 'ss' }[c] || c))
@@ -243,9 +256,9 @@ export const createProduct = async (req, res) => {
     `, [
       name, name_en || null, slug, sku || null,
       description || null, description_en || null, short_description || null,
-      price, original_price || null, cost_price || null,
-      category_id || null, product_type || 'physical', stock || 0, JSON.stringify(images),
-      is_active !== false, is_new || false, is_featured || false,
+      parseNum(price), parseNum(original_price), parseNum(cost_price),
+      parseNum(category_id), product_type || 'physical', parseNum(stock) || 0, JSON.stringify(images),
+      parseBool(is_active, true), parseBool(is_new, false), parseBool(is_featured, false),
       meta_title || name, meta_description || ''
     ]);
 
@@ -274,6 +287,20 @@ export const updateProduct = async (req, res) => {
     }
 
     const existing = checkResult.rows[0];
+
+    // Helper: parse FormData booleans (come as strings "true"/"false")
+    const parseBool = (val, fallback) => {
+      if (val === true || val === 'true' || val === '1') return true;
+      if (val === false || val === 'false' || val === '0') return false;
+      return fallback;
+    };
+
+    // Helper: parse numbers, return null for empty
+    const parseNum = (val) => {
+      if (val === '' || val === null || val === undefined) return null;
+      const n = Number(val);
+      return isNaN(n) ? null : n;
+    };
     
     // Handle images: start with kept existing images, then append new uploads
     let images = [];
@@ -310,9 +337,9 @@ export const updateProduct = async (req, res) => {
         stock = COALESCE($10, stock),
         sku = $11,
         product_type = COALESCE($12, product_type),
-        is_featured = COALESCE($13, is_featured),
-        is_new = COALESCE($14, is_new),
-        is_active = COALESCE($15, is_active),
+        is_featured = $13,
+        is_new = $14,
+        is_active = $15,
         images = $16,
         meta_title = COALESCE($17, meta_title),
         meta_description = COALESCE($18, meta_description),
@@ -320,12 +347,24 @@ export const updateProduct = async (req, res) => {
       WHERE id = $19
       RETURNING *
     `, [
-      name, name_en, description, description_en, short_description,
-      price, original_price, cost_price,
-      category_id, stock, sku,
-      product_type, is_featured, is_new, is_active,
+      name || null,
+      name_en || null,
+      description || null,
+      description_en || null,
+      short_description || null,
+      parseNum(price),
+      parseNum(original_price),
+      parseNum(cost_price),
+      parseNum(category_id),
+      parseNum(stock),
+      sku || null,
+      product_type || existing.product_type || 'physical',
+      parseBool(is_featured, existing.is_featured),
+      parseBool(is_new, existing.is_new),
+      parseBool(is_active, existing.is_active),
       JSON.stringify(images),
-      meta_title, meta_description,
+      meta_title || null,
+      meta_description || null,
       id
     ]);
 

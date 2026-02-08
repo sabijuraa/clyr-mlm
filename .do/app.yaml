@@ -36,6 +36,9 @@ services:
       - key: JWT_SECRET
         scope: RUN_TIME
         type: SECRET
+      - key: JWT_REFRESH_SECRET
+        scope: RUN_TIME
+        type: SECRET
       - key: STRIPE_SECRET_KEY
         scope: RUN_TIME
         type: SECRET
@@ -57,6 +60,18 @@ services:
         value: "noreply@clyr.de"
       - key: FRONTEND_URL
         value: "${APP_URL}"
+      - key: DO_SPACES_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: DO_SPACES_SECRET
+        scope: RUN_TIME
+        type: SECRET
+      - key: DO_SPACES_BUCKET
+        value: "clyr-uploads"
+      - key: DO_SPACES_REGION
+        value: "fra1"
+      - key: DO_SPACES_ENDPOINT
+        value: "https://fra1.digitaloceanspaces.com"
 
 # React Frontend Static Site
 static_sites:

@@ -156,7 +156,7 @@ export const getStatement = asyncHandler(async (req, res) => {
 
   // Get commissions for period
   const commissionsResult = await query(
-    `SELECT c.*, o.order_number
+    `SELECT c.*, o.order_number, o.subtotal as order_total
      FROM commissions c
      LEFT JOIN orders o ON c.order_id = o.id
      WHERE c.user_id = $1 
@@ -416,7 +416,7 @@ export const generateStatementForPartner = asyncHandler(async (req, res) => {
 
   // Get commissions for period
   const commissionsResult = await query(
-    `SELECT c.*, o.order_number
+    `SELECT c.*, o.order_number, o.subtotal as order_total
      FROM commissions c
      LEFT JOIN orders o ON c.order_id = o.id
      WHERE c.user_id = $1 

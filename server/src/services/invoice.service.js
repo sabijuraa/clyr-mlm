@@ -335,7 +335,8 @@ class InvoiceService {
 
           const amt = parseFloat(c.amount || 0);
           const rate = c.rate ? `${(parseFloat(c.rate) * 100).toFixed(0)}%` : '-';
-          const basis = c.order_amount ? `${parseFloat(c.order_amount).toFixed(2)}` : '-';
+          const basisVal = c.base_amount || c.order_total;
+          const basis = basisVal ? `${parseFloat(basisVal).toFixed(2)}` : '-';
 
           doc.text(new Date(c.created_at).toLocaleDateString('de-DE'), 50, y, { width: 65 });
           doc.text(c.order_number || '-', 115, y, { width: 80 });
