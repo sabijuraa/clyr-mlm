@@ -349,7 +349,7 @@ const AdminVariantsPage = () => {
 
       {/* Help Section */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-        <h4 className="font-semibold text-blue-900 mb-2">💡 So funktionieren Varianten</h4>
+        <h4 className="font-semibold text-blue-900 mb-2">So funktionieren Varianten</h4>
         <ul className="text-sm text-blue-800 space-y-1">
           <li>• <strong>Armatur-Typen:</strong> Verschiedene Wasserhahn-Designs für CLYR Home Soda (Standard, Premium, Deluxe)</li>
           <li>• <strong>Aromen:</strong> Verschiedene Düfte für CLYR Aroma Dusche (Zitrus, Lavendel, Eukalyptus)</li>

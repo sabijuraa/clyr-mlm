@@ -110,7 +110,7 @@ export default function AdminLayout() {
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
-      <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-gradient-to-b from-secondary-700 to-secondary-800 text-white transition-all duration-300 flex flex-col`}>
+      <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-secondary-800 text-white transition-all duration-300 flex flex-col min-h-screen`}>
         <div className="flex-1 flex flex-col">
           {/* Header */}
           <div className="p-4 border-b border-secondary-600">

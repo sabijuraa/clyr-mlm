@@ -74,7 +74,7 @@ const DashboardLayout = () => {
       </AnimatePresence>
 
       {/* Sidebar - Charcoal gradient */}
-      <aside className={`fixed top-0 left-0 h-full w-72 bg-gradient-to-b from-secondary-700 to-secondary-800 z-50 
+      <aside className={`fixed top-0 left-0 h-full w-72 bg-secondary-800 z-50 
         transform transition-transform duration-300 lg:translate-x-0 
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >

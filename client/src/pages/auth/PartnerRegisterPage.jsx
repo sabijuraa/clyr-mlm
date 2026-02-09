@@ -152,15 +152,6 @@ const PartnerRegisterPage = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header - Always use clyr-logo.png */}
-      <header className="bg-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <Link to="/" className="flex items-center gap-3">
-            <img src="/images/clyr-logo.png" alt={companyName} className="h-10 w-auto" />
-          </Link>
-        </div>
-      </header>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid lg:grid-cols-3 gap-12">
           

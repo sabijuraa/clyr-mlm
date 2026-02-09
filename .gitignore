@@ -1,33 +1,46 @@
 # Dependencies
 node_modules/
+.pnp
+.pnp.js
 
-# Build output
+# Build outputs
 dist/
 build/
+.next/
+out/
 
 # Environment files
 .env
 .env.local
-.env.production
+.env.development.local
+.env.test.local
+.env.production.local
 
 # Logs
+logs/
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # OS files
 .DS_Store
 Thumbs.db
 
 # IDE
-.vscode/
 .idea/
+.vscode/
+*.swp
+*.swo
 
-# Vite cache
-.vite/
+# Uploads (will be handled by volume)
+server/uploads/*
+!server/uploads/.gitkeep
 
-# Uploads (user content)
-server/uploads/products/*
-server/uploads/cms/*
-server/uploads/avatars/*
-server/uploads/branding/*
-!server/uploads/**/.gitkeep
+# Misc
+.cache/
+*.pid
+*.seed
+*.pid.lock
+coverage/
+.nyc_output/

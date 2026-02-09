@@ -271,6 +271,11 @@ async function seed() {
       }
     ];
 
+    // Delete old products that are no longer in the product list
+    const validSlugs = products.map(p => p.slug);
+    await client.query(`DELETE FROM products WHERE slug != ALL($1::text[])`, [validSlugs]);
+    console.log('Cleaned old products');
+
     for (const product of products) {
       const categoryId = categoryIds[product.category_slug];
       await client.query(`
