@@ -95,7 +95,7 @@ const AboutPage = () => {
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }}
             variants={fadeUp}
             className="relative rounded-3xl overflow-hidden shadow-2xl">
-            <img src="/images/founders-together.jpeg" alt="Theresa Struger und Wolfgang Kronsteiner – Gründer von CLYR"
+            <img src="/images/founders/founders-together.jpeg" alt="Theresa Struger und Wolfgang Kronsteiner – Gründer von CLYR"
               className="w-full h-80 md:h-[32rem] object-cover object-top" />
             <div className="absolute inset-0 bg-gradient-to-t from-secondary-900/70 via-transparent to-transparent" />
             <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12">
@@ -117,7 +117,7 @@ const AboutPage = () => {
               className="md:col-span-2">
               <div className="relative">
                 <div className="absolute -inset-4 bg-primary-100 rounded-3xl -rotate-3" />
-                <img src="/images/theresa-struger.jpeg" alt="Theresa Struger"
+                <img src="/images/team/theresa-portrait.jpeg" alt="Theresa Struger"
                   className="relative rounded-2xl w-full object-cover shadow-xl" />
               </div>
             </motion.div>
@@ -172,23 +172,29 @@ const AboutPage = () => {
               <h2 className="text-3xl md:text-4xl font-heading font-bold text-secondary-800 mb-2">
                 Wolfgang Kronsteiner
               </h2>
-              <p className="text-secondary-500 mb-6">Salzburg · verheiratet · Vater von zwei Kindern · Spezialist für Wasser- und Installationstechnik</p>
+              <p className="text-secondary-500 mb-6">Salzburg · verheiratet · Vater von zwei Kindern · Zertifizierter Trinkwasser-Hygienetechniker</p>
 
               <div className="space-y-4 text-secondary-600 leading-relaxed">
                 <p>
-                  Wolfgang bringt jahrzehntelange technische Erfahrung in das Unternehmen ein. Als Installateur
-                  für Gas- und Wassertechnik kennt er die Anforderungen an moderne Wasserlösungen aus der Praxis –
-                  von der Planung bis zur Umsetzung.
+                  Wolfgang Kronsteiner ist zertifizierter Trinkwasser-Hygienetechniker mit fundierter Erfahrung
+                  in Installation, Technik und Wasserqualität. Durch seine offiziell anerkannte Qualifikation
+                  stellt er sicher, dass unsere Systeme höchsten hygienischen und technischen Standards entsprechen –
+                  für sicheres und hochwertiges Trinkwasser.
                 </p>
                 <p>
-                  Sein Fokus liegt auf Qualität, Sicherheit und Innovation. Er sorgt dafür, dass die CLYR Systeme
-                  nicht nur technisch auf höchstem Niveau funktionieren, sondern auch langfristig zuverlässig und
-                  effizient arbeiten.
+                  Als Installateur für Gas- und Wassertechnik kennt er die Anforderungen an moderne Wasserlösungen
+                  aus der Praxis – von der Planung bis zur Umsetzung. Sein Fokus liegt auf Qualität, Sicherheit
+                  und Innovation.
                 </p>
                 <p>
-                  Darüber hinaus treibt er kontinuierlich die Weiterentwicklung neuer Technologien und Verbesserungen
-                  bestehender Systeme voran. Sein Anspruch ist es, Wasserlösungen zu schaffen, die nicht nur den
-                  aktuellen Standards entsprechen, sondern neue Maßstäbe setzen.
+                  Er sorgt dafür, dass die CLYR Systeme nicht nur technisch auf höchstem Niveau funktionieren,
+                  sondern auch langfristig zuverlässig und effizient arbeiten. Darüber hinaus treibt er
+                  kontinuierlich die Weiterentwicklung neuer Technologien und Verbesserungen bestehender
+                  Systeme voran.
+                </p>
+                <p className="text-secondary-700 font-medium italic border-l-4 border-primary-400 pl-5 py-2">
+                  Sein Anspruch ist es, Wasserlösungen zu schaffen, die nicht nur den aktuellen Standards
+                  entsprechen, sondern neue Maßstäbe setzen.
                 </p>
               </div>
             </motion.div>
@@ -197,7 +203,7 @@ const AboutPage = () => {
               className="md:col-span-2 md:order-2">
               <div className="relative">
                 <div className="absolute -inset-4 bg-primary-100 rounded-3xl rotate-3" />
-                <img src="/images/wolfgang-kronsteiner.jpeg" alt="Wolfgang Kronsteiner"
+                <img src="/images/team/wolfgang-collage.jpeg" alt="Wolfgang Kronsteiner"
                   className="relative rounded-2xl w-full object-cover shadow-xl" />
               </div>
             </motion.div>

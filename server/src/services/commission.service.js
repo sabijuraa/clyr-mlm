@@ -10,7 +10,7 @@ import { query, transaction } from '../config/database.js';
  * R4 Teamleiter:    25% (€833)                — ≥5 personal + 15 team/month × 3 consecutive months
  * R5 Manager:       28% (€933)                — 30 team/month × 3 consecutive months
  * R6 Sales Manager: 31% (€1,033)              — 50 team/month × 3 consecutive months
- * R7 Direktor:      36%                       — Admin only (Theresa), NOT achievable
+ * R7 Direktor:      34%                       — Admin only (Theresa), NOT achievable
  *
  * COMMISSION TYPES:
  * 1. Direct Commission:     Partner's rank % × order subtotal (ALWAYS paid, no activity check)
@@ -205,8 +205,8 @@ const calculateDifferenceCommissions = async (client, orderId, partnerId, seller
     currentUserId = upline.id;
     depth++;
 
-    // If we've reached R7 (36%) = max rate, no more difference possible
-    if (upline.commission_rate >= 36) break;
+    // If we've reached R7 (34%) = max rate, no more difference possible
+    if (upline.commission_rate >= 34) break;
   }
 
   return commissions;

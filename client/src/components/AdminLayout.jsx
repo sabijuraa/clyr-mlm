@@ -84,13 +84,20 @@ export default function AdminLayout() {
   const menuItems = [
     { path: '/admin', icon: Icons.Dashboard, label: 'Dashboard' },
     { path: '/admin/products', icon: Icons.Products, label: 'Produkte' },
+    { path: '/admin/variants', icon: Icons.Products, label: 'Varianten' },
     { path: '/admin/orders', icon: Icons.Orders, label: 'Bestellungen' },
     { path: '/admin/partners', icon: Icons.Partners, label: 'Partner' },
     { path: '/admin/commissions', icon: Icons.Commissions, label: 'Provisionen' },
+    { path: '/admin/invoices', icon: Icons.Orders, label: 'Rechnungen' },
+    { path: '/admin/credit-notes', icon: Icons.Orders, label: 'Gutschriften' },
+    { path: '/admin/cms', icon: Icons.Branding, label: 'CMS / Inhalte' },
+    { path: '/admin/academy', icon: Icons.Legal, label: 'Academy' },
+    { path: '/admin/newsletter', icon: Icons.Legal, label: 'Newsletter' },
+    { path: '/admin/vat-reports', icon: Icons.Company, label: 'USt-Berichte' },
+    { path: '/admin/import', icon: Icons.Products, label: 'Import' },
     { path: '/admin/branding', icon: Icons.Branding, label: 'Branding' },
     { path: '/admin/legal', icon: Icons.Legal, label: 'Rechtliches' },
-    { path: '/admin/newsletter', icon: Icons.Legal, label: 'Newsletter' },
-    { path: '/admin/company', icon: Icons.Company, label: 'Firmeneinstellungen' },
+    { path: '/admin/settings', icon: Icons.Company, label: 'Einstellungen' },
   ];
 
   const isActive = (path) => {
