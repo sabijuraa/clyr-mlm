@@ -95,7 +95,7 @@ const AboutPage = () => {
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }}
             variants={fadeUp}
             className="relative rounded-3xl overflow-hidden shadow-2xl">
-            <img src="/images/founders/founders-together.jpeg" alt="Theresa Struger und Wolfgang Kronsteiner – Gründer von CLYR"
+            <img src="/images/founders-together.jpeg" alt="Theresa Struger und Wolfgang Kronsteiner – Gründer von CLYR"
               className="w-full h-80 md:h-[32rem] object-cover object-top" />
             <div className="absolute inset-0 bg-gradient-to-t from-secondary-900/70 via-transparent to-transparent" />
             <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12">
@@ -117,7 +117,7 @@ const AboutPage = () => {
               className="md:col-span-2">
               <div className="relative">
                 <div className="absolute -inset-4 bg-primary-100 rounded-3xl -rotate-3" />
-                <img src="/images/team/theresa-portrait.jpeg" alt="Theresa Struger"
+                <img src="/images/theresa-struger.jpeg" alt="Theresa Struger"
                   className="relative rounded-2xl w-full object-cover shadow-xl" />
               </div>
             </motion.div>
@@ -203,7 +203,7 @@ const AboutPage = () => {
               className="md:col-span-2 md:order-2">
               <div className="relative">
                 <div className="absolute -inset-4 bg-primary-100 rounded-3xl rotate-3" />
-                <img src="/images/team/wolfgang-collage.jpeg" alt="Wolfgang Kronsteiner"
+                <img src="/images/wolfgang-kronsteiner.jpeg" alt="Wolfgang Kronsteiner"
                   className="relative rounded-2xl w-full object-cover shadow-xl" />
               </div>
             </motion.div>
