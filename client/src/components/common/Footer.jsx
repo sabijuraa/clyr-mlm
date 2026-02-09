@@ -69,8 +69,7 @@ const Footer = () => {
               <img 
                 src="/images/clyr-logo.png" 
                 alt="CLYR" 
-                className="h-12 w-auto"
-                style={{ filter: 'brightness(0) invert(1)' }}
+                className="h-12 w-auto rounded-lg bg-white p-1"
               />
             </Link>
             <p className="text-gray-400 mb-6 max-w-sm leading-relaxed">
