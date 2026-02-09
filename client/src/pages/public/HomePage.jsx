@@ -207,7 +207,7 @@ const HomePage = () => {
       {/* SECTION 5 — LIFESTYLE / EMOTIONAL */}
       <section className="relative py-32 md:py-44 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-secondary-800 via-secondary-700 to-primary-900" />
-        <div className="absolute inset-0 opacity-20"><div className="absolute top-0 left-0 w-full h-full bg-[url('/images/products/clyr-kitchen-undersink.jpg')] bg-cover bg-center" /></div>
+        <div className="absolute inset-0 opacity-20"><div className="absolute top-0 left-0 w-full h-full bg-[url('/images/products/clyr-soda-system.png')] bg-cover bg-center" /></div>
         <div className="absolute inset-0 bg-gradient-to-r from-secondary-900/90 via-secondary-800/80 to-primary-900/70" />
         <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp}>

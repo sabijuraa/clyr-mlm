@@ -147,7 +147,7 @@ async function seed() {
         price: 3332.50,
         category_slug: 'wassersysteme',
         stock: 20,
-        images: JSON.stringify(['/images/products/clyr-soda-set.png']),
+        images: JSON.stringify(['/images/products/clyr-soda-system.png', '/images/products/faucet-spiralfeder-chrom.png']),
         features: JSON.stringify(['9 Filterstufen', 'Integrierte Kuehlung', 'Sprudelwasser', 'Kompakteste Anlage am Markt', 'Edelstahl-Konstruktion', 'Spiralfeder Armatur Chrom', '2 Jahre Garantie']),
         is_featured: true, is_new: true, is_large_item: true, requires_installation: true, product_type: 'physical'
       },
@@ -161,7 +161,7 @@ async function seed() {
         price: 3332.50,
         category_slug: 'wassersysteme',
         stock: 15,
-        images: JSON.stringify(['/images/products/clyr-soda-set.png']),
+        images: JSON.stringify(['/images/products/clyr-soda-system.png', '/images/products/faucet-spiralfeder-schwarz.png']),
         features: JSON.stringify(['9 Filterstufen', 'Integrierte Kuehlung', 'Sprudelwasser', 'Kompakteste Anlage am Markt', 'Edelstahl-Konstruktion', 'Spiralfeder Armatur Schwarz', '2 Jahre Garantie']),
         is_featured: true, is_new: true, is_large_item: true, requires_installation: true, product_type: 'physical'
       },
@@ -175,7 +175,7 @@ async function seed() {
         price: 3332.50,
         category_slug: 'wassersysteme',
         stock: 10,
-        images: JSON.stringify(['/images/products/clyr-soda-set.png']),
+        images: JSON.stringify(['/images/products/clyr-soda-system.png', '/images/products/faucet-l-auslauf.png']),
         features: JSON.stringify(['9 Filterstufen', 'Integrierte Kuehlung', 'Sprudelwasser', 'Kompakteste Anlage am Markt', 'Edelstahl-Konstruktion', 'L-Auslauf Armatur', '2 Jahre Garantie']),
         is_featured: false, is_new: true, is_large_item: true, requires_installation: true, product_type: 'physical'
       },
@@ -190,7 +190,7 @@ async function seed() {
         price: 125.21,
         category_slug: 'duschen',
         stock: 50,
-        images: JSON.stringify(['/images/products/vitamin-c-filter.jpg']),
+        images: JSON.stringify(['/images/products/aromaduschkopf.png', '/images/products/aromaduschkopf-detail.png']),
         features: JSON.stringify(['Vitamin-C Filter', 'Inkl. 1 Kartusche Zitrone', 'Mikroloch-Technologie', 'Bis zu 50% Wasserersparnis', 'Passt auf jeden Standardanschluss']),
         is_featured: true, is_new: true, is_large_item: false, requires_installation: false, product_type: 'physical'
       },
@@ -200,7 +200,7 @@ async function seed() {
         description: 'Der All in One Vorfilter fuer die CLYR Soda. Muss alle 6 Monate gewechselt werden. Bei Maschinenkauf bereits enthalten.',
         short_description: 'Ersatz-Vorfilter fuer die CLYR Soda. Wechsel alle 6 Monate.',
         price: 75.00, category_slug: 'zubehoer', stock: 100,
-        images: JSON.stringify(['/images/products/clyr-filter-open.jpg']),
+        images: JSON.stringify(['/images/products/all-in-one-filter.png']),
         features: JSON.stringify(['Vorfilter fuer CLYR Soda', 'Wechsel alle 6 Monate', 'Im Erstset enthalten']),
         is_featured: false, is_new: false, is_large_item: false, product_type: 'physical'
       },
@@ -209,7 +209,7 @@ async function seed() {
         description: 'Natuerliche Remineralisierung: wird nach der Maschine und vor dem Wasserhahn eingesetzt, um dem gefilterten Wasser wertvolle Mineralien zurueckzugeben.',
         short_description: 'Natuerliche Remineralisierung des gefilterten Wassers.',
         price: 120.00, category_slug: 'zubehoer', stock: 50,
-        images: JSON.stringify([]),
+        images: JSON.stringify(["/images/products/sango-koralle.jpg"]),
         features: JSON.stringify(['Natuerliche Mineralien', 'Nach Maschine, vor Hahn', 'Verbessert Geschmack']),
         is_featured: false, is_new: false, is_large_item: false, product_type: 'physical'
       },
@@ -218,7 +218,7 @@ async function seed() {
         description: 'Der BIO Tuner gibt dem Wasser eine natuerliche Struktur zurueck. Fuer strukturiertes, lebendiges Wasser.',
         short_description: 'Wasserverwirbler fuer strukturiertes Wasser.',
         price: 250.00, category_slug: 'zubehoer', stock: 30,
-        images: JSON.stringify([]),
+        images: JSON.stringify(["/images/products/bio-tuner.png"]),
         features: JSON.stringify(['Wasserstrukturierung', 'Natuerliche Verwirbelung', 'Einfache Installation']),
         is_featured: false, is_new: false, is_large_item: false, product_type: 'physical'
       },
@@ -227,7 +227,7 @@ async function seed() {
         description: 'Zusaetzliche Sicherheit fuer Ihre CLYR Soda Anlage. Schuetzt zuverlaessig vor Wasserschaeden.',
         short_description: 'Zusaetzlicher Schutz vor Wasserschaeden.',
         price: 110.00, category_slug: 'zubehoer', stock: 40,
-        images: JSON.stringify([]),
+        images: JSON.stringify(["/images/products/externer-wasserstop.jpg"]),
         features: JSON.stringify(['Zusaetzliche Sicherheit', 'Schutz vor Wasserschaeden', 'Einfache Installation']),
         is_featured: false, is_new: false, is_large_item: false, product_type: 'physical'
       },
@@ -236,7 +236,7 @@ async function seed() {
         description: '3er Set Aroma-Kartuschen mit Eukalyptus-Duft und Vitamin-C fuer den CLYR Aromaduschkopf.',
         short_description: '3er Set Aroma-Kartuschen Eukalyptus.',
         price: 48.00, category_slug: 'zubehoer', stock: 100,
-        images: JSON.stringify([]),
+        images: JSON.stringify(["/images/products/aroma-kartuschen.png"]),
         features: JSON.stringify(['3 Kartuschen', 'Eukalyptus-Duft', 'Vitamin-C']),
         is_featured: false, is_new: false, is_large_item: false, product_type: 'physical'
       },
@@ -245,7 +245,7 @@ async function seed() {
         description: '3er Set Aroma-Kartuschen mit Zitronen-Duft und Vitamin-C fuer den CLYR Aromaduschkopf.',
         short_description: '3er Set Aroma-Kartuschen Zitrone.',
         price: 48.00, category_slug: 'zubehoer', stock: 100,
-        images: JSON.stringify([]),
+        images: JSON.stringify(["/images/products/aroma-kartuschen.png"]),
         features: JSON.stringify(['3 Kartuschen', 'Zitronen-Duft', 'Vitamin-C']),
         is_featured: false, is_new: false, is_large_item: false, product_type: 'physical'
       },
@@ -254,7 +254,7 @@ async function seed() {
         description: '3er Set Aroma-Kartuschen mit Pfefferminz-Duft und Vitamin-C fuer den CLYR Aromaduschkopf.',
         short_description: '3er Set Aroma-Kartuschen Pfefferminze.',
         price: 48.00, category_slug: 'zubehoer', stock: 100,
-        images: JSON.stringify([]),
+        images: JSON.stringify(["/images/products/aroma-kartuschen.png"]),
         features: JSON.stringify(['3 Kartuschen', 'Pfefferminz-Duft', 'Vitamin-C']),
         is_featured: false, is_new: false, is_large_item: false, product_type: 'physical'
       },
@@ -264,7 +264,7 @@ async function seed() {
         description: 'Das CLYR Filter-Abo - automatische Lieferung des All in One Filters alle 6 Monate. Nie wieder Filterwechsel vergessen.',
         short_description: 'Automatische Filterlieferung alle 6 Monate.',
         price: 75.00, category_slug: 'abonnements', stock: 999,
-        images: JSON.stringify(['/images/products/clyr-filter-open.jpg']),
+        images: JSON.stringify(['/images/products/all-in-one-filter.png']),
         features: JSON.stringify(['Alle 6 Monate', 'Kostenloser Versand', 'Jederzeit kuendbar']),
         is_featured: false, is_new: false, is_large_item: false, requires_installation: false, track_stock: false,
         product_type: 'subscription', subscription_interval_months: 6, is_subscription_eligible: true
