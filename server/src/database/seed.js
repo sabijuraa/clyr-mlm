@@ -136,50 +136,22 @@ async function seed() {
     console.log('Seeding CLYR products...');
     
     const products = [
-      // MAIN PRODUCT 1: CLYR Soda with different faucets (Netto: 3332.50€)
+      // MAIN PRODUCT 1: CLYR Soda (single card, faucet choice on detail page)
       {
-        name: 'CLYR Soda - Komplett-Set Spiralfeder Chrom',
-        name_en: 'CLYR Soda - Complete Set Spiral Spring Chrome',
-        slug: 'clyr-soda-spiralfeder-chrom',
-        sku: 'CLYR-SODA-SPC',
-        description: 'Die CLYR Soda Osmoseanlage - die kompakteste Untertisch-Anlage am Markt. Nahezu vollstaendig aus hochwertigem Edelstahl gefertigt.\n\nDas Komplett-Set beinhaltet die CLYR Osmoseanlage, die 5-Wege-Armatur Spiralfeder in Chrom, das Vorfilterset (All in One Filter), CO2-Flasche mit Druckminderer, alle Anschluesse und Schlaeuche aus medizinischem Edelstahl sowie eine Installationsanleitung.\n\n9 Filterstufen sorgen fuer reinstes Wasser. Technische Daten: Gewicht 16 kg, Wasserdruck 2-5 bar, Membranleistung 1x 500 GPD, Wasserausfluss 1,3 L/min, Masse B46 x H10 x T50 cm. 2 Jahre Garantie.',
-        short_description: 'Untertisch-Osmoseanlage mit 9 Filterstufen inkl. Spiralfeder Armatur Chrom.',
+        name: 'CLYR Soda - Komplett-Set',
+        name_en: 'CLYR Soda - Complete Set',
+        slug: 'clyr-soda',
+        sku: 'CLYR-SODA',
+        description: 'Die CLYR Soda Osmoseanlage - die kompakteste Untertisch-Anlage am Markt. Nahezu vollstaendig aus hochwertigem Edelstahl gefertigt.\n\nDas Komplett-Set beinhaltet die CLYR Osmoseanlage, eine 5-Wege-Armatur (Auswahl: Spiralfeder Chrom, Spiralfeder Schwarz oder L-Auslauf), das Vorfilterset (All in One Filter), CO2-Flasche mit Druckminderer, alle Anschluesse und Schlaeuche aus medizinischem Edelstahl sowie eine Installationsanleitung.\n\n9 Filterstufen sorgen fuer reinstes Wasser. Technische Daten: Gewicht 16 kg, Wasserdruck 2-5 bar, Membranleistung 1x 500 GPD, Wasserausfluss 1,3 L/min, Masse B46 x H10 x T50 cm. 2 Jahre Garantie.',
+        short_description: 'Untertisch-Osmoseanlage mit 9 Filterstufen. Armatur waehlbar: Spiralfeder Chrom, Spiralfeder Schwarz oder L-Auslauf.',
         price: 3332.50,
         category_slug: 'wassersysteme',
         stock: 20,
-        images: JSON.stringify(['/images/products/clyr-soda-system.png', '/images/products/faucet-spiralfeder-chrom.png']),
-        features: JSON.stringify(['9 Filterstufen', 'Integrierte Kuehlung', 'Sprudelwasser', 'Kompakteste Anlage am Markt', 'Edelstahl-Konstruktion', 'Spiralfeder Armatur Chrom', '2 Jahre Garantie']),
+        images: JSON.stringify(['/images/products/clyr-soda-system.png', '/images/products/faucet-spiralfeder-chrom.png', '/images/products/faucet-spiralfeder-schwarz.png', '/images/products/faucet-l-auslauf.png']),
+        features: JSON.stringify(['9 Filterstufen', 'Integrierte Kuehlung', 'Sprudelwasser', 'Kompakteste Anlage am Markt', 'Edelstahl-Konstruktion', '3 Armaturen zur Auswahl', 'All in One Filter inklusive', '2 Jahre Garantie']),
         is_featured: true, is_new: true, is_large_item: true, requires_installation: true, product_type: 'physical'
       },
-      {
-        name: 'CLYR Soda - Komplett-Set Spiralfeder Schwarz',
-        name_en: 'CLYR Soda - Complete Set Spiral Spring Black',
-        slug: 'clyr-soda-spiralfeder-schwarz',
-        sku: 'CLYR-SODA-SPS',
-        description: 'Die CLYR Soda Osmoseanlage mit der eleganten 5-Wege-Armatur Spiralfeder in Schwarz. Identische Technik mit 9 Filterstufen.\n\nKomplett-Set inkl. Osmoseanlage, Spiralfeder Armatur Schwarz, All in One Filter, CO2-Flasche, Anschluesse und Installationsanleitung.',
-        short_description: 'Untertisch-Osmoseanlage mit 9 Filterstufen inkl. Spiralfeder Armatur Schwarz.',
-        price: 3332.50,
-        category_slug: 'wassersysteme',
-        stock: 15,
-        images: JSON.stringify(['/images/products/clyr-soda-system.png', '/images/products/faucet-spiralfeder-schwarz.png']),
-        features: JSON.stringify(['9 Filterstufen', 'Integrierte Kuehlung', 'Sprudelwasser', 'Kompakteste Anlage am Markt', 'Edelstahl-Konstruktion', 'Spiralfeder Armatur Schwarz', '2 Jahre Garantie']),
-        is_featured: true, is_new: true, is_large_item: true, requires_installation: true, product_type: 'physical'
-      },
-      {
-        name: 'CLYR Soda - Komplett-Set L-Auslauf',
-        name_en: 'CLYR Soda - Complete Set L-Spout',
-        slug: 'clyr-soda-l-auslauf',
-        sku: 'CLYR-SODA-LAU',
-        description: 'Die CLYR Soda Osmoseanlage mit der klassischen 5-Wege-Armatur L-Auslauf. Identische Technik mit 9 Filterstufen.\n\nKomplett-Set inkl. Osmoseanlage, L-Auslauf Armatur, All in One Filter, CO2-Flasche, Anschluesse und Installationsanleitung.',
-        short_description: 'Untertisch-Osmoseanlage mit 9 Filterstufen inkl. L-Auslauf Armatur.',
-        price: 3332.50,
-        category_slug: 'wassersysteme',
-        stock: 10,
-        images: JSON.stringify(['/images/products/clyr-soda-system.png', '/images/products/faucet-l-auslauf.png']),
-        features: JSON.stringify(['9 Filterstufen', 'Integrierte Kuehlung', 'Sprudelwasser', 'Kompakteste Anlage am Markt', 'Edelstahl-Konstruktion', 'L-Auslauf Armatur', '2 Jahre Garantie']),
-        is_featured: false, is_new: true, is_large_item: true, requires_installation: true, product_type: 'physical'
-      },
-      // MAIN PRODUCT 2: CLYR Aromaduschkopf (Netto: 125.21€, inkl. 1 Kartusche Zitrone)
+      // MAIN PRODUCT 2: CLYR Aromaduschkopf
       {
         name: 'CLYR Aromaduschkopf',
         name_en: 'CLYR Aroma Shower Head',
@@ -194,11 +166,11 @@ async function seed() {
         features: JSON.stringify(['Vitamin-C Filter', 'Inkl. 1 Kartusche Zitrone', 'Mikroloch-Technologie', 'Bis zu 50% Wasserersparnis', 'Passt auf jeden Standardanschluss']),
         is_featured: true, is_new: true, is_large_item: false, requires_installation: false, product_type: 'physical'
       },
-      // PLUS PRODUCTS / ZUBEHOER
+      // PLUS PRODUCTS
       {
         name: 'All in One Filter', name_en: 'All in One Filter', slug: 'all-in-one-filter', sku: 'CLYR-AIO-F',
         description: 'Der All in One Vorfilter fuer die CLYR Soda. Muss alle 6 Monate gewechselt werden. Bei Maschinenkauf bereits enthalten.',
-        short_description: 'Ersatz-Vorfilter fuer die CLYR Soda. Wechsel alle 6 Monate.',
+        short_description: 'Ersatz-Vorfilter. Wechsel alle 6 Monate.',
         price: 75.00, category_slug: 'zubehoer', stock: 100,
         images: JSON.stringify(['/images/products/all-in-one-filter.png']),
         features: JSON.stringify(['Vorfilter fuer CLYR Soda', 'Wechsel alle 6 Monate', 'Im Erstset enthalten']),
@@ -206,62 +178,61 @@ async function seed() {
       },
       {
         name: 'Sango Koralle', name_en: 'Sango Coral', slug: 'sango-koralle', sku: 'CLYR-SANGO',
-        description: 'Natuerliche Remineralisierung: wird nach der Maschine und vor dem Wasserhahn eingesetzt, um dem gefilterten Wasser wertvolle Mineralien zurueckzugeben.',
-        short_description: 'Natuerliche Remineralisierung des gefilterten Wassers.',
+        description: 'Natuerliche Remineralisierung: wird nach der Maschine und vor dem Wasserhahn eingesetzt.',
+        short_description: 'Remineralisierung des gefilterten Wassers.',
         price: 120.00, category_slug: 'zubehoer', stock: 50,
-        images: JSON.stringify(["/images/products/sango-koralle.jpg"]),
+        images: JSON.stringify(['/images/products/sango-koralle.jpg']),
         features: JSON.stringify(['Natuerliche Mineralien', 'Nach Maschine, vor Hahn', 'Verbessert Geschmack']),
         is_featured: false, is_new: false, is_large_item: false, product_type: 'physical'
       },
       {
         name: 'BIO Tuner - Wasserverwirbler', name_en: 'BIO Tuner - Water Vortex', slug: 'bio-tuner', sku: 'CLYR-BIOTUNER',
-        description: 'Der BIO Tuner gibt dem Wasser eine natuerliche Struktur zurueck. Fuer strukturiertes, lebendiges Wasser.',
+        description: 'Der BIO Tuner gibt dem Wasser eine natuerliche Struktur zurueck.',
         short_description: 'Wasserverwirbler fuer strukturiertes Wasser.',
         price: 250.00, category_slug: 'zubehoer', stock: 30,
-        images: JSON.stringify(["/images/products/bio-tuner.png"]),
+        images: JSON.stringify(['/images/products/bio-tuner.png']),
         features: JSON.stringify(['Wasserstrukturierung', 'Natuerliche Verwirbelung', 'Einfache Installation']),
         is_featured: false, is_new: false, is_large_item: false, product_type: 'physical'
       },
       {
         name: 'Externer Wasserstop', name_en: 'External Water Stop', slug: 'externer-wasserstop', sku: 'CLYR-WSTOP',
-        description: 'Zusaetzliche Sicherheit fuer Ihre CLYR Soda Anlage. Schuetzt zuverlaessig vor Wasserschaeden.',
+        description: 'Zusaetzliche Sicherheit fuer Ihre CLYR Soda Anlage.',
         short_description: 'Zusaetzlicher Schutz vor Wasserschaeden.',
         price: 110.00, category_slug: 'zubehoer', stock: 40,
-        images: JSON.stringify(["/images/products/externer-wasserstop.jpg"]),
+        images: JSON.stringify(['/images/products/externer-wasserstop.jpg']),
         features: JSON.stringify(['Zusaetzliche Sicherheit', 'Schutz vor Wasserschaeden', 'Einfache Installation']),
         is_featured: false, is_new: false, is_large_item: false, product_type: 'physical'
       },
       {
         name: 'Aroma Kartuschen 3er Set - Eukalyptus', name_en: 'Aroma Cartridges 3-Pack Eucalyptus', slug: 'aroma-kartuschen-eukalyptus', sku: 'CLYR-AK-EUK',
-        description: '3er Set Aroma-Kartuschen mit Eukalyptus-Duft und Vitamin-C fuer den CLYR Aromaduschkopf.',
+        description: '3er Set Aroma-Kartuschen mit Eukalyptus-Duft und Vitamin-C.',
         short_description: '3er Set Aroma-Kartuschen Eukalyptus.',
         price: 48.00, category_slug: 'zubehoer', stock: 100,
-        images: JSON.stringify(["/images/products/aroma-kartuschen.png"]),
+        images: JSON.stringify(['/images/products/aroma-kartuschen.png']),
         features: JSON.stringify(['3 Kartuschen', 'Eukalyptus-Duft', 'Vitamin-C']),
         is_featured: false, is_new: false, is_large_item: false, product_type: 'physical'
       },
       {
         name: 'Aroma Kartuschen 3er Set - Zitrone', name_en: 'Aroma Cartridges 3-Pack Lemon', slug: 'aroma-kartuschen-zitrone', sku: 'CLYR-AK-LEM',
-        description: '3er Set Aroma-Kartuschen mit Zitronen-Duft und Vitamin-C fuer den CLYR Aromaduschkopf.',
+        description: '3er Set Aroma-Kartuschen mit Zitronen-Duft und Vitamin-C.',
         short_description: '3er Set Aroma-Kartuschen Zitrone.',
         price: 48.00, category_slug: 'zubehoer', stock: 100,
-        images: JSON.stringify(["/images/products/aroma-kartuschen.png"]),
+        images: JSON.stringify(['/images/products/aroma-kartuschen.png']),
         features: JSON.stringify(['3 Kartuschen', 'Zitronen-Duft', 'Vitamin-C']),
         is_featured: false, is_new: false, is_large_item: false, product_type: 'physical'
       },
       {
         name: 'Aroma Kartuschen 3er Set - Pfefferminze', name_en: 'Aroma Cartridges 3-Pack Peppermint', slug: 'aroma-kartuschen-pfefferminze', sku: 'CLYR-AK-PFE',
-        description: '3er Set Aroma-Kartuschen mit Pfefferminz-Duft und Vitamin-C fuer den CLYR Aromaduschkopf.',
+        description: '3er Set Aroma-Kartuschen mit Pfefferminz-Duft und Vitamin-C.',
         short_description: '3er Set Aroma-Kartuschen Pfefferminze.',
         price: 48.00, category_slug: 'zubehoer', stock: 100,
-        images: JSON.stringify(["/images/products/aroma-kartuschen.png"]),
+        images: JSON.stringify(['/images/products/aroma-kartuschen.png']),
         features: JSON.stringify(['3 Kartuschen', 'Pfefferminz-Duft', 'Vitamin-C']),
         is_featured: false, is_new: false, is_large_item: false, product_type: 'physical'
       },
-      // FILTER-ABO (alle 6 Monate, gleicher Preis wie All in One Filter)
       {
         name: 'Filter-Abo (alle 6 Monate)', name_en: 'Filter Subscription (6 months)', slug: 'filter-abo', sku: 'CLYR-FILTER-ABO',
-        description: 'Das CLYR Filter-Abo - automatische Lieferung des All in One Filters alle 6 Monate. Nie wieder Filterwechsel vergessen.',
+        description: 'Automatische Lieferung des All in One Filters alle 6 Monate.',
         short_description: 'Automatische Filterlieferung alle 6 Monate.',
         price: 75.00, category_slug: 'abonnements', stock: 999,
         images: JSON.stringify(['/images/products/all-in-one-filter.png']),
