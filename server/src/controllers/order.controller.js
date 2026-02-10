@@ -451,6 +451,17 @@ export const createOrder = asyncHandler(async (req, res) => {
     console.error('Auto-invoice generation failed (non-blocking):', invoiceErr.message);
   }
 
+  // Send order confirmation emails (customer + admin + affiliate)
+  try {
+    const { sendOrderConfirmation } = await import('../services/email.service.js');
+    await sendOrderConfirmation(
+      { ...order, partner_email: order.partner_id ? (await query('SELECT email FROM users WHERE id = $1', [order.partner_id])).rows[0]?.email : null },
+      orderItemsResult.rows
+    );
+  } catch (emailErr) {
+    console.error('Order email failed (non-blocking):', emailErr.message);
+  }
+
   res.status(201).json({
     message: 'Bestellung erfolgreich',
     order: {

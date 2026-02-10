@@ -157,12 +157,21 @@ const ProductDetailPage = () => {
               </div>
 
               {/* Price - Show NET price */}
-              <div className="text-3xl font-bold text-secondary-700">
-                {formatCurrency(totalPrice)}
-                <span className="text-sm font-normal text-secondary-500 ml-2">
-                  {lang === 'de' ? 'zzgl. MwSt.' : 'excl. VAT'}
-                </span>
-              </div>
+              {totalPrice > 0 ? (
+                <div className="text-3xl font-bold text-secondary-700">
+                  {formatCurrency(totalPrice)}
+                  <span className="text-sm font-normal text-secondary-500 ml-2">
+                    {lang === 'de' ? 'netto zzgl. MwSt.' : 'net excl. VAT'}
+                  </span>
+                </div>
+              ) : (
+                <div className="text-2xl font-bold text-primary-600">
+                  {lang === 'de' ? 'Preis auf Anfrage' : 'Price on request'}
+                  <span className="text-sm font-normal text-secondary-500 ml-2 block mt-1">
+                    {lang === 'de' ? 'Kontaktieren Sie uns fuer ein Angebot' : 'Contact us for a quote'}
+                  </span>
+                </div>
+              )}
 
               {/* Variant Selectors */}
               {product.variants && Object.entries(product.variants).length > 0 && (
@@ -237,9 +246,9 @@ const ProductDetailPage = () => {
               {/* Trust Badges */}
               <div className="grid grid-cols-3 gap-4 pt-6 border-t border-gray-100">
                 {[
-                  { icon: Truck, title: lang === 'de' ? 'Kostenloser Versand' : 'Free Shipping', sub: lang === 'de' ? 'Ab €100' : 'Over €100' },
+                  { icon: Truck, title: lang === 'de' ? 'Versand' : 'Shipping', sub: lang === 'de' ? 'DE/AT/CH' : 'DE/AT/CH' },
                   { icon: Shield, title: lang === 'de' ? '2 Jahre Garantie' : '2 Year Warranty', sub: lang === 'de' ? 'Voller Schutz' : 'Full coverage' },
-                  { icon: RefreshCw, title: lang === 'de' ? '30 Tage Rückgabe' : '30 Day Returns', sub: lang === 'de' ? 'Kein Risiko' : 'No risk' },
+                  { icon: RefreshCw, title: lang === 'de' ? '14 Tage Rueckgabe' : '14 Day Returns', sub: lang === 'de' ? 'Widerrufsrecht' : 'Right of withdrawal' },
                 ].map((item, i) => (
                   <div key={i} className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-secondary-700 flex items-center justify-center">

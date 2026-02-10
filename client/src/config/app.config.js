@@ -133,7 +133,7 @@ const appConfig = {
       id: 7,
       key: 'direktor',
       name: { de: 'Direktor', en: 'Director' },
-      rate: 0.36,      // 36% — Admin only
+      rate: 0.34,      // 34% — Admin only (Theresa)
       adminOnly: true,
       criteria: { de: 'Nur Geschäftsführung', en: 'Admin only' },
       bonus: 0,
@@ -256,11 +256,13 @@ export const calculateVAT = (amount, country, hasVatId = false) => {
   // Switzerland: Always 0%
   if (country === 'CH') return 0;
   
+  // Reverse Charge: Any EU country with valid VAT ID = 0%
+  if (hasVatId && config.reverseCharge) return 0;
+  
   // Austria with VAT ID: 0% (reverse charge)
   if (country === 'AT' && hasVatId) return 0;
   
-  // Germany: Always 19% (even with VAT ID)
-  // Austria without VAT ID: 20%
+  // Standard VAT rates
   return amount * config.vatRate;
 };
 
@@ -282,7 +284,7 @@ export const calculateOrderTotals = (subtotal, country, hasVatId = false) => {
     vat,
     total,
     vatRate: appConfig.countries[country]?.vatRate || 0,
-    hasReverseCharge: hasVatId && country === 'AT'
+    hasReverseCharge: hasVatId && (country === 'AT' || (appConfig.countries[country]?.reverseCharge && hasVatId))
   };
 };
 
@@ -292,7 +294,8 @@ export const calculateOrderTotals = (subtotal, country, hasVatId = false) => {
  * @returns {string} - Formatted currency string
  */
 export const formatCurrency = (amount) => {
-  if (typeof amount !== 'number' || isNaN(amount)) {
+  const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+  if (typeof num !== 'number' || isNaN(num)) {
     return new Intl.NumberFormat(appConfig.currency.locale, {
       style: 'currency',
       currency: appConfig.currency.code
@@ -301,7 +304,7 @@ export const formatCurrency = (amount) => {
   return new Intl.NumberFormat(appConfig.currency.locale, {
     style: 'currency',
     currency: appConfig.currency.code
-  }).format(amount);
+  }).format(num);
 };
 
 /**

@@ -55,15 +55,16 @@ const AboutPage = () => {
               variants={fadeUp}>
               <p className="text-primary-500 uppercase tracking-[0.15em] text-sm font-semibold mb-4">Unsere Vision</p>
               <h2 className="text-3xl md:text-4xl font-heading font-bold text-secondary-800 leading-tight mb-6">
-                Gesundheit ist kein Luxus.
+                Wasser neu gedacht.
               </h2>
               <p className="text-secondary-600 text-lg leading-relaxed mb-6">
-                Wir möchten zeigen, dass Gesundheit kein Luxus sein muss. Und dass moderne Technologien
-                den Alltag erleichtern können, anstatt ihn komplizierter zu machen.
+                CLYR wurde gegruendet, um die Art und Weise zu veraendern, wie Menschen Wasser erleben.
+                Unsere weltweit einzigartige Technologie liefert gefiltertes Sprudelwasser direkt aus dem Wasserhahn -
+                eine Innovation, die es sonst nirgends gibt.
               </p>
               <p className="text-secondary-600 text-lg leading-relaxed">
-                CLYR verbindet Innovation, Fachwissen und Lebensqualität – für Familien,
-                für Gesundheitsbewusste und für Menschen, die mehr aus ihrem Alltag machen möchten.
+                CLYR verbindet Innovation, Fachwissen und Lebensqualitaet - fuer Familien,
+                fuer Gesundheitsbewusste und fuer Menschen, die mehr aus ihrem Alltag machen moechten.
               </p>
             </motion.div>
             <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }}

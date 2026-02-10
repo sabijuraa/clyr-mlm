@@ -554,11 +554,11 @@ const PartnerRegisterPage = () => {
                           />
                           <span className="text-sm text-secondary-500">
                             {lang === 'de' ? 'Ich akzeptiere den' : 'I accept the'}{' '}
-                            <Link to="/legal/vp-vertrag" target="_blank" className="text-secondary-700 hover:text-primary-500 font-medium">
+                            <Link to="/terms" target="_blank" className="text-secondary-700 hover:text-primary-500 font-medium">
                               {lang === 'de' ? 'Vertriebspartner-Vertrag (VP-Vertrag)' : 'Distribution Partner Agreement'}
                             </Link>{' '}
                             {lang === 'de' ? 'und die' : 'and the'}{' '}
-                            <Link to="/legal/terms" target="_blank" className="text-secondary-700 hover:text-primary-500 font-medium">
+                            <Link to="/terms" target="_blank" className="text-secondary-700 hover:text-primary-500 font-medium">
                               {lang === 'de' ? 'Allgemeinen Geschaeftsbedingungen' : 'General Terms'}
                             </Link>
                           </span>

@@ -125,11 +125,48 @@ export const sendOrderConfirmation = async (order, items) => {
     </html>
   `;
 
-  return sendEmail({
+  // Send to customer
+  await sendEmail({
     to: order.customer_email,
-    subject: `Bestellbestätigung #${order.order_number}`,
+    subject: `Bestellbestaetigung #${order.order_number}`,
     html
   });
+
+  // Send notification to admin (Theresa)
+  const adminEmail = process.env.ADMIN_EMAIL || process.env.SMTP_FROM || 'office@freshliving.at';
+  try {
+    await sendEmail({
+      to: adminEmail,
+      subject: `Neue Bestellung #${order.order_number} - ${formatCurrency(order.total)}`,
+      html: `
+        <h2>Neue Bestellung eingegangen!</h2>
+        <p><strong>Bestellnummer:</strong> ${order.order_number}</p>
+        <p><strong>Kunde:</strong> ${order.customer_first_name} ${order.customer_last_name}</p>
+        <p><strong>E-Mail:</strong> ${order.customer_email}</p>
+        <p><strong>Gesamt:</strong> ${formatCurrency(order.total)}</p>
+        ${order.referral_code ? `<p><strong>Empfehlungscode:</strong> ${order.referral_code}</p>` : ''}
+        <hr>
+        ${itemsHtml ? `<table style="width:100%;border-collapse:collapse;"><tr><th style="background:#00B4B4;color:white;padding:8px;">Produkt</th><th style="background:#00B4B4;color:white;padding:8px;">Menge</th><th style="background:#00B4B4;color:white;padding:8px;">Preis</th></tr>${itemsHtml}</table>` : ''}
+      `
+    });
+  } catch (e) { console.error('Admin notification failed:', e.message); }
+
+  // Send notification to referring partner if exists
+  if (order.partner_email) {
+    try {
+      await sendEmail({
+        to: order.partner_email,
+        subject: `Neue Bestellung ueber Ihren Empfehlungslink - #${order.order_number}`,
+        html: `
+          <h2>Gute Nachrichten!</h2>
+          <p>Ueber Ihren Empfehlungslink wurde eine neue Bestellung aufgegeben.</p>
+          <p><strong>Bestellnummer:</strong> ${order.order_number}</p>
+          <p><strong>Betrag:</strong> ${formatCurrency(order.total)}</p>
+          <p>Die Provision wird Ihrem Konto gutgeschrieben.</p>
+        `
+      });
+    } catch (e) { console.error('Partner notification failed:', e.message); }
+  }
 };
 
 /**

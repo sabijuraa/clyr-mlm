@@ -85,9 +85,14 @@ const HomePage = () => {
                 <>More than Water.<br /><span className="text-primary-300">A New Standard</span> for<br />Health and Quality of Life.</>)}
             </motion.h1>
             <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.3 }}
-              className="text-lg md:text-xl text-secondary-200 max-w-2xl mx-auto leading-relaxed mb-12">
+              className="text-lg md:text-xl text-secondary-200 max-w-2xl mx-auto leading-relaxed mb-6">
               {t('CLYR verbindet modernste Wassertechnologie mit dem Anspruch, Gesundheit, Komfort und Lifestyle auf ein neues Niveau zu bringen.',
                 'CLYR combines cutting-edge water technology with the aspiration to elevate health, comfort and lifestyle to a new level.')}
+            </motion.p>
+            <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.35 }}
+              className="text-base md:text-lg text-primary-300 font-semibold max-w-2xl mx-auto mb-12">
+              {t('Weltweit einzigartig: Gefiltertes Sprudelwasser direkt aus dem Wasserhahn - eine Innovation, die es sonst nirgends gibt.',
+                'World-first innovation: Filtered sparkling water straight from your tap - available nowhere else.')}
             </motion.p>
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.45 }}
               className="flex flex-col sm:flex-row gap-4 justify-center mb-16">

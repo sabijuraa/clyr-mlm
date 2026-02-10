@@ -207,7 +207,7 @@ async function seed() {
         name: 'Aroma Kartuschen 3er Set - Eukalyptus', name_en: 'Aroma Cartridges 3-Pack Eucalyptus', slug: 'aroma-kartuschen-eukalyptus', sku: 'CLYR-AK-EUK',
         description: '3er Set Aroma-Kartuschen mit Eukalyptus-Duft und Vitamin-C.',
         short_description: '3er Set Aroma-Kartuschen Eukalyptus.',
-        price: 48.00, category_slug: 'zubehoer', stock: 100,
+        price: 48.00, category_slug: 'duschen', stock: 100,
         images: JSON.stringify(['/images/products/aroma-kartuschen.png']),
         features: JSON.stringify(['3 Kartuschen', 'Eukalyptus-Duft', 'Vitamin-C']),
         is_featured: false, is_new: false, is_large_item: false, product_type: 'physical'
@@ -216,7 +216,7 @@ async function seed() {
         name: 'Aroma Kartuschen 3er Set - Zitrone', name_en: 'Aroma Cartridges 3-Pack Lemon', slug: 'aroma-kartuschen-zitrone', sku: 'CLYR-AK-LEM',
         description: '3er Set Aroma-Kartuschen mit Zitronen-Duft und Vitamin-C.',
         short_description: '3er Set Aroma-Kartuschen Zitrone.',
-        price: 48.00, category_slug: 'zubehoer', stock: 100,
+        price: 48.00, category_slug: 'duschen', stock: 100,
         images: JSON.stringify(['/images/products/aroma-kartuschen.png']),
         features: JSON.stringify(['3 Kartuschen', 'Zitronen-Duft', 'Vitamin-C']),
         is_featured: false, is_new: false, is_large_item: false, product_type: 'physical'
@@ -225,7 +225,7 @@ async function seed() {
         name: 'Aroma Kartuschen 3er Set - Pfefferminze', name_en: 'Aroma Cartridges 3-Pack Peppermint', slug: 'aroma-kartuschen-pfefferminze', sku: 'CLYR-AK-PFE',
         description: '3er Set Aroma-Kartuschen mit Pfefferminz-Duft und Vitamin-C.',
         short_description: '3er Set Aroma-Kartuschen Pfefferminze.',
-        price: 48.00, category_slug: 'zubehoer', stock: 100,
+        price: 48.00, category_slug: 'duschen', stock: 100,
         images: JSON.stringify(['/images/products/aroma-kartuschen.png']),
         features: JSON.stringify(['3 Kartuschen', 'Pfefferminz-Duft', 'Vitamin-C']),
         is_featured: false, is_new: false, is_large_item: false, product_type: 'physical'
@@ -239,6 +239,17 @@ async function seed() {
         features: JSON.stringify(['Alle 6 Monate', 'Kostenloser Versand', 'Jederzeit kuendbar']),
         is_featured: false, is_new: false, is_large_item: false, requires_installation: false, track_stock: false,
         product_type: 'subscription', subscription_interval_months: 6, is_subscription_eligible: true
+      },
+      // DIENSTLEISTUNG: Professionelle Montage
+      {
+        name: 'Professionelle Montage', name_en: 'Professional Installation', slug: 'professionelle-montage', sku: 'CLYR-MONTAGE',
+        description: 'Professionelle Installation Ihrer CLYR Soda Anlage durch unsere zertifizierten Techniker. Preis auf Anfrage - kontaktieren Sie uns fuer ein individuelles Angebot.',
+        short_description: 'Professionelle Installation durch zertifizierte Techniker. Preis auf Anfrage.',
+        price: 0, category_slug: 'dienstleistungen', stock: 999,
+        images: JSON.stringify(['/images/products/clyr-soda-system.png']),
+        features: JSON.stringify(['Zertifizierte Techniker', 'Terminvereinbarung', 'Preis auf Anfrage']),
+        is_featured: false, is_new: false, is_large_item: false, requires_installation: false, track_stock: false,
+        product_type: 'service'
       }
     ];
 

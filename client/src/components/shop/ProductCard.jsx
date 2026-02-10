@@ -151,12 +151,20 @@ const ProductCard = ({ product, index = 0 }) => {
             {/* Price & Shipping */}
             <div className="flex items-end justify-between">
               <div>
-                <p className="text-2xl font-bold text-secondary-700">
-                  {formatCurrency(product.price)}
-                </p>
-                <p className="text-xs text-secondary-500 mt-0.5">
-                  {lang === 'de' ? 'inkl. MwSt.' : 'incl. VAT'}
-                </p>
+                {parseFloat(product.price) > 0 ? (
+                  <>
+                    <p className="text-2xl font-bold text-secondary-700">
+                      {formatCurrency(product.price)}
+                    </p>
+                    <p className="text-xs text-secondary-500 mt-0.5">
+                      {lang === 'de' ? 'netto zzgl. MwSt.' : 'net excl. VAT'}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-lg font-bold text-primary-600">
+                    {lang === 'de' ? 'Preis auf Anfrage' : 'Price on request'}
+                  </p>
+                )}
               </div>
               
               {product.is_large_item && (
