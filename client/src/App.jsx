@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useAuth } from './context/AuthContext';
 import ScrollToTop from './components/common/ScrollToTop';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Layouts
 import AdminLayout from './components/AdminLayout';
@@ -125,6 +126,7 @@ function App() {
     <>
       <ScrollToTop />
       <div className="min-h-screen flex flex-col bg-gray-50">
+        <ErrorBoundary>
         <Suspense fallback={<Loading />}>
           <Routes>
             {/* ====== PUBLIC ROUTES (with Navbar + Footer) ====== */}
@@ -201,6 +203,7 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
+        </ErrorBoundary>
         <CookieConsent />
       </div>
     </>

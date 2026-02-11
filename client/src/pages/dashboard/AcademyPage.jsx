@@ -23,11 +23,14 @@ const AcademyPage = () => {
       ]);
       if (contentRes.status === 'fulfilled') {
         const d = contentRes.value.data;
-        setContent(d.content || d.data || d.items || []);
+        // Handle: { data: { content: [...] } } or { content: [...] } or [...]
+        const items = d?.data?.content || d?.content || d?.data?.items || d?.items || d?.data || [];
+        setContent(Array.isArray(items) ? items : []);
       }
       if (progressRes.status === 'fulfilled') {
         const d = progressRes.value.data;
-        setProgress(d.progress || d.data || []);
+        const items = d?.data?.progress || d?.progress || d?.data || [];
+        setProgress(Array.isArray(items) ? items : []);
       }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
@@ -187,6 +190,13 @@ const AcademyPage = () => {
                   <h3 className="font-semibold text-secondary-700 mb-1 line-clamp-2">{item.title}</h3>
                   {item.description && (
                     <p className="text-sm text-gray-500 line-clamp-2 mb-3">{item.description}</p>
+                  )}
+
+                  {/* Show article/text content inline */}
+                  {item.content_text && item.type === 'article' && (
+                    <div className="text-sm text-secondary-600 mb-3 max-h-32 overflow-y-auto whitespace-pre-line border-l-2 border-gray-200 pl-3">
+                      {item.content_text}
+                    </div>
                   )}
 
                   {item.duration_minutes && (

@@ -24,12 +24,14 @@ export default function LegalPagesPage() {
         api.get('/faq/admin/all'),
       ]);
       if (legalRes.status === 'fulfilled') {
-        setLegalPages(legalRes.value.data.pages || []);
+        const d = legalRes.value.data;
+        setLegalPages(d?.pages || d?.data || []);
       }
       if (faqRes.status === 'fulfilled') {
-        setFaqItems(faqRes.value.data.items || []);
+        const d = faqRes.value.data;
+        setFaqItems(d?.items || d?.data || []);
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error('Load legal/faq error:', e); }
     finally { setLoading(false); }
   };
 

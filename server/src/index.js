@@ -52,7 +52,7 @@ const PORT = process.env.PORT || 5000;
 
 // Ensure upload directories exist
 import fs from 'fs';
-['uploads', 'uploads/cms', 'uploads/branding', 'uploads/products', 'uploads/academy', 'public/invoices'].forEach(dir => {
+['uploads', 'uploads/cms', 'uploads/branding', 'uploads/products', 'uploads/academy', 'public/invoices', 'public/images', 'public/images/products', 'public/images/branding'].forEach(dir => {
   const fullPath = path.join(__dirname, '..', dir);
   if (!fs.existsSync(fullPath)) fs.mkdirSync(fullPath, { recursive: true });
 });
@@ -179,9 +179,9 @@ app.use('/api/gdpr', gdprRoutes);
 
 // NEW ROUTES - WordPress-like Admin Features
 app.use('/api', brandingRoutes);        // Branding management (logo, colors)
-app.use('/api', settingsRoutes);        // Legal pages, company settings, invoices
+app.use('/api/legal', legalRoutes);     // Legal pages CMS (#41, #39) - BEFORE settings to avoid conflicts
+app.use('/api', settingsRoutes);        // Company settings, invoices (legal removed from here)
 app.use('/api/faq', faqRoutes);         // FAQ management (#38)
-app.use('/api/legal', legalRoutes);     // Legal pages CMS (#41, #39)
 app.use('/api/compliance', complianceRoutes); // Legal compliance (#50, #55, #57)
 
 // ========================================

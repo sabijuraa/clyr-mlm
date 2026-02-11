@@ -3,6 +3,11 @@ import multer from 'multer';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import path from 'path';
 import crypto from 'crypto';
+import { fileURLToPath } from 'url';
+
+const __upload_filename = fileURLToPath(import.meta.url);
+const __upload_dirname = path.dirname(__upload_filename);
+const SERVER_ROOT = path.resolve(__upload_dirname, '../..');
 
 // ========================================
 // DIGITALOCEAN SPACES CONFIGURATION
@@ -82,11 +87,14 @@ export const uploadToSpaces = async (file, folder = 'general') => {
     // If DO Spaces keys are not configured, save locally to public/images
     if (!process.env.DO_SPACES_KEY || !process.env.DO_SPACES_SECRET) {
       const { writeFileSync, mkdirSync, existsSync } = await import('fs');
-      const localDir = path.join(path.dirname(new URL(import.meta.url).pathname), `../../public/images/${folder}`);
+      const localDir = path.join(SERVER_ROOT, 'public/images', folder);
       if (!existsSync(localDir)) mkdirSync(localDir, { recursive: true });
       const localFilename = `${crypto.randomBytes(16).toString('hex')}${fileExtension}`;
-      writeFileSync(`${localDir}/${localFilename}`, file.buffer);
-      return `/images/${folder}/${localFilename}`;
+      const fullPath = `${localDir}/${localFilename}`;
+      writeFileSync(fullPath, file.buffer);
+      const url = `/images/${folder}/${localFilename}`;
+      console.log(`[Upload] Saved locally: ${fullPath} → served at ${url}`);
+      return url;
     }
 
     const uploadParams = {
@@ -108,7 +116,7 @@ export const uploadToSpaces = async (file, folder = 'general') => {
     try {
       const { writeFileSync, mkdirSync, existsSync } = await import('fs');
       const fileExtension = path.extname(file.originalname);
-      const localDir = path.join(path.dirname(new URL(import.meta.url).pathname), `../../public/images/${folder}`);
+      const localDir = path.join(SERVER_ROOT, 'public/images', folder);
       if (!existsSync(localDir)) mkdirSync(localDir, { recursive: true });
       const localFilename = `${crypto.randomBytes(16).toString('hex')}${fileExtension}`;
       writeFileSync(`${localDir}/${localFilename}`, file.buffer);

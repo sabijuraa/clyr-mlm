@@ -15,19 +15,14 @@ const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
-// Public routes
-router.get('/legal/:type', settingsController.getLegalDocument);
-router.get('/legal', settingsController.getAllLegalDocuments);
+// Public routes (legal routes removed - handled by /api/legal via legal.routes.js)
 router.get('/company', settingsController.getCompanySettings);
 router.get('/shipping-rules', settingsController.getShippingRules);
 router.get('/return-policy', settingsController.getReturnPolicy);
 router.get('/shipping-costs', settingsController.getShippingCosts);
 router.get('/vat-rates', settingsController.getVatRates);
 
-// Admin routes - Legal documents
-router.put('/admin/legal/:type', authenticate, isAdmin, settingsController.updateLegalDocument);
-
-// Admin routes - Company settings
+// Admin routes - Company settings (legal routes removed - handled by legal.routes.js)
 router.put('/admin/company', authenticate, isAdmin, settingsController.updateCompanySettings);
 
 // Admin routes - Shipping rules

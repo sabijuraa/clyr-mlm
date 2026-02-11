@@ -40,7 +40,8 @@ export default function AdminAcademyPage() {
     try {
       const response = await api.get('/academy/admin/all');
       const data = response.data;
-      setContent(data.data || data.content || data.items || data || []);
+      const items = data?.data || data?.content || data?.items || [];
+      setContent(Array.isArray(items) ? items : []);
     } catch (e) {
       console.error('Failed to load academy content:', e);
       toast.error('Fehler beim Laden der Academy-Inhalte');
@@ -149,8 +150,8 @@ export default function AdminAcademyPage() {
         {[
           { label: 'Gesamt', value: content.length, color: 'blue' },
           { label: 'Aktiv', value: content.filter(c => c.is_active).length, color: 'green' },
-          { label: 'Artikel', value: content.filter(c => c.content_type === 'article').length, color: 'purple' },
-          { label: 'Videos', value: content.filter(c => c.content_type === 'video').length, color: 'red' },
+          { label: 'Artikel', value: content.filter(c => (c.type || c.content_type) === 'article').length, color: 'purple' },
+          { label: 'Videos', value: content.filter(c => (c.type || c.content_type) === 'video').length, color: 'red' },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4">
             <p className="text-2xl font-bold text-gray-900">{s.value}</p>
