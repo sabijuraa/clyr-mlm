@@ -145,7 +145,7 @@ export default function AdminAcademyPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         {[
           { label: 'Gesamt', value: content.length, color: 'blue' },
           { label: 'Aktiv', value: content.filter(c => c.is_active).length, color: 'green' },

@@ -61,7 +61,7 @@ const Modal = ({
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: 'spring', duration: 0.3 }}
             className={cn(
-              'relative w-full bg-white rounded-2xl shadow-2xl overflow-hidden',
+              'relative w-full bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col',
               sizes[size],
               className
             )}

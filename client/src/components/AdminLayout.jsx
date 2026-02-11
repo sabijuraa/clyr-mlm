@@ -2,7 +2,6 @@
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 
-// Icon Components (inline SVG)
 const Icons = {
   Dashboard: () => (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -50,18 +49,13 @@ const Icons = {
     </svg>
   ),
   Menu: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
     </svg>
   ),
-  ChevronLeft: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-    </svg>
-  ),
-  ChevronRight: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+  Close: () => (
+    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
     </svg>
   ),
 };
@@ -69,10 +63,10 @@ const Icons = {
 export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  // #12: Scroll to top on route change
   useEffect(() => {
+    setMobileOpen(false);
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [location.pathname]);
 
@@ -101,110 +95,108 @@ export default function AdminLayout() {
   ];
 
   const isActive = (path) => {
-    if (path === '/admin') {
-      return location.pathname === '/admin';
-    }
+    if (path === '/admin') return location.pathname === '/admin';
     return location.pathname.startsWith(path);
   };
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100">
+      {/* Mobile Overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-secondary-800 text-white transition-all duration-300 flex flex-col h-screen shrink-0`}>
-        {/* Header */}
-        <div className="p-3 border-b border-secondary-600 shrink-0">
-          <div className="flex items-center justify-between">
-            {sidebarOpen && (
+      <aside
+        className={`
+          fixed top-0 left-0 h-full w-64 bg-secondary-800 text-white z-50
+          transform transition-transform duration-300 ease-in-out
+          lg:translate-x-0
+          ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+      >
+        <div className="flex flex-col h-full">
+          {/* Header */}
+          <div className="p-3 border-b border-secondary-600 shrink-0">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <img src="/images/clyr-logo.png" alt="CLYR" className="w-8 h-8 rounded-lg object-contain bg-white p-1" />
                 <h1 className="text-lg font-bold text-white">CLYR Admin</h1>
               </div>
-            )}
+              <button
+                onClick={() => setMobileOpen(false)}
+                className="lg:hidden p-1.5 rounded-lg hover:bg-secondary-600 transition-colors"
+              >
+                <Icons.Close />
+              </button>
+            </div>
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1 px-2 py-2 space-y-0.5 overflow-y-auto">
+            {menuItems.map((item) => {
+              const IconComponent = item.icon;
+              const active = isActive(item.path);
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  onClick={() => setMobileOpen(false)}
+                  className={`
+                    flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all text-sm
+                    ${active
+                      ? 'bg-white text-secondary-700 shadow font-semibold'
+                      : 'text-secondary-200 hover:bg-secondary-600 hover:text-white'
+                    }
+                  `}
+                >
+                  <IconComponent />
+                  <span className="font-medium">{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Logout */}
+          <div className="p-2 border-t border-secondary-600 shrink-0">
             <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-1.5 rounded-lg hover:bg-secondary-600 transition-colors"
-              title={sidebarOpen ? 'Sidebar schliessen' : 'Sidebar oeffnen'}
+              onClick={handleLogout}
+              className="flex items-center gap-2.5 px-3 py-2 w-full rounded-lg text-sm text-secondary-200 hover:bg-red-600 hover:text-white transition-all"
             >
-              {sidebarOpen ? <Icons.ChevronLeft /> : <Icons.ChevronRight />}
+              <Icons.Logout />
+              <span className="font-medium">Abmelden</span>
             </button>
           </div>
-        </div>
-
-        {/* Navigation - scrollable */}
-        <nav className="flex-1 px-2 py-2 space-y-0.5 overflow-y-auto">
-          {menuItems.map((item) => {
-            const IconComponent = item.icon;
-            const active = isActive(item.path);
-            
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`
-                  flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all text-sm
-                  ${active 
-                    ? 'bg-white text-secondary-700 shadow font-semibold' 
-                    : 'text-secondary-200 hover:bg-secondary-600 hover:text-white'
-                  }
-                  ${!sidebarOpen && 'justify-center'}
-                `}
-                title={!sidebarOpen ? item.label : ''}
-              >
-                <IconComponent />
-                {sidebarOpen && (
-                  <span className="font-medium">{item.label}</span>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Logout Button */}
-        <div className="p-2 border-t border-secondary-600 shrink-0">
-          <button
-            onClick={handleLogout}
-            className={`
-              flex items-center gap-2.5 px-3 py-2 w-full rounded-lg text-sm
-              text-secondary-200 hover:bg-red-600 hover:text-white transition-all
-              ${!sidebarOpen && 'justify-center'}
-            `}
-            title={!sidebarOpen ? 'Abmelden' : ''}
-          >
-            <Icons.Logout />
-            {sidebarOpen && <span className="font-medium">Abmelden</span>}
-          </button>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
-        {/* Header */}
-        <div className="bg-white shadow-sm border-b sticky top-0 z-10">
-          <div className="px-6 py-4 flex items-center justify-between">
-            <h2 className="text-2xl font-semibold text-gray-800">
-              {menuItems.find(item => isActive(item.path))?.label || 'Verwaltung'}
-            </h2>
-            
-            {/* User Info */}
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <p className="text-sm font-medium text-gray-700">
-                  {localStorage.getItem('userName') || 'Admin'}
-                </p>
-                <p className="text-xs text-gray-500">Administrator</p>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary-500 to-secondary-600 flex items-center justify-center text-white font-semibold">
-                {(localStorage.getItem('userName') || 'A')[0].toUpperCase()}
-              </div>
+      <div className="lg:ml-64 min-h-screen">
+        {/* Mobile Top Bar */}
+        <header className="sticky top-0 bg-white border-b border-gray-200 z-30 lg:hidden">
+          <div className="flex items-center justify-between px-4 py-3">
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <Icons.Menu />
+            </button>
+            <div className="flex items-center gap-2">
+              <img src="/images/clyr-logo.png" alt="CLYR" className="w-7 h-7 rounded-lg object-contain" />
+              <span className="font-bold text-secondary-700">Admin</span>
             </div>
+            <div className="w-10" />
           </div>
-        </div>
+        </header>
 
         {/* Page Content */}
-        <div className="p-6">
+        <main className="p-4 sm:p-6">
           <Outlet />
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

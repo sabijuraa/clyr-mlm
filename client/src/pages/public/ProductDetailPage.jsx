@@ -121,7 +121,7 @@ const ProductDetailPage = () => {
               </div>
               
               {images.length > 1 && (
-                <div className="flex gap-3">
+                <div className="flex gap-3 overflow-x-auto pb-2">
                   {images.map((img, idx) => (
                     <button
                       key={idx}
@@ -244,7 +244,7 @@ const ProductDetailPage = () => {
               </div>
 
               {/* Trust Badges */}
-              <div className="grid grid-cols-3 gap-4 pt-6 border-t border-gray-100">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 border-t border-gray-100">
                 {[
                   { icon: Truck, title: lang === 'de' ? 'Versand' : 'Shipping', sub: 'AT €55 / DE €70 / CH €180' },
                   { icon: Shield, title: lang === 'de' ? '2 Jahre Garantie' : '2 Year Warranty', sub: lang === 'de' ? 'Voller Schutz' : 'Full coverage' },

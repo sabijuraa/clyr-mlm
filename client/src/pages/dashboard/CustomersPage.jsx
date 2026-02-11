@@ -185,7 +185,7 @@ const CustomersPage = () => {
         transition={{ delay: 0.2 }}
         className="bg-gradient-to-r from-secondary-600 to-secondary-700 rounded-2xl p-6 text-white"
       >
-        <div className="grid grid-cols-3 gap-4 text-center">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
           <div>
             <p className="text-4xl font-bold">{customers.length}</p>
             <p className="text-white/70">Kunden gesamt</p>

@@ -203,7 +203,7 @@ const AdminProductsPage = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl border border-gray-100 p-6">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-secondary-100 flex items-center justify-center">

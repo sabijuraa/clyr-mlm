@@ -396,7 +396,7 @@ const PartnerRegisterPage = () => {
                         {errors.street && <p className="mt-1 text-sm text-red-500">{errors.street.message}</p>}
                       </div>
 
-                      <div className="grid grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-secondary-700 mb-2">
                             {lang === 'de' ? 'PLZ' : 'Postal Code'} <span className="text-red-500">*</span>
@@ -406,7 +406,7 @@ const PartnerRegisterPage = () => {
                             className={inputClass(errors.zip)}
                           />
                         </div>
-                        <div className="col-span-2">
+                        <div className="sm:col-span-2">
                           <label className="block text-sm font-medium text-secondary-700 mb-2">
                             {lang === 'de' ? 'Stadt' : 'City'} <span className="text-red-500">*</span>
                           </label>

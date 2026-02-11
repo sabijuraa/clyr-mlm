@@ -89,7 +89,7 @@ export default function AdminNewsletterPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {[
           { label: 'Gesamt', value: stats.total || subscribers.length, icon: Users, color: 'blue' },
           { label: 'Aktiv', value: stats.active || subscribers.filter(s => s.status === 'active').length, icon: Mail, color: 'green' },

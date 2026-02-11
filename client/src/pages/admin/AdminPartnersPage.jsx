@@ -291,7 +291,7 @@ const AdminPartnersPage = () => {
                   </div>
 
                   {/* Stats */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-6 bg-gray-50 border-b border-gray-100">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-6 bg-gray-50 border-b border-gray-100">
                     {[
                       { label: 'Bestellungen', value: partnerDetail.stats?.total_orders || 0, icon: ShoppingBag },
                       { label: 'Umsatz', value: formatCurrency(partnerDetail.stats?.total_revenue || 0), icon: TrendingUp },
