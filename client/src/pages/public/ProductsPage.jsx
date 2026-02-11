@@ -102,19 +102,9 @@ export default function ProductsPage() {
   };
 
   const getProductImage = (product) => {
-    let images = product.images || [];
-    // Parse JSON if it's a string
-    if (typeof images === 'string') {
-      try {
-        images = JSON.parse(images);
-      } catch (e) {
-        console.error('Failed to parse product images:', e);
-        images = [];
-      }
-    }
-    if (Array.isArray(images) && images.length > 0) return images[0];
-    // Fallback to placeholder
-    return '/images/placeholder-product.png';
+    const images = product.images || [];
+    if (images.length > 0) return images[0];
+    return null;
   };
 
   const activeCategoryData = categories.find(c => c.slug === activeCategory);

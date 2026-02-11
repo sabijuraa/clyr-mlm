@@ -7,8 +7,6 @@ const router = express.Router();
 // Public routes
 router.get('/product/:slug', variantController.getProductWithVariants);
 router.get('/product/:productId/options', variantController.getProductVariants);
-router.post('/calculate-price', variantController.calculatePrice);
-router.get('/order-items/:orderItemId/variants', variantController.getOrderItemVariants);
 
 // Admin routes
 router.get('/options', authenticate, requireRole('admin'), variantController.getVariantOptions);

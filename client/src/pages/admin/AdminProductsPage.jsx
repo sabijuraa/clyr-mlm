@@ -43,15 +43,7 @@ const AdminProductsPage = () => {
         productsAPI.getCategories(),
         productsAPI.getStats().catch(() => ({ data: {} }))
       ]);
-      
-      // Parse images if they're JSON strings
-      const productsData = productsRes.data || [];
-      const parsedProducts = productsData.map(p => ({
-        ...p,
-        images: typeof p.images === 'string' ? JSON.parse(p.images || '[]') : (p.images || [])
-      }));
-      
-      setProducts(parsedProducts);
+      setProducts(productsRes.data || []);
       setCategories(categoriesRes.data || []);
       setStats(statsRes.data || {});
     } catch (err) {
