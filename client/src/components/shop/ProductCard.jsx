@@ -47,10 +47,10 @@ const ProductCard = ({ product, index = 0 }) => {
       onMouseLeave={() => setIsHovered(false)}
       className="group"
     >
-      <Link to={`/product/${product.slug}`}>
-        <div className="bg-white rounded-2xl overflow-hidden shadow-lg shadow-secondary-900/5 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+      <Link to={`/product/${product.slug}`} className="h-full">
+        <div className="bg-white rounded-2xl overflow-hidden shadow-lg shadow-secondary-900/5 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-full flex flex-col">
           {/* Image Container */}
-          <div className="relative aspect-square overflow-hidden bg-secondary-50">
+          <div className="relative aspect-square overflow-hidden bg-secondary-50 shrink-0">
             {/* Loading skeleton */}
             {!imageLoaded && (
               <div className="absolute inset-0 bg-secondary-200 animate-pulse" />
@@ -61,7 +61,7 @@ const ProductCard = ({ product, index = 0 }) => {
               src={mainImage}
               alt={product.name}
               onLoad={() => setImageLoaded(true)}
-              className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+              className={`w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-500 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
             />
 
             {/* Badges - Charcoal badges */}
@@ -128,7 +128,7 @@ const ProductCard = ({ product, index = 0 }) => {
           </div>
 
           {/* Content */}
-          <div className="p-5">
+          <div className="p-5 flex flex-col flex-1">
             {/* Category - Teal accent */}
             {product.category && (
               <p className="text-xs font-medium text-primary-500 uppercase tracking-wider mb-1">
@@ -137,19 +137,19 @@ const ProductCard = ({ product, index = 0 }) => {
             )}
 
             {/* Name - Charcoal text */}
-            <h3 className="font-heading font-semibold text-secondary-700 mb-2 line-clamp-2 group-hover:text-primary-500 transition-colors">
+            <h3 className="font-heading font-semibold text-secondary-700 mb-2 line-clamp-1 group-hover:text-primary-500 transition-colors">
               {product.name}
             </h3>
 
             {/* Short Description */}
             {product.short_description && (
-              <p className="text-sm text-secondary-500 mb-3 line-clamp-2">
+              <p className="text-sm text-secondary-500 mb-3 line-clamp-2 min-h-[2.5rem]">
                 {product.short_description}
               </p>
             )}
 
             {/* Price & Shipping */}
-            <div className="flex items-end justify-between">
+            <div className="flex items-end justify-between mt-auto pt-3">
               <div>
                 {parseFloat(product.price) > 0 ? (
                   <>

@@ -110,80 +110,69 @@ export default function AdminLayout() {
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
-      <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-secondary-800 text-white transition-all duration-300 flex flex-col min-h-screen`}>
-        <div className="flex-1 flex flex-col">
-          {/* Header */}
-          <div className="p-4 border-b border-secondary-600">
-            <div className="flex items-center justify-between">
-              {sidebarOpen && (
-                <div className="flex items-center gap-3">
-                  <img src="/images/clyr-logo.png" alt="CLYR" className="w-9 h-9 rounded-lg object-contain bg-white p-1" />
-                  <h1 className="text-xl font-bold text-white">
-                    CLYR Admin
-                  </h1>
-                </div>
-              )}
-              <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="p-2 rounded-lg hover:bg-secondary-600 transition-colors"
-                title={sidebarOpen ? 'Sidebar schließen' : 'Sidebar öffnen'}
-              >
-                {sidebarOpen ? <Icons.ChevronLeft /> : <Icons.ChevronRight />}
-              </button>
-            </div>
-          </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-            {menuItems.map((item) => {
-              const IconComponent = item.icon;
-              const active = isActive(item.path);
-              
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`
-                    flex items-center gap-3 px-3 py-3 rounded-lg transition-all
-                    ${active 
-                      ? 'bg-white text-secondary-700 shadow-lg font-semibold' 
-                      : 'text-secondary-200 hover:bg-secondary-600 hover:text-white'
-                    }
-                    ${!sidebarOpen && 'justify-center'}
-                  `}
-                  title={!sidebarOpen ? item.label : ''}
-                >
-                  <IconComponent />
-                  {sidebarOpen && (
-                    <span className="font-medium">{item.label}</span>
-                  )}
-                  {sidebarOpen && active && (
-                    <span className="ml-auto">
-                      <svg className="w-2 h-2 fill-primary-500" viewBox="0 0 8 8">
-                        <circle cx="4" cy="4" r="3" />
-                      </svg>
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* Logout Button */}
-          <div className="p-3 border-t border-secondary-600">
+      <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-secondary-800 text-white transition-all duration-300 flex flex-col h-screen shrink-0`}>
+        {/* Header */}
+        <div className="p-3 border-b border-secondary-600 shrink-0">
+          <div className="flex items-center justify-between">
+            {sidebarOpen && (
+              <div className="flex items-center gap-2">
+                <img src="/images/clyr-logo.png" alt="CLYR" className="w-8 h-8 rounded-lg object-contain bg-white p-1" />
+                <h1 className="text-lg font-bold text-white">CLYR Admin</h1>
+              </div>
+            )}
             <button
-              onClick={handleLogout}
-              className={`
-                flex items-center gap-3 px-3 py-3 w-full rounded-lg
-                text-secondary-200 hover:bg-red-600 hover:text-white transition-all
-                ${!sidebarOpen && 'justify-center'}
-              `}
-              title={!sidebarOpen ? 'Abmelden' : ''}
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-1.5 rounded-lg hover:bg-secondary-600 transition-colors"
+              title={sidebarOpen ? 'Sidebar schliessen' : 'Sidebar oeffnen'}
             >
-              <Icons.Logout />
-              {sidebarOpen && <span className="font-medium">Abmelden</span>}
+              {sidebarOpen ? <Icons.ChevronLeft /> : <Icons.ChevronRight />}
             </button>
           </div>
+        </div>
+
+        {/* Navigation - scrollable */}
+        <nav className="flex-1 px-2 py-2 space-y-0.5 overflow-y-auto">
+          {menuItems.map((item) => {
+            const IconComponent = item.icon;
+            const active = isActive(item.path);
+            
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`
+                  flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all text-sm
+                  ${active 
+                    ? 'bg-white text-secondary-700 shadow font-semibold' 
+                    : 'text-secondary-200 hover:bg-secondary-600 hover:text-white'
+                  }
+                  ${!sidebarOpen && 'justify-center'}
+                `}
+                title={!sidebarOpen ? item.label : ''}
+              >
+                <IconComponent />
+                {sidebarOpen && (
+                  <span className="font-medium">{item.label}</span>
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Logout Button */}
+        <div className="p-2 border-t border-secondary-600 shrink-0">
+          <button
+            onClick={handleLogout}
+            className={`
+              flex items-center gap-2.5 px-3 py-2 w-full rounded-lg text-sm
+              text-secondary-200 hover:bg-red-600 hover:text-white transition-all
+              ${!sidebarOpen && 'justify-center'}
+            `}
+            title={!sidebarOpen ? 'Abmelden' : ''}
+          >
+            <Icons.Logout />
+            {sidebarOpen && <span className="font-medium">Abmelden</span>}
+          </button>
         </div>
       </aside>
 

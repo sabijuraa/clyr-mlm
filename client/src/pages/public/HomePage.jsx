@@ -265,22 +265,31 @@ const HomePage = () => {
           {loading ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">{[1,2,3,4].map(i => <div key={i} className="bg-gray-50 rounded-2xl h-96 animate-pulse" />)}</div>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
               {featuredProducts.slice(0, 4).map((product, index) => {
-                const images = product.images || [];
-                const imgSrc = images.length > 0 ? images[0] : '/images/products/complete-set.png';
+                let images = product.images || [];
+                if (typeof images === 'string') { try { images = JSON.parse(images); } catch(e) { images = []; } }
+                const imgSrc = images.length > 0 ? images[0] : '/images/products/clyr-soda-system.png';
+                const price = typeof product.price === 'string' ? parseFloat(product.price) : product.price;
                 return (
-                  <motion.div key={product.id} initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp} custom={index * 0.5}>
-                    <Link to={`/product/${product.slug || product.id}`} className="group block bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all hover:-translate-y-1 border border-gray-100">
-                      <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 p-6 flex items-center justify-center">
+                  <motion.div key={product.id} initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp} custom={index * 0.5} className="h-full">
+                    <Link to={`/product/${product.slug || product.id}`} className="group block bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all hover:-translate-y-1 border border-gray-100 h-full flex flex-col">
+                      <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 p-6 flex items-center justify-center shrink-0">
                         <img src={imgSrc} alt={product.name} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300" />
                       </div>
-                      <div className="p-6">
-                        <h3 className="font-semibold text-secondary-800 mb-2 text-lg group-hover:text-primary-500 transition-colors">{product.name}</h3>
-                        <div className="flex items-center justify-between">
-                          <div className="text-2xl font-bold text-secondary-800">{formatCurrency(product.price_gross || product.price)}</div>
+                      <div className="p-5 flex flex-col flex-1">
+                        <h3 className="font-semibold text-secondary-800 mb-2 text-base group-hover:text-primary-500 transition-colors line-clamp-1">{product.name}</h3>
+                        <div className="flex items-center justify-between mt-auto pt-2">
+                          {price > 0 ? (
+                            <div>
+                              <div className="text-xl font-bold text-secondary-800">{formatCurrency(price)}</div>
+                              <div className="text-xs text-secondary-500">netto zzgl. MwSt.</div>
+                            </div>
+                          ) : (
+                            <div className="text-sm font-bold text-primary-600">Preis auf Anfrage</div>
+                          )}
                           <button onClick={(e) => handleAddToCart(e, product)} disabled={isInCart(product.id)}
-                            className={`p-3 rounded-xl transition-all ${isInCart(product.id) ? 'bg-green-100 text-green-600' : 'bg-secondary-800 text-white hover:bg-primary-500'}`}>
+                            className={`p-2.5 rounded-xl transition-all ${isInCart(product.id) ? 'bg-green-100 text-green-600' : 'bg-secondary-800 text-white hover:bg-primary-500'}`}>
                             {isInCart(product.id) ? <Check className="w-5 h-5" /> : <ShoppingBag className="w-5 h-5" />}
                           </button>
                         </div>
