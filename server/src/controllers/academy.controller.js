@@ -270,11 +270,20 @@ export const getProgressOverview = async (req, res) => {
  */
 export const createContent = async (req, res) => {
   try {
-    const {
-      title, titleEn, slug, description, descriptionEn,
-      type, category, contentUrl, contentText,
-      durationMinutes, minRankLevel, isRequired, sortOrder
-    } = req.body;
+    const b = req.body;
+    const title = b.title;
+    const titleEn = b.titleEn || b.title_en || '';
+    const slug = b.slug || b.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const description = b.description || '';
+    const descriptionEn = b.descriptionEn || b.description_en || '';
+    const type = b.type || b.content_type || 'article';
+    const category = b.category || 'getting-started';
+    const contentUrl = b.contentUrl || b.content_url || b.video_url || '';
+    const contentText = b.contentText || b.content_text || b.content_body || '';
+    const durationMinutes = b.durationMinutes || b.duration_minutes || 0;
+    const minRankLevel = b.minRankLevel || b.min_rank_level || 1;
+    const isRequired = b.isRequired || b.is_required || false;
+    const sortOrder = b.sortOrder || b.sort_order || 0;
 
     const result = await query(
       `INSERT INTO academy_content (
@@ -317,11 +326,21 @@ export const createContent = async (req, res) => {
 export const updateContent = async (req, res) => {
   try {
     const { id } = req.params;
-    const {
-      title, titleEn, description, descriptionEn,
-      type, category, contentUrl, contentText,
-      durationMinutes, minRankLevel, isRequired, sortOrder, isActive
-    } = req.body;
+    const b = req.body;
+    // Accept both camelCase and snake_case field names
+    const title = b.title;
+    const titleEn = b.titleEn || b.title_en;
+    const description = b.description;
+    const descriptionEn = b.descriptionEn || b.description_en;
+    const type = b.type || b.content_type;
+    const category = b.category;
+    const contentUrl = b.contentUrl || b.content_url || b.video_url;
+    const contentText = b.contentText || b.content_text || b.content_body;
+    const durationMinutes = b.durationMinutes || b.duration_minutes;
+    const minRankLevel = b.minRankLevel || b.min_rank_level;
+    const isRequired = b.isRequired !== undefined ? b.isRequired : b.is_required;
+    const sortOrder = b.sortOrder || b.sort_order;
+    const isActive = b.isActive !== undefined ? b.isActive : b.is_active;
 
     const result = await query(
       `UPDATE academy_content SET

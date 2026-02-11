@@ -48,8 +48,8 @@ const appConfig = {
   // Per Theresa: "Shipping costs 69€" (Austria)
   // Per Theresa: "Shipping costs 180€" (Switzerland)
   shipping: {
-    DE: 50,    // Germany: €50 flat
-    AT: 69,    // Austria: €69 flat  
+    DE: 70,    // Germany: €70 flat
+    AT: 55,    // Austria: €55 flat  
     CH: 180    // Switzerland: €180 flat
   },
 

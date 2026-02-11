@@ -10,7 +10,7 @@ const brandConfig = {
     description: 'Premium Wassersysteme fuer reines, frisches Trinkwasser und erfrischende Duscherlebnisse.',
     descriptionEn: 'Premium water systems for pure, fresh drinking water and refreshing shower experiences.',
     email: 'service@clyr.shop',
-    phone: '+43 660 123 4567',
+    phone: '+43 664 2520432',
     website: 'https://clyr.shop',
     // #47: Correct company address
     address: {
@@ -86,8 +86,8 @@ const brandConfig = {
   },
 
   social: {
-    facebook: 'https://facebook.com/clyr.water',
-    instagram: 'https://instagram.com/clyr.water',
+    facebook: 'https://www.facebook.com/share/1G4vZd8VaL/?mibextid=wwXIfr',
+    instagram: 'https://www.instagram.com/clyr.solutions?igsh=MTVsbTE5cHkyOGhtdQ==',
     youtube: 'https://youtube.com/@clyr-water',
   },
 

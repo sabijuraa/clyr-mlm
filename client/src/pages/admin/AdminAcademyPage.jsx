@@ -39,7 +39,8 @@ export default function AdminAcademyPage() {
   const loadContent = async () => {
     try {
       const response = await api.get('/academy/admin/all');
-      setContent(response.data.content || response.data.items || response.data || []);
+      const data = response.data;
+      setContent(data.data || data.content || data.items || data || []);
     } catch (e) {
       console.error('Failed to load academy content:', e);
       toast.error('Fehler beim Laden der Academy-Inhalte');
@@ -50,18 +51,33 @@ export default function AdminAcademyPage() {
     if (!form.title) return toast.error('Titel ist erforderlich');
     setSaving(true);
     try {
+      // Map form fields to server field names
+      const slug = form.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const payload = {
+        title: form.title,
+        slug: slug,
+        description: form.description,
+        type: form.content_type || 'article',
+        category: form.category,
+        contentUrl: form.video_url || form.document_url || '',
+        contentText: form.content_body || '',
+        durationMinutes: form.duration_minutes || 0,
+        sortOrder: form.sort_order || 0,
+        isRequired: form.is_required || false,
+        is_active: form.is_active !== false
+      };
       if (editing) {
-        await api.put(`/academy/admin/content/${editing}`, form);
+        await api.put(`/academy/admin/content/${editing}`, payload);
         toast.success('Inhalt aktualisiert!');
       } else {
-        await api.post('/academy/admin/content', form);
+        await api.post('/academy/admin/content', payload);
         toast.success('Inhalt erstellt!');
       }
       setShowForm(false);
       setEditing(null);
       setForm(emptyForm);
       loadContent();
-    } catch (e) { toast.error('Fehler beim Speichern'); }
+    } catch (e) { toast.error('Fehler beim Speichern: ' + (e.response?.data?.message || e.message)); }
     finally { setSaving(false); }
   };
 
@@ -78,10 +94,10 @@ export default function AdminAcademyPage() {
     setForm({
       title: item.title || '',
       description: item.description || '',
-      content_body: item.content_body || item.content || '',
+      content_body: item.content_text || item.content_body || '',
       category: item.category || 'getting-started',
-      content_type: item.content_type || 'article',
-      video_url: item.video_url || '',
+      content_type: item.type || item.content_type || 'article',
+      video_url: item.content_url || item.video_url || '',
       document_url: item.document_url || '',
       thumbnail_url: item.thumbnail_url || '',
       duration_minutes: item.duration_minutes || 0,
@@ -95,7 +111,16 @@ export default function AdminAcademyPage() {
 
   const toggleActive = async (item) => {
     try {
-      await api.put(`/academy/admin/content/${item.id}`, { ...item, is_active: !item.is_active });
+      await api.put(`/academy/admin/content/${item.id}`, {
+        title: item.title,
+        slug: item.slug,
+        description: item.description,
+        type: item.type,
+        category: item.category,
+        contentUrl: item.content_url,
+        contentText: item.content_text,
+        is_active: !item.is_active
+      });
       loadContent();
     } catch (e) { toast.error('Fehler'); }
   };

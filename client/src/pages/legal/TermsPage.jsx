@@ -1,139 +1,108 @@
 import { motion } from 'framer-motion';
-import { FileText, ShoppingBag, Truck, CreditCard, RotateCcw, Scale, AlertTriangle } from 'lucide-react';
-import { useBrand } from '../../context/BrandContext';
+import { Scale } from 'lucide-react';
 
 const TermsPage = () => {
-  const { company, legal, companyName } = useBrand();
-  
-  const sections = [
-    {
-      icon: ShoppingBag,
-      title: '§1 Geltungsbereich',
-      content: `Diese Allgemeinen Geschäftsbedingungen gelten für alle Verträge zwischen 
-        ${legal?.companyName || companyName || 'CLYR Solutions GmbH'} und Verbrauchern sowie Unternehmern, 
-        die über unseren Online-Shop abgeschlossen werden. Abweichende Bedingungen des Kunden 
-        werden nicht anerkannt, es sei denn, wir stimmen ihrer Geltung ausdrücklich zu.`
-    },
-    {
-      icon: FileText,
-      title: '§2 Vertragsschluss',
-      content: `Die Darstellung der Produkte im Online-Shop stellt kein rechtlich bindendes 
-        Angebot, sondern eine Aufforderung zur Bestellung dar. Mit dem Absenden der Bestellung 
-        gibt der Kunde ein verbindliches Angebot ab. Der Vertrag kommt zustande, wenn wir die 
-        Bestellung durch eine Auftragsbestätigung per E-Mail annehmen.`
-    },
-    {
-      icon: CreditCard,
-      title: '§3 Preise und Zahlung',
-      content: `Alle Preise verstehen sich inklusive der gesetzlichen Mehrwertsteuer. 
-        Versandkosten werden gesondert ausgewiesen und sind vom Kunden zu tragen. 
-        Die Zahlung erfolgt über Stripe (Kreditkarte, PayPal, SEPA-Lastschrift). 
-        Die Abbuchung erfolgt mit Versand der Ware.`
-    },
-    {
-      icon: Truck,
-      title: '§4 Lieferung',
-      content: `Die Lieferzeit beträgt in der Regel 3-7 Werktage innerhalb Deutschlands 
-        und Österreichs, 5-10 Werktage in die Schweiz. Größere Artikel werden per Spedition 
-        geliefert. Der Versand erfolgt auf Risiko des Käufers. Bei Transportschäden bitten 
-        wir um sofortige Reklamation beim Zusteller.`
-    },
-    {
-      icon: RotateCcw,
-      title: '§5 Widerrufsrecht',
-      content: `Verbraucher haben das Recht, binnen 14 Tagen ohne Angabe von Gründen 
-        den Vertrag zu widerrufen. Die Widerrufsfrist beginnt mit Erhalt der Ware. 
-        Zur Wahrung der Frist genügt die rechtzeitige Absendung des Widerrufs. 
-        Details finden Sie in unserer Widerrufsbelehrung.`
-    },
-    {
-      icon: Scale,
-      title: '§6 Gewährleistung',
-      content: `Es gelten die gesetzlichen Gewährleistungsrechte. Bei Mängeln haben Sie 
-        zunächst das Recht auf Nacherfüllung (Reparatur oder Ersatzlieferung). Schlägt 
-        diese fehl, können Sie vom Vertrag zurücktreten oder den Kaufpreis mindern. 
-        Die Gewährleistungsfrist beträgt 2 Jahre ab Lieferung.`
-    },
-    {
-      icon: AlertTriangle,
-      title: '§7 Haftung',
-      content: `Wir haften unbeschränkt für Vorsatz und grobe Fahrlässigkeit sowie für 
-        Schäden aus der Verletzung von Leben, Körper und Gesundheit. Für leichte 
-        Fahrlässigkeit haften wir nur bei Verletzung wesentlicher Vertragspflichten, 
-        beschränkt auf den vertragstypischen, vorhersehbaren Schaden.`
-    }
-  ];
-
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-3xl mx-auto"
-        >
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl 
-              bg-gradient-to-br from-secondary-600 to-secondary-700 mb-6">
-              <FileText className="w-8 h-8 text-white" />
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-secondary-700 mb-5">
+              <Scale className="w-7 h-7 text-white" />
             </div>
-            <h1 className="text-4xl font-bold text-secondary-700 mb-4">
-              Allgemeine Geschäftsbedingungen
-            </h1>
-            <p className="text-secondary-500">
-              für den Online-Shop von {legal?.companyName || companyName || 'CLYR Solutions GmbH'}
-            </p>
+            <h1 className="text-3xl font-bold text-secondary-700">Allgemeine Geschaeftsbedingungen (AGB)</h1>
+            <p className="text-secondary-500 mt-2">der CLYR Solutions GmbH</p>
           </div>
 
-          <div className="space-y-6">
-            {sections.map((section, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="bg-white rounded-2xl border border-gray-100 p-8"
-              >
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-secondary-100 flex items-center justify-center">
-                    <section.icon className="w-5 h-5 text-primary-400" />
-                  </div>
-                  <h2 className="text-lg font-semibold text-secondary-700">
-                    {section.title}
-                  </h2>
-                </div>
-                <p className="text-secondary-700 leading-relaxed">{section.content}</p>
-              </motion.div>
-            ))}
-          </div>
+          <div className="bg-white rounded-2xl border border-gray-100 p-8 space-y-8 text-secondary-700 leading-relaxed">
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
-            className="bg-white rounded-2xl border border-gray-100 p-8 mt-6"
-          >
-            <h2 className="text-lg font-semibold text-secondary-700 mb-4">
-              §8 Schlussbestimmungen
-            </h2>
-            <div className="space-y-4 text-secondary-700">
-              <p>
-                Es gilt das Recht der Republik Österreich unter Ausschluss des 
-                UN-Kaufrechts. Bei Verbrauchern gilt diese Rechtswahl nur insoweit, 
-                als dadurch keine zwingenden gesetzlichen Bestimmungen des Staates 
-                eingeschränkt werden, in dem der Verbraucher seinen gewöhnlichen 
-                Aufenthalt hat.
-              </p>
-              <p>
-                Sollten einzelne Bestimmungen dieser AGB unwirksam sein oder werden, 
-                bleibt die Wirksamkeit der übrigen Bestimmungen unberührt.
-              </p>
+            <div>
+              <h2 className="text-lg font-semibold mb-3">§ 1 Geltungsbereich</h2>
+              <p>(1) Diese Allgemeinen Geschaeftsbedingungen (AGB) gelten fuer saemtliche Vertraege ueber den Verkauf von Waren sowie Dienstleistungen zwischen der CLYR Solutions GmbH, Pappelweg 4b, 9524 St. Magdalen, Oesterreich, Geschaeftsfuehrerin: Theresa Struger – nachfolgend "CLYR Solutions GmbH" – und ihren Kunden.</p>
+              <p className="mt-2">(2) Kunden im Sinne dieser AGB sind sowohl Verbraucher als auch Unternehmer.</p>
+              <p className="mt-2">(3) Abweichende Bedingungen des Kunden werden nicht anerkannt, es sei denn, CLYR Solutions GmbH stimmt deren Geltung ausdruecklich schriftlich zu.</p>
             </div>
-          </motion.div>
 
-          <p className="text-center text-secondary-500 text-sm mt-8">
-            Stand: Januar 2026
-          </p>
+            <div>
+              <h2 className="text-lg font-semibold mb-3">§ 2 Vertragsgegenstand</h2>
+              <p>(1) Vertragsgegenstand ist der Verkauf von Wasseraufbereitungssystemen, insbesondere Umkehrosmoseanlagen sowie Zubehoer und Ersatzteile.</p>
+              <p className="mt-2">(2) Zusaetzlich bietet CLYR Solutions GmbH optional Montage-, Einschulungs- und Serviceleistungen an.</p>
+              <p className="mt-2">(3) Produktbeschreibungen, technische Angaben und Darstellungen auf Webseiten, Social Media oder Werbematerial dienen der Information und stellen keine Garantie dar.</p>
+            </div>
+
+            <div>
+              <h2 className="text-lg font-semibold mb-3">§ 3 Vertragsabschluss</h2>
+              <p>(1) Die Praesentation der Produkte stellt kein rechtlich bindendes Angebot dar, sondern eine Aufforderung zur Bestellung.</p>
+              <p className="mt-2">(2) Mit der Bestellung gibt der Kunde ein verbindliches Kaufangebot ab.</p>
+              <p className="mt-2">(3) Der Vertrag kommt zustande durch: schriftliche Auftragsbestaetigung oder Lieferung der Ware oder Rechnungslegung.</p>
+            </div>
+
+            <div>
+              <h2 className="text-lg font-semibold mb-3">§ 4 Preise und Zahlungsbedingungen</h2>
+              <p>(1) Alle Preise verstehen sich, sofern nicht anders angegeben, inklusive gesetzlicher Mehrwertsteuer zuzueglich Versandkosten.</p>
+              <p className="mt-2">(2) Zahlungen erfolgen nach Vereinbarung, insbesondere per Vorkasse, Bankueberweisung oder andere vereinbarte Zahlungsarten.</p>
+              <p className="mt-2">(3) CLYR Solutions GmbH ist berechtigt, Lieferungen nur gegen Vorauszahlung durchzufuehren.</p>
+            </div>
+
+            <div>
+              <h2 className="text-lg font-semibold mb-3">§ 5 Lieferung und Versand</h2>
+              <p>(1) Die Lieferung erfolgt an die vom Kunden angegebene Adresse.</p>
+              <p className="mt-2">(2) Lieferzeiten sind unverbindlich, sofern nicht ausdruecklich schriftlich bestaetigt.</p>
+              <p className="mt-2">(3) Teillieferungen sind zulaessig, sofern diese fuer den Kunden zumutbar sind.</p>
+            </div>
+
+            <div>
+              <h2 className="text-lg font-semibold mb-3">§ 6 Montageleistungen</h2>
+              <p>(1) CLYR Solutions GmbH bietet optional professionelle Montage der Anlagen durch geschulte und zertifizierte Fachkraefte an.</p>
+              <p className="mt-2">(2) Die Montage ist nicht automatisch Bestandteil des Kaufvertrages, sondern erfolgt ausschliesslich bei gesonderter Vereinbarung.</p>
+              <p className="mt-2">(3) Montageleistungen werden gesondert verrechnet, sofern nichts anderes vereinbart wurde.</p>
+            </div>
+
+            <div>
+              <h2 className="text-lg font-semibold mb-3">§ 7 Selbstmontage und Haftungsausschluss</h2>
+              <p>(1) Erfolgt die Installation der Anlage durch den Kunden selbst oder durch nicht von CLYR Solutions GmbH autorisierte Personen, geschieht dies ausschliesslich auf eigene Verantwortung.</p>
+              <p className="mt-2">(2) Fuer Schaeden, Folgeschaeden oder Funktionsstoerungen, die durch unsachgemaesse Installation, falsche Nutzung oder eigenstaendige Veraenderungen an der Anlage entstehen, uebernimmt CLYR Solutions GmbH keinerlei Haftung.</p>
+              <p className="mt-2">(3) Gewaehrleistungs- und Garantieansprueche koennen bei nachweislich fehlerhafter Selbstmontage ausgeschlossen werden.</p>
+            </div>
+
+            <div>
+              <h2 className="text-lg font-semibold mb-3">§ 8 Gewaehrleistung und Garantiebedingungen</h2>
+              <p>(1) Es gelten die gesetzlichen Gewaehrleistungsrechte nach oesterreichischem Recht.</p>
+              <p className="mt-2">(2) Offensichtliche Maengel sind unverzueglich nach Erhalt der Ware schriftlich mitzuteilen.</p>
+              <p className="mt-2">(3) Verschleissteile, insbesondere Filterkartuschen, Vorfilter und Membranen, unterliegen abhaengig von Nutzung, Wasserqualitaet und Betriebsbedingungen natuerlichen Abnutzungsprozessen und sind von der Gewaehrleistung ausgeschlossen, sofern kein Produktionsfehler vorliegt.</p>
+              <p className="mt-2">(4) Eine Herstellergarantie oder freiwillige Garantie durch CLYR Solutions GmbH gilt ausschliesslich unter der Voraussetzung, dass saemtliche vorgeschriebenen Wartungs- und Filterwechselintervalle eingehalten werden.</p>
+              <p className="mt-2">(5) Werden Filter, Membranen oder sonstige Wartungsteile nicht regelmaessig entsprechend den Herstellerempfehlungen ausgetauscht, erlischt jeglicher Garantieanspruch.</p>
+            </div>
+
+            <div>
+              <h2 className="text-lg font-semibold mb-3">§ 9 Betrieb und Wartung</h2>
+              <p>(1) Der Kunde verpflichtet sich, die Anlage entsprechend der Bedienungsanleitung zu betreiben.</p>
+              <p className="mt-2">(2) Wartungs- und Filterwechselintervalle sind zwingend einzuhalten.</p>
+              <p className="mt-2">(3) Schaeden oder Funktionsstoerungen infolge unterlassener Wartung oder unsachgemaesser Nutzung begruenden keinen Gewaehrleistungs- oder Garantieanspruch.</p>
+            </div>
+
+            <div>
+              <h2 className="text-lg font-semibold mb-3">§ 10 Eigentumsvorbehalt</h2>
+              <p>Die Ware bleibt bis zur vollstaendigen Bezahlung Eigentum der CLYR Solutions GmbH.</p>
+            </div>
+
+            <div>
+              <h2 className="text-lg font-semibold mb-3">§ 11 Haftung</h2>
+              <p>(1) CLYR Solutions GmbH haftet unbeschraenkt fuer Schaeden aus: Verletzung von Leben, Koerper oder Gesundheit; Vorsatz oder grober Fahrlaessigkeit.</p>
+              <p className="mt-2">(2) Bei leichter Fahrlaessigkeit haftet CLYR Solutions GmbH nur bei Verletzung wesentlicher Vertragspflichten und beschraenkt auf den vorhersehbaren Schaden.</p>
+            </div>
+
+            <div>
+              <h2 className="text-lg font-semibold mb-3">§ 12 Gerichtsstand und anwendbares Recht</h2>
+              <p>(1) Es gilt oesterreichisches Recht unter Ausschluss des UN-Kaufrechts.</p>
+              <p className="mt-2">(2) Gerichtsstand ist, soweit gesetzlich zulaessig, der Sitz der CLYR Solutions GmbH.</p>
+            </div>
+
+            <div>
+              <h2 className="text-lg font-semibold mb-3">§ 13 Salvatorische Klausel</h2>
+              <p>Sollte eine Bestimmung dieser AGB unwirksam sein, bleiben die uebrigen Bestimmungen unberuehrt.</p>
+            </div>
+          </div>
         </motion.div>
       </div>
     </div>

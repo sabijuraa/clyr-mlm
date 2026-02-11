@@ -1,156 +1,71 @@
 import { motion } from 'framer-motion';
-import { Shield, Eye, Database, Lock, UserCheck, Server, Mail } from 'lucide-react';
-import { useBrand } from '../../context/BrandContext';
+import { Shield } from 'lucide-react';
 
 const PrivacyPage = () => {
-  const { company, legal } = useBrand();
-  
-  const sections = [
-    {
-      icon: Eye,
-      title: '1. Datenerfassung auf unserer Website',
-      content: `Bei der Nutzung unserer Website werden automatisch bestimmte Daten erhoben. 
-        Dazu gehören: IP-Adresse, Datum und Uhrzeit des Zugriffs, aufgerufene Seiten, 
-        verwendeter Browser und Betriebssystem. Diese Daten werden zur technischen 
-        Bereitstellung und Optimierung unserer Website verwendet.`
-    },
-    {
-      icon: UserCheck,
-      title: '2. Registrierung und Kundenkonto',
-      content: `Bei der Registrierung als Partner oder Kunde erheben wir: Name, E-Mail-Adresse, 
-        Anschrift, Telefonnummer und Bankverbindung. Diese Daten sind für die Vertragserfüllung 
-        und Auszahlung von Provisionen erforderlich. Die Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.`
-    },
-    {
-      icon: Database,
-      title: '3. Datenverarbeitung bei Bestellungen',
-      content: `Bei Bestellungen speichern wir Ihre Kontakt- und Lieferdaten sowie die 
-        Bestellhistorie. Diese Daten werden für die Vertragserfüllung, Versand und 
-        gesetzliche Aufbewahrungspflichten verwendet. Zahlungsdaten werden ausschließlich 
-        über unseren Zahlungsdienstleister Stripe verarbeitet.`
-    },
-    {
-      icon: Lock,
-      title: '4. Datensicherheit',
-      content: `Wir setzen technische und organisatorische Sicherheitsmaßnahmen ein, um 
-        Ihre Daten gegen zufällige oder vorsätzliche Manipulation, Verlust oder Zugriff 
-        durch Unbefugte zu schützen. Unsere Website verwendet SSL-Verschlüsselung.`
-    },
-    {
-      icon: Server,
-      title: '5. Hosting und Datenübermittlung',
-      content: `Unsere Website wird auf Servern in der Europäischen Union gehostet. 
-        Eine Übermittlung in Drittländer erfolgt nur, wenn dies zur Vertragserfüllung 
-        erforderlich ist oder angemessene Garantien bestehen (z.B. EU-Standardvertragsklauseln).`
-    },
-    {
-      icon: Mail,
-      title: '6. E-Mail-Kommunikation',
-      content: `Wir versenden E-Mails zur Bestellbestätigung, Versandbenachrichtigung und 
-        bei Partnerregistrierungen. Newsletter werden nur mit Ihrer ausdrücklichen 
-        Einwilligung versendet. Sie können den Newsletter jederzeit abbestellen.`
-    }
-  ];
-
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-3xl mx-auto"
-        >
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl 
-              bg-gradient-to-br from-secondary-600 to-secondary-700 mb-6">
-              <Shield className="w-8 h-8 text-white" />
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-secondary-700 mb-5">
+              <Shield className="w-7 h-7 text-white" />
             </div>
-            <h1 className="text-4xl font-bold text-secondary-700 mb-4">Datenschutzerklärung</h1>
-            <p className="text-secondary-500">Informationen zum Umgang mit Ihren personenbezogenen Daten</p>
+            <h1 className="text-3xl font-bold text-secondary-700">Datenschutzerklaerung</h1>
           </div>
 
-          <div className="bg-white rounded-2xl border border-gray-100 p-8 mb-8">
-            <h2 className="text-xl font-semibold text-secondary-700 mb-4">
-              Verantwortlicher
-            </h2>
-            <p className="text-secondary-700 mb-4">
-              Verantwortlich für die Datenverarbeitung auf dieser Website ist:
-            </p>
-            <div className="p-4 bg-gray-50 rounded-xl">
-              <p className="font-semibold">{legal?.companyName || 'CLYR Solutions GmbH'}</p>
-              <p>{legal?.street || 'Pappelweg 4b'}</p>
-              <p>{legal?.zip || '1010'} {legal?.city || 'Wien'}</p>
-              <p className="mt-2">E-Mail: {company?.email || 'service@clyr.shop'}</p>
+          <div className="bg-white rounded-2xl border border-gray-100 p-8 space-y-6 text-secondary-700 leading-relaxed">
+            <p>In folgender Datenschutzerklaerung informieren wir Sie ueber die wichtigsten Aspekte der Datenverarbeitung im Rahmen unserer Webseite. Wir erheben und verarbeiten personenbezogene Daten nur auf Grundlage der gesetzlichen Bestimmungen (Datenschutzgrundverordnung, Telekommunikationsgesetz 2003).</p>
+            <p>Sobald Sie als Benutzer auf unsere Webseite zugreifen oder diese besuchen wird Ihre IP-Adresse, Beginn sowie Beginn und Ende der Sitzung erfasst. Dies ist technisch bedingt und stellt somit ein berechtigtes Interesse iSv Art 6 Abs 1 lit f DSGVO.</p>
+
+            <div>
+              <h2 className="text-lg font-semibold mb-2">Kontakt mit uns</h2>
+              <p>Wenn Sie uns, entweder ueber unser Kontaktformular auf unserer Webseite, oder per Email kontaktieren, dann werden die von Ihnen an uns uebermittelten Daten zwecks Bearbeitung Ihrer Anfrage oder fuer den Fall von weiteren Anschlussfragen fuer sechs Monate bei uns gespeichert. Es erfolgt, ohne Ihre Einwilligung, keine Weitergabe Ihrer uebermittelten Daten.</p>
+            </div>
+
+            <div>
+              <h2 className="text-lg font-semibold mb-2">Cookies</h2>
+              <p>Unsere Website verwendet so genannte Cookies. Dabei handelt es sich um kleine Textdateien, die mit Hilfe des Browsers auf Ihrem Endgeraet abgelegt werden. Sie richten keinen Schaden an. Wir nutzen Cookies dazu, unser Angebot nutzerfreundlich zu gestalten. Einige Cookies bleiben auf Ihrem Endgeraet gespeichert, bis Sie diese loeschen. Sie ermoeglichen es uns, Ihren Browser beim naechsten Besuch wiederzuerkennen.</p>
+              <p className="mt-2">Wenn Sie dies nicht wuenschen, so koennen Sie Ihren Browser so einrichten, dass er Sie ueber das Setzen von Cookies informiert und Sie dies nur im Einzelfall erlauben. Bei der Deaktivierung von Cookies kann die Funktionalitaet unserer Website eingeschraenkt sein.</p>
+            </div>
+
+            <div>
+              <h2 className="text-lg font-semibold mb-2">Google Maps</h2>
+              <p>Unsere Website verwendet Funktionen des Webkartendienstes "Google Maps". Der Dienstanbieter dieser Funktion ist: Google Ireland Limited Gordon House, Barrow Street Dublin 4, Ireland.</p>
+              <p className="mt-2">Im Zuge der Nutzung von Google Maps ist es notwendig Ihre IP-Adresse zu speichern und zu verarbeiten. Google uebertraegt in der Regel an einen Server in den USA und speichert die Daten dort.</p>
+              <p className="mt-2">Weitere Informationen: <a href="https://policies.google.com/privacy?hl=de" target="_blank" rel="noopener noreferrer" className="text-primary-500 underline">https://policies.google.com/privacy</a></p>
+            </div>
+
+            <div>
+              <h2 className="text-lg font-semibold mb-2">Google Fonts</h2>
+              <p>Unsere Website verwendet Schriftarten von "Google Fonts". Der Dienstanbieter dieser Funktion ist: Google Ireland Limited Gordon House, Barrow Street Dublin 4, Ireland.</p>
+              <p className="mt-2">Die Nutzung von "Google-Fonts" dient der Optimierung unserer Dienstleistung und der einheitlichen Darstellung von Inhalten. Dies stellt ein berechtigtes Interesse im Sinne von Art. 6 Abs. 1 lit. f DSGVO dar.</p>
+              <p className="mt-2">Weitere Informationen: <a href="https://developers.google.com/fonts/faq" target="_blank" rel="noopener noreferrer" className="text-primary-500 underline">https://developers.google.com/fonts/faq</a></p>
+            </div>
+
+            <div>
+              <h2 className="text-lg font-semibold mb-2">Server-Log Files</h2>
+              <p>Diese Webseite und der damit verbundene Provider erhebt im Zuge der Webseitennutzung automatisch Informationen im Rahmen sogenannter "Server-Log Files". Dies betrifft insbesondere: IP-Adresse oder Hostname, den verwendeten Browser, Aufenthaltsdauer auf der Webseite sowie Datum und Uhrzeit, aufgerufene Seiten der Webseite, Spracheinstellungen und Betriebssystem, "Leaving-Page", ISP (Internet Service Provider).</p>
+              <p className="mt-2">Diese erhobenen Informationen werden nicht personenbezogen verarbeitet oder mit personenbezogenen Daten in Verbindung gebracht.</p>
+            </div>
+
+            <div>
+              <h2 className="text-lg font-semibold mb-2">Newsletter</h2>
+              <p>Sie haben die Moeglichkeit, ueber unsere Website unseren Newsletter zu abonnieren. Hierfuer benoetigen wir Ihre E-Mail-Adresse und ihre Erklaerung, dass Sie mit dem Bezug des Newsletters einverstanden sind.</p>
+            </div>
+
+            <div>
+              <h2 className="text-lg font-semibold mb-2">Ihre Rechte als Betroffener</h2>
+              <p>Sie als Betroffener haben bezueglich Ihrer Daten, welche bei uns gespeichert sind grundsaetzlich ein Recht auf: Auskunft, Loeschung der Daten, Berichtigung der Daten, Uebertragbarkeit der Daten, Wiederruf und Widerspruch zur Datenverarbeitung, Einschraenkung.</p>
+              <p className="mt-2">Wenn sie vermuten, dass im Zuge der Verarbeitung Ihrer Daten Verstoesse gegen das Datenschutzrecht passiert sind, so haben Sie die Moeglichkeit sich bei uns (office@freshliving.at) oder der Datenschutzbehoerde zu beschweren.</p>
+            </div>
+
+            <div className="border-t border-gray-200 pt-4">
+              <p><strong>Webseitenbetreiber:</strong> Theresa Struger</p>
+              <p><strong>Telefonnummer:</strong> +43 664 2520432</p>
+              <p><strong>Email:</strong> admin@clyr.shop</p>
+              <p className="mt-2 text-sm text-secondary-500">Quelle: DSGVO Generator Oesterreich</p>
             </div>
           </div>
-
-          <div className="space-y-6">
-            {sections.map((section, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="bg-white rounded-2xl border border-gray-100 p-8"
-              >
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-secondary-100 flex items-center justify-center">
-                    <section.icon className="w-5 h-5 text-primary-400" />
-                  </div>
-                  <h2 className="text-lg font-semibold text-secondary-700">
-                    {section.title}
-                  </h2>
-                </div>
-                <p className="text-secondary-700 leading-relaxed">{section.content}</p>
-              </motion.div>
-            ))}
-          </div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            className="bg-slate-50 rounded-2xl border border-secondary-100 p-8 mt-8"
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-secondary-100 flex items-center justify-center">
-                <UserCheck className="w-5 h-5 text-secondary-700" />
-              </div>
-              <h2 className="text-lg font-semibold text-secondary-700">
-                Ihre Rechte
-              </h2>
-            </div>
-            <ul className="space-y-2 text-secondary-700">
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-                Recht auf Auskunft (Art. 15 DSGVO)
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-                Recht auf Berichtigung (Art. 16 DSGVO)
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-                Recht auf Löschung (Art. 17 DSGVO)
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-                Recht auf Einschränkung der Verarbeitung (Art. 18 DSGVO)
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-                Recht auf Datenübertragbarkeit (Art. 20 DSGVO)
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-                Widerspruchsrecht (Art. 21 DSGVO)
-              </li>
-            </ul>
-          </motion.div>
-
-          <p className="text-center text-secondary-500 text-sm mt-8">
-            Stand: Januar 2026
-          </p>
         </motion.div>
       </div>
     </div>
