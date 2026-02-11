@@ -1,364 +1,552 @@
+// client/src/pages/admin/AdminVariantsPage.jsx
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { 
-  Layers, Plus, Edit3, Trash2, Save, X, Check, 
-  Package, DollarSign, Image, GripVertical
-} from 'lucide-react';
+import { Package, Plus, Edit3, Trash2, Save, X, Upload, Image as ImageIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 
-const AdminVariantsPage = () => {
-  const [options, setOptions] = useState({});
+export default function AdminVariantsPage() {
   const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [editingOption, setEditingOption] = useState(null);
-  const [newOption, setNewOption] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [variants, setVariants] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showGroupForm, setShowGroupForm] = useState(false);
+  const [showOptionForm, setShowOptionForm] = useState(false);
+  const [editingGroup, setEditingGroup] = useState(null);
+  const [editingOption, setEditingOption] = useState(null);
+  const [activeGroup, setActiveGroup] = useState(null);
+
+  const emptyGroupForm = {
+    name: '',
+    display_name: '',
+    description: '',
+    is_required: true,
+    sort_order: 0
+  };
+
+  const emptyOptionForm = {
+    name: '',
+    display_name: '',
+    description: '',
+    price_modifier: 0,
+    sku_suffix: '',
+    stock_quantity: 0,
+    is_available: true,
+    is_default: false,
+    sort_order: 0,
+    image_url: ''
+  };
+
+  const [groupForm, setGroupForm] = useState(emptyGroupForm);
+  const [optionForm, setOptionForm] = useState(emptyOptionForm);
 
   useEffect(() => {
-    fetchData();
+    loadProducts();
   }, []);
 
-  const fetchData = async () => {
+  useEffect(() => {
+    if (selectedProduct) {
+      loadVariants(selectedProduct.id);
+    }
+  }, [selectedProduct]);
+
+  const loadProducts = async () => {
     try {
-      setLoading(true);
-      const [optionsRes, productsRes] = await Promise.all([
-        api.get('/variants/options'),
-        api.get('/products'),
-      ]);
-      setOptions(optionsRes.data.options || {});
-      setProducts(productsRes.data.products || []);
+      const response = await api.get('/products');
+      setProducts(response.data.products || response.data || []);
     } catch (error) {
-      console.error('Failed to fetch data:', error);
-      toast.error('Fehler beim Laden');
+      console.error('Error loading products:', error);
+      toast.error('Fehler beim Laden der Produkte');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreateOption = async () => {
-    if (!newOption?.name || !newOption?.type) {
-      toast.error('Name und Typ erforderlich');
-      return;
-    }
-    
+  const loadVariants = async (productId) => {
     try {
-      await api.post('/variants/options', newOption);
-      toast.success('Variante erstellt');
-      setNewOption(null);
-      fetchData();
+      const response = await api.get(`/variants/products/${productId}/variants`);
+      setVariants(response.data.groups || []);
     } catch (error) {
-      toast.error('Fehler beim Erstellen');
+      console.error('Error loading variants:', error);
+      toast.error('Fehler beim Laden der Varianten');
     }
   };
 
-  const handleUpdateOption = async (option) => {
+  // Variant Group Functions
+  const handleSaveGroup = async () => {
+    if (!groupForm.name || !groupForm.display_name) {
+      return toast.error('Name und Anzeigename sind erforderlich');
+    }
+
     try {
-      await api.put(`/variants/options/${option.id}`, option);
-      toast.success('Gespeichert');
-      setEditingOption(null);
-      fetchData();
+      if (editingGroup) {
+        await api.put(
+          `/variants/admin/products/${selectedProduct.id}/variants/${editingGroup}`,
+          groupForm
+        );
+        toast.success('Variantengruppe aktualisiert');
+      } else {
+        await api.post(
+          `/variants/admin/products/${selectedProduct.id}/variants`,
+          groupForm
+        );
+        toast.success('Variantengruppe erstellt');
+      }
+      setShowGroupForm(false);
+      setEditingGroup(null);
+      setGroupForm(emptyGroupForm);
+      loadVariants(selectedProduct.id);
     } catch (error) {
       toast.error('Fehler beim Speichern');
     }
   };
 
-  const handleAssignToProduct = async (productId, optionId, isDefault = false) => {
+  const handleEditGroup = (group) => {
+    setGroupForm({
+      name: group.name,
+      display_name: group.display_name,
+      description: group.description || '',
+      is_required: group.is_required,
+      sort_order: group.sort_order || 0
+    });
+    setEditingGroup(group.id);
+    setShowGroupForm(true);
+  };
+
+  const handleDeleteGroup = async (groupId) => {
+    if (!confirm('Diese Variantengruppe wirklich löschen? Alle zugehörigen Optionen werden ebenfalls gelöscht.')) {
+      return;
+    }
+
     try {
-      await api.post('/variants/assign', { productId, optionId, isDefault });
-      toast.success('Variante zugewiesen');
-      fetchData();
+      await api.delete(`/variants/admin/products/${selectedProduct.id}/variants/${groupId}`);
+      toast.success('Variantengruppe gelöscht');
+      loadVariants(selectedProduct.id);
     } catch (error) {
-      toast.error('Fehler beim Zuweisen');
+      toast.error('Fehler beim Löschen');
     }
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('de-DE', {
-      style: 'currency',
-      currency: 'EUR'
-    }).format(amount || 0);
+  // Variant Option Functions
+  const handleSaveOption = async () => {
+    if (!optionForm.name || !optionForm.display_name) {
+      return toast.error('Name und Anzeigename sind erforderlich');
+    }
+
+    try {
+      if (editingOption) {
+        await api.put(
+          `/variants/admin/products/${selectedProduct.id}/variants/${activeGroup}/options/${editingOption}`,
+          optionForm
+        );
+        toast.success('Variantenoption aktualisiert');
+      } else {
+        await api.post(
+          `/variants/admin/products/${selectedProduct.id}/variants/${activeGroup}/options`,
+          optionForm
+        );
+        toast.success('Variantenoption erstellt');
+      }
+      setShowOptionForm(false);
+      setEditingOption(null);
+      setOptionForm(emptyOptionForm);
+      loadVariants(selectedProduct.id);
+    } catch (error) {
+      toast.error('Fehler beim Speichern');
+    }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
-      </div>
-    );
-  }
+  const handleEditOption = (option, groupId) => {
+    setOptionForm({
+      name: option.name,
+      display_name: option.display_name,
+      description: option.description || '',
+      price_modifier: option.price_modifier || 0,
+      sku_suffix: option.sku_suffix || '',
+      stock_quantity: option.stock_quantity || 0,
+      is_available: option.is_available,
+      is_default: option.is_default,
+      sort_order: option.sort_order || 0,
+      image_url: option.image_url || ''
+    });
+    setEditingOption(option.id);
+    setActiveGroup(groupId);
+    setShowOptionForm(true);
+  };
 
-  const variantTypes = Object.keys(options);
+  const handleDeleteOption = async (groupId, optionId) => {
+    if (!confirm('Diese Variantenoption wirklich löschen?')) return;
+
+    try {
+      await api.delete(
+        `/variants/admin/products/${selectedProduct.id}/variants/${groupId}/options/${optionId}`
+      );
+      toast.success('Variantenoption gelöscht');
+      loadVariants(selectedProduct.id);
+    } catch (error) {
+      toast.error('Fehler beim Löschen');
+    }
+  };
+
+  if (loading) return <div className="p-6">Laden...</div>;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Produktvarianten
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Verwalten Sie Varianten wie Armatur-Typen, Aromen, Farben
-          </p>
-        </div>
-        <button
-          onClick={() => setNewOption({ type: 'faucet', name: '', name_en: '', price_modifier: 0 })}
-          className="flex items-center gap-2 bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600 transition"
-        >
-          <Plus className="w-5 h-5" />
-          Neue Variante
-        </button>
+    <div className="p-6 max-w-7xl">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Produktvarianten Verwaltung</h1>
+        <p className="text-gray-500 mt-1">Varianten für Produkte erstellen und verwalten</p>
       </div>
 
-      {/* New Option Form */}
-      {newOption && (
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-xl border border-gray-200 p-6"
+      {/* Product Selection */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+        <label className="block text-sm font-medium text-gray-700 mb-2">Produkt auswählen</label>
+        <select
+          value={selectedProduct?.id || ''}
+          onChange={(e) => {
+            const product = products.find(p => p.id === parseInt(e.target.value));
+            setSelectedProduct(product);
+          }}
+          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
         >
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Neue Variante erstellen</h3>
-          <div className="grid md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Typ</label>
-              <select
-                value={newOption.type}
-                onChange={(e) => setNewOption({ ...newOption, type: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-              >
-                <option value="faucet">Armatur</option>
-                <option value="aroma">Aroma</option>
-                <option value="color">Farbe</option>
-                <option value="size">Größe</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name (DE)</label>
-              <input
-                type="text"
-                value={newOption.name}
-                onChange={(e) => setNewOption({ ...newOption, name: e.target.value })}
-                placeholder="z.B. Premium Armatur"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name (EN)</label>
-              <input
-                type="text"
-                value={newOption.name_en || ''}
-                onChange={(e) => setNewOption({ ...newOption, name_en: e.target.value })}
-                placeholder="e.g. Premium Faucet"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Preisaufschlag</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">€</span>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={newOption.price_modifier}
-                  onChange={(e) => setNewOption({ ...newOption, price_modifier: parseFloat(e.target.value) || 0 })}
-                  className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+          <option value="">-- Produkt wählen --</option>
+          {products.map(product => (
+            <option key={product.id} value={product.id}>
+              {product.name} ({product.sku})
+              {product.has_variants && ' ✓'}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {selectedProduct && (
+        <>
+          {/* Add Variant Group Button */}
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold text-gray-800">
+              Varianten für: {selectedProduct.name}
+            </h2>
+            <button
+              onClick={() => {
+                setGroupForm(emptyGroupForm);
+                setEditingGroup(null);
+                setShowGroupForm(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-medium"
+            >
+              <Plus className="w-4 h-4" /> Variantengruppe hinzufügen
+            </button>
+          </div>
+
+          {/* Group Form Modal */}
+          {showGroupForm && (
+            <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-900">
+                  {editingGroup ? 'Variantengruppe bearbeiten' : 'Neue Variantengruppe'}
+                </h3>
+                <button onClick={() => { setShowGroupForm(false); setEditingGroup(null); }}
+                  className="p-1.5 hover:bg-gray-100 rounded-lg">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Interner Name *</label>
+                  <input
+                    type="text"
+                    value={groupForm.name}
+                    onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })}
+                    placeholder="z.B. faucet_type"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Anzeigename *</label>
+                  <input
+                    type="text"
+                    value={groupForm.display_name}
+                    onChange={(e) => setGroupForm({ ...groupForm, display_name: e.target.value })}
+                    placeholder="z.B. Wasserhahn-Typ"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Beschreibung</label>
+                <textarea
+                  value={groupForm.description}
+                  onChange={(e) => setGroupForm({ ...groupForm, description: e.target.value })}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  placeholder="Optional: Beschreibung dieser Variantengruppe"
                 />
               </div>
-            </div>
-          </div>
-          <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Beschreibung</label>
-            <input
-              type="text"
-              value={newOption.description || ''}
-              onChange={(e) => setNewOption({ ...newOption, description: e.target.value })}
-              placeholder="Kurze Beschreibung der Variante"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-            />
-          </div>
-          <div className="flex justify-end gap-3 mt-4">
-            <button
-              onClick={() => setNewOption(null)}
-              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
-            >
-              Abbrechen
-            </button>
-            <button
-              onClick={handleCreateOption}
-              className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
-            >
-              <Save className="w-5 h-5" />
-              Erstellen
-            </button>
-          </div>
-        </motion.div>
-      )}
 
-      {/* Variant Types */}
-      {variantTypes.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-          <Layers className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Keine Varianten vorhanden</h3>
-          <p className="text-gray-600">Erstellen Sie die erste Produktvariante.</p>
-        </div>
-      ) : (
-        variantTypes.map((type) => (
-          <div key={type} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 capitalize">
-                {type === 'faucet' ? '🚰 Armatur-Typen' : 
-                 type === 'aroma' ? '🌸 Aromen' : 
-                 type === 'color' ? '🎨 Farben' : 
-                 type === 'size' ? '📏 Größen' : type}
-              </h3>
-            </div>
-            <div className="divide-y divide-gray-100">
-              {options[type].map((option) => (
-                <div key={option.id} className="p-4 hover:bg-gray-50">
-                  {editingOption?.id === option.id ? (
-                    <div className="grid md:grid-cols-5 gap-4 items-end">
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Name (DE)</label>
-                        <input
-                          type="text"
-                          value={editingOption.name}
-                          onChange={(e) => setEditingOption({ ...editingOption, name: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Name (EN)</label>
-                        <input
-                          type="text"
-                          value={editingOption.name_en || ''}
-                          onChange={(e) => setEditingOption({ ...editingOption, name_en: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Beschreibung</label>
-                        <input
-                          type="text"
-                          value={editingOption.description || ''}
-                          onChange={(e) => setEditingOption({ ...editingOption, description: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Aufschlag (€)</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={editingOption.price_modifier}
-                          onChange={(e) => setEditingOption({ ...editingOption, price_modifier: parseFloat(e.target.value) || 0 })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleUpdateOption(editingOption)}
-                          className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200"
-                        >
-                          <Check className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => setEditingOption(null)}
-                          className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200"
-                        >
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <GripVertical className="w-5 h-5 text-gray-400" />
-                        <div>
-                          <p className="font-medium text-gray-900">{option.name}</p>
-                          <p className="text-sm text-gray-500">{option.description || option.name_en}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          option.price_modifier > 0 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-gray-100 text-gray-600'
-                        }`}>
-                          {option.price_modifier > 0 ? `+${formatCurrency(option.price_modifier)}` : 'Inkl.'}
-                        </span>
-                        <button
-                          onClick={() => setEditingOption(option)}
-                          className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
+              <div className="flex gap-4 mb-4">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={groupForm.is_required}
+                    onChange={(e) => setGroupForm({ ...groupForm, is_required: e.target.checked })}
+                    className="rounded"
+                  />
+                  Auswahl erforderlich
+                </label>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Sortierung</label>
+                  <input
+                    type="number"
+                    value={groupForm.sort_order}
+                    onChange={(e) => setGroupForm({ ...groupForm, sort_order: parseInt(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  />
                 </div>
-              ))}
-            </div>
-          </div>
-        ))
-      )}
+              </div>
 
-      {/* Product Assignment Section */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Varianten zu Produkten zuweisen
-        </h3>
-        <div className="grid md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Produkt auswählen</label>
-            <select
-              value={selectedProduct?.id || ''}
-              onChange={(e) => {
-                const prod = products.find(p => p.id === parseInt(e.target.value));
-                setSelectedProduct(prod);
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-            >
-              <option value="">-- Produkt wählen --</option>
-              {products.filter(p => p.category_slug === 'wassersysteme').map(product => (
-                <option key={product.id} value={product.id}>
-                  {product.name} - {formatCurrency(product.price)}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          {selectedProduct && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Verfügbare Armatur-Typen</label>
-              <div className="space-y-2">
-                {(options['faucet'] || []).map(opt => (
-                  <label key={opt.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
-                    <input type="checkbox" className="w-4 h-4 text-primary-500" />
-                    <span className="font-medium">{opt.name}</span>
-                    {opt.price_modifier > 0 && (
-                      <span className="text-sm text-green-600">+{formatCurrency(opt.price_modifier)}</span>
-                    )}
-                  </label>
-                ))}
+              <div className="flex gap-3">
+                <button
+                  onClick={handleSaveGroup}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-medium"
+                >
+                  <Save className="w-4 h-4" /> Speichern
+                </button>
+                <button
+                  onClick={() => { setShowGroupForm(false); setEditingGroup(null); }}
+                  className="px-4 py-2.5 text-gray-500 hover:text-gray-700 text-sm"
+                >
+                  Abbrechen
+                </button>
               </div>
             </div>
           )}
-        </div>
-      </div>
 
-      {/* Help Section */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-        <h4 className="font-semibold text-blue-900 mb-2">So funktionieren Varianten</h4>
-        <ul className="text-sm text-blue-800 space-y-1">
-          <li>• <strong>Armatur-Typen:</strong> Verschiedene Wasserhahn-Designs für CLYR Home Soda (Standard, Premium, Deluxe)</li>
-          <li>• <strong>Aromen:</strong> Verschiedene Düfte für CLYR Aroma Dusche (Zitrus, Lavendel, Eukalyptus)</li>
-          <li>• <strong>Preisaufschlag:</strong> Wird zum Grundpreis addiert (z.B. Premium Armatur +€200)</li>
-          <li>• <strong>Standard-Variante:</strong> Wird automatisch vorausgewählt im Shop</li>
-        </ul>
-      </div>
+          {/* Option Form Modal */}
+          {showOptionForm && (
+            <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-900">
+                  {editingOption ? 'Variantenoption bearbeiten' : 'Neue Variantenoption'}
+                </h3>
+                <button onClick={() => { setShowOptionForm(false); setEditingOption(null); }}
+                  className="p-1.5 hover:bg-gray-100 rounded-lg">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Interner Name *</label>
+                  <input
+                    type="text"
+                    value={optionForm.name}
+                    onChange={(e) => setOptionForm({ ...optionForm, name: e.target.value })}
+                    placeholder="z.B. l-auslauf"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Anzeigename *</label>
+                  <input
+                    type="text"
+                    value={optionForm.display_name}
+                    onChange={(e) => setOptionForm({ ...optionForm, display_name: e.target.value })}
+                    placeholder="z.B. L-Auslauf"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-3 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Preisänderung (€)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={optionForm.price_modifier}
+                    onChange={(e) => setOptionForm({ ...optionForm, price_modifier: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">SKU-Suffix</label>
+                  <input
+                    type="text"
+                    value={optionForm.sku_suffix}
+                    onChange={(e) => setOptionForm({ ...optionForm, sku_suffix: e.target.value })}
+                    placeholder="-LA"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Lagerbestand</label>
+                  <input
+                    type="number"
+                    value={optionForm.stock_quantity}
+                    onChange={(e) => setOptionForm({ ...optionForm, stock_quantity: parseInt(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bild-URL</label>
+                <input
+                  type="text"
+                  value={optionForm.image_url}
+                  onChange={(e) => setOptionForm({ ...optionForm, image_url: e.target.value })}
+                  placeholder="/images/products/variant-image.png"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                />
+              </div>
+
+              <div className="flex gap-4 mb-4">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={optionForm.is_available}
+                    onChange={(e) => setOptionForm({ ...optionForm, is_available: e.target.checked })}
+                    className="rounded"
+                  />
+                  Verfügbar
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={optionForm.is_default}
+                    onChange={(e) => setOptionForm({ ...optionForm, is_default: e.target.checked })}
+                    className="rounded"
+                  />
+                  Standard
+                </label>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleSaveOption}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-medium"
+                >
+                  <Save className="w-4 h-4" /> Speichern
+                </button>
+                <button
+                  onClick={() => { setShowOptionForm(false); setEditingOption(null); }}
+                  className="px-4 py-2.5 text-gray-500 hover:text-gray-700 text-sm"
+                >
+                  Abbrechen
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Variant Groups List */}
+          {variants.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-400">
+              <Package className="w-12 h-12 mx-auto mb-3 opacity-40" />
+              <p>Noch keine Variantengruppen. Erstellen Sie die erste oben.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {variants.map(group => (
+                <div key={group.id} className="bg-white rounded-xl border border-gray-200 p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{group.display_name}</h3>
+                      <p className="text-sm text-gray-500">ID: {group.name}</p>
+                      {group.description && <p className="text-sm text-gray-600 mt-1">{group.description}</p>}
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleEditGroup(group)}
+                        className="p-1.5 rounded-lg hover:bg-gray-100"
+                        title="Bearbeiten"
+                      >
+                        <Edit3 className="w-4 h-4 text-blue-500" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteGroup(group.id)}
+                        className="p-1.5 rounded-lg hover:bg-red-50"
+                        title="Löschen"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-400" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Options */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">Optionen:</span>
+                      <button
+                        onClick={() => {
+                          setOptionForm(emptyOptionForm);
+                          setEditingOption(null);
+                          setActiveGroup(group.id);
+                          setShowOptionForm(true);
+                        }}
+                        className="text-xs px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"
+                      >
+                        + Option hinzufügen
+                      </button>
+                    </div>
+
+                    {group.options && group.options.length > 0 ? (
+                      <div className="grid md:grid-cols-2 gap-3">
+                        {group.options.map(option => (
+                          <div key={option.id} className="border border-gray-200 rounded-lg p-3">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-gray-900">{option.display_name}</span>
+                                  {option.is_default && (
+                                    <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-xs">
+                                      Standard
+                                    </span>
+                                  )}
+                                  {!option.is_available && (
+                                    <span className="px-1.5 py-0.5 bg-red-50 text-red-600 rounded text-xs">
+                                      Nicht verfügbar
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-gray-500 mt-0.5">ID: {option.name}</p>
+                                {option.price_modifier !== 0 && (
+                                  <p className="text-sm text-gray-700 mt-1">
+                                    Preis: {option.price_modifier > 0 ? '+' : ''}€{option.price_modifier.toFixed(2)}
+                                  </p>
+                                )}
+                                <p className="text-xs text-gray-500 mt-1">Lager: {option.stock_quantity}</p>
+                              </div>
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={() => handleEditOption(option, group.id)}
+                                  className="p-1 rounded hover:bg-gray-100"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5 text-blue-500" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteOption(group.id, option.id)}
+                                  className="p-1 rounded hover:bg-red-50"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-400 text-center py-4">
+                        Keine Optionen vorhanden
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
-};
-
-export default AdminVariantsPage;
+}

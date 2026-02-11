@@ -25,6 +25,7 @@ import subscriptionRoutes from './routes/subscription.routes.js';
 import variantRoutes from './routes/variant.routes.js';
 import creditnoteRoutes from './routes/creditnote.routes.js';
 import vatreportRoutes from './routes/vatreport.routes.js';
+import shippingRoutes from './routes/shipping.routes.js';
 
 // Import NEW routes (for Theresa's WordPress-like features)
 import brandingRoutes from './routes/branding.routes.js';
@@ -147,6 +148,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/variants', variantRoutes);
 app.use('/api/stock', stockRoutes);
+app.use('/api/shipping', shippingRoutes);
 
 // Customer Portal
 app.use('/api/customers', customerRoutes);

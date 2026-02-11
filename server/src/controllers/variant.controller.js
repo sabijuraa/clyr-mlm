@@ -2,23 +2,61 @@ import { query } from '../config/database.js';
 
 /**
  * Product Variants Controller
- * Manages product options like different faucet types
+ * Enhanced for CLYR MLM Platform
  */
 
 // ============================================
-// GET VARIANTS FOR PRODUCT
+// GET VARIANTS FOR PRODUCT (Enhanced)
 // ============================================
 export const getProductVariants = async (req, res) => {
   try {
     const { productId } = req.params;
     
+    // Get product variants with option details
     const result = await query(`
-      SELECT * FROM product_variants 
-      WHERE product_id = $1 AND is_active = true
-      ORDER BY sort_order, name
+      SELECT 
+        pv.id,
+        pv.product_id,
+        pv.option_id,
+        pv.price_modifier,
+        pv.stock_modifier,
+        pv.sku_suffix,
+        pv.is_default,
+        pv.is_active,
+        pv.sort_order,
+        vo.type as variant_type,
+        vo.name as variant_name,
+        vo.name_en as variant_name_en,
+        vo.description as variant_description,
+        vo.image_url as variant_image,
+        vo.price_modifier as option_price_modifier
+      FROM product_variants pv
+      JOIN variant_options vo ON pv.option_id = vo.id
+      WHERE pv.product_id = $1 AND pv.is_active = true
+      ORDER BY vo.type, pv.sort_order, vo.sort_order
     `, [productId]);
     
-    res.json({ variants: result.rows });
+    // Group by type
+    const grouped = {};
+    result.rows.forEach(row => {
+      if (!grouped[row.variant_type]) {
+        grouped[row.variant_type] = [];
+      }
+      grouped[row.variant_type].push({
+        id: row.id,
+        option_id: row.option_id,
+        name: row.variant_name,
+        name_en: row.variant_name_en,
+        description: row.variant_description,
+        price_modifier: parseFloat(row.price_modifier || row.option_price_modifier || 0),
+        image_url: row.variant_image,
+        sku_suffix: row.sku_suffix,
+        is_default: row.is_default,
+        sort_order: row.sort_order
+      });
+    });
+    
+    res.json({ variants: result.rows, grouped });
   } catch (error) {
     console.error('Get variants error:', error);
     res.status(500).json({ error: 'Fehler beim Laden der Varianten' });
@@ -219,5 +257,56 @@ export const getProductWithVariants = async (req, res) => {
   } catch (error) {
     console.error('Get product with variants error:', error);
     res.status(500).json({ error: 'Fehler beim Laden' });
+  }
+};
+
+// ============================================
+// CALCULATE PRICE WITH VARIANTS
+// ============================================
+export const calculatePrice = async (req, res) => {
+  try {
+    const { productId, variantOptionIds } = req.body;
+    
+    const productResult = await query(`SELECT price FROM products WHERE id = $1`, [productId]);
+    if (productResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    let totalPrice = parseFloat(productResult.rows[0].price);
+    let variantModifiers = [];
+    
+    if (variantOptionIds && variantOptionIds.length > 0) {
+      const placeholders = variantOptionIds.map((_, i) => `$${i + 1}`).join(',');
+      const variantResult = await query(`
+        SELECT vo.id, vo.name, vo.price_modifier
+        FROM variant_options vo
+        WHERE vo.id IN (${placeholders})
+      `, variantOptionIds);
+      
+      variantResult.rows.forEach(variant => {
+        const modifier = parseFloat(variant.price_modifier);
+        totalPrice += modifier;
+        variantModifiers.push({ id: variant.id, name: variant.name, price_modifier: modifier });
+      });
+    }
+    
+    res.json({ base_price: parseFloat(productResult.rows[0].price), variant_modifiers: variantModifiers, total_price: totalPrice });
+  } catch (error) {
+    console.error('Calculate price error:', error);
+    res.status(500).json({ error: 'Failed to calculate price' });
+  }
+};
+
+// ============================================
+// GET ORDER ITEM VARIANTS
+// ============================================
+export const getOrderItemVariants = async (req, res) => {
+  try {
+    const { orderItemId } = req.params;
+    const result = await query(`SELECT * FROM order_item_variants WHERE order_item_id = $1 ORDER BY variant_type, variant_name`, [orderItemId]);
+    res.json({ variants: result.rows });
+  } catch (error) {
+    console.error('Get order variants error:', error);
+    res.status(500).json({ error: 'Failed to fetch order variants' });
   }
 };
