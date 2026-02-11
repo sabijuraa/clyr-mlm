@@ -749,11 +749,24 @@ export const updateBranding = asyncHandler(async (req, res) => {
  * Upload branding logo
  */
 export const uploadLogo = asyncHandler(async (req, res) => {
-  if (!req.file) {
+  if (!req.uploadedFile && !req.file) {
     throw new AppError('Kein Logo hochgeladen', 400);
   }
 
-  const logoUrl = `/uploads/branding/${req.file.filename}`;
+  const logoUrl = req.uploadedFile || `/images/branding/${req.file?.filename || 'logo.png'}`;
+
+  // Update branding with new logo
+  const existing = await query("SELECT value FROM settings WHERE key = 'branding'");
+  const currentBranding = existing.rows[0]?.value || {};
+  currentBranding.logo = logoUrl;
+  
+  await query(
+    `INSERT INTO settings (key, value, description) 
+     VALUES ('branding', $1, 'Company branding configuration')
+     ON CONFLICT (key) 
+     DO UPDATE SET value = $1, updated_at = CURRENT_TIMESTAMP`,
+    [JSON.stringify(currentBranding)]
+  );
 
   // Log the activity
   await query(
@@ -764,6 +777,7 @@ export const uploadLogo = asyncHandler(async (req, res) => {
 
   res.json({ 
     message: 'Logo erfolgreich hochgeladen',
+    url: logoUrl,
     logoUrl 
   });
 });

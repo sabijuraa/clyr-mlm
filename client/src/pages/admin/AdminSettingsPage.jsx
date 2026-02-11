@@ -8,7 +8,8 @@ import {
   Upload, 
   RefreshCw,
   Check,
-  Eye
+  Eye,
+  Truck
 } from 'lucide-react';
 import { adminAPI } from '../../services/api';
 import { useBrand } from '../../context/BrandContext';
@@ -58,6 +59,12 @@ const AdminSettingsPage = () => {
   
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState('');
+  
+  const [shipping, setShipping] = useState({
+    AT: 55,
+    DE: 70,
+    CH: 180
+  });
 
   // Load current settings
   useEffect(() => {
@@ -143,6 +150,7 @@ const AdminSettingsPage = () => {
   const tabs = [
     { id: 'branding', label: lang === 'de' ? 'Marke & Farben' : 'Brand & Colors', icon: Palette },
     { id: 'company', label: lang === 'de' ? 'Unternehmen' : 'Company', icon: Building },
+    { id: 'shipping', label: lang === 'de' ? 'Versand' : 'Shipping', icon: Truck },
     { id: 'logo', label: lang === 'de' ? 'Logo' : 'Logo', icon: Image },
   ];
 
@@ -458,6 +466,51 @@ const AdminSettingsPage = () => {
                     />
                   </div>
                 </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Shipping Tab */}
+          {activeTab === 'shipping' && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-2xl border border-gray-100 p-6">
+              <h3 className="text-lg font-semibold text-secondary-700 mb-4">Versandkosten (netto)</h3>
+              <p className="text-sm text-secondary-500 mb-6">Versandkosten pro Land. Diese werden beim Checkout automatisch berechnet.</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-secondary-700 mb-1">Oesterreich (AT)</label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-secondary-500">€</span>
+                    <input type="number" step="0.01" value={shipping.AT}
+                      onChange={(e) => setShipping({ ...shipping, AT: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-secondary-700 mb-1">Deutschland (DE)</label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-secondary-500">€</span>
+                    <input type="number" step="0.01" value={shipping.DE}
+                      onChange={(e) => setShipping({ ...shipping, DE: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-secondary-700 mb-1">Schweiz (CH)</label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-secondary-500">€</span>
+                    <input type="number" step="0.01" value={shipping.CH}
+                      onChange={(e) => setShipping({ ...shipping, CH: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
+                  </div>
+                </div>
+              </div>
+              <div className="mt-6">
+                <Button onClick={async () => {
+                  try {
+                    await adminAPI.put('/settings/admin/shipping-costs', { AT: { flat: shipping.AT }, DE: { flat: shipping.DE }, CH: { flat: shipping.CH } });
+                    toast.success('Versandkosten gespeichert!');
+                  } catch (e) { toast.error('Fehler beim Speichern'); }
+                }} icon={Save}>Versandkosten speichern</Button>
               </div>
             </motion.div>
           )}

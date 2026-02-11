@@ -21,6 +21,10 @@ services:
     routes:
       - path: /api
         preserve_path_prefix: true
+      - path: /images
+        preserve_path_prefix: true
+      - path: /uploads
+        preserve_path_prefix: true
     health_check:
       http_path: /api/health
       initial_delay_seconds: 10

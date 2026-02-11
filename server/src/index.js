@@ -265,15 +265,59 @@ cron.schedule('0 4 * * *', async () => {
 // START SERVER
 // ========================================
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
   console.log('='.repeat(50));
-  console.log('🚀 CLYR MLM Server Started');
+  console.log('CLYR MLM Server Started');
   console.log('='.repeat(50));
-  console.log(`📡 Port: ${PORT}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 URL: http://localhost:${PORT}`);
-  console.log(`💾 Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
+  console.log(`Port: ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
   console.log('='.repeat(50));
+
+  // Auto-ensure critical tables exist
+  try {
+    const { query: dbQuery } = await import('./config/database.js');
+    await dbQuery(`
+      CREATE TABLE IF NOT EXISTS legal_pages (
+        id SERIAL PRIMARY KEY,
+        page_key VARCHAR(50) UNIQUE NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        content TEXT NOT NULL DEFAULT '',
+        title_en VARCHAR(255),
+        content_en TEXT,
+        last_updated_by INTEGER,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await dbQuery(`
+      CREATE TABLE IF NOT EXISTS settings (
+        id SERIAL PRIMARY KEY,
+        key VARCHAR(100) UNIQUE NOT NULL,
+        value JSONB,
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    // Ensure legal pages have at least placeholder content
+    const legalDefaults = [
+      ['privacy', 'Datenschutzerklaerung'],
+      ['imprint', 'Impressum'],
+      ['terms', 'Allgemeine Geschaeftsbedingungen (AGB)'],
+      ['withdrawal', 'Widerrufsbelehrung'],
+    ];
+    for (const [key, title] of legalDefaults) {
+      await dbQuery(
+        `INSERT INTO legal_pages (page_key, title, content) VALUES ($1, $2, 'Bitte im Admin-Panel bearbeiten.') ON CONFLICT (page_key) DO NOTHING`,
+        [key, title]
+      );
+    }
+    console.log('Critical tables verified.');
+  } catch (err) {
+    console.error('Auto-migration warning:', err.message);
+  }
 });
 
 // Handle unhandled promise rejections

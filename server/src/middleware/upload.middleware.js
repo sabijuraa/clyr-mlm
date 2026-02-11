@@ -79,15 +79,14 @@ export const uploadToSpaces = async (file, folder = 'general') => {
     const fileExtension = path.extname(file.originalname);
     const fileName = `${folder}/${crypto.randomBytes(16).toString('hex')}${fileExtension}`;
     
-    // If DO Spaces keys are not configured, save locally
+    // If DO Spaces keys are not configured, save locally to public/images
     if (!process.env.DO_SPACES_KEY || !process.env.DO_SPACES_SECRET) {
       const { writeFileSync, mkdirSync, existsSync } = await import('fs');
-      const localDir = `public/uploads/${folder}`;
+      const localDir = path.join(path.dirname(new URL(import.meta.url).pathname), `../../public/images/${folder}`);
       if (!existsSync(localDir)) mkdirSync(localDir, { recursive: true });
-      const localPath = `${localDir}/${crypto.randomBytes(16).toString('hex')}${fileExtension}`;
-      writeFileSync(localPath, file.buffer);
-      const fileUrl = `/${localPath}`;
-      return fileUrl;
+      const localFilename = `${crypto.randomBytes(16).toString('hex')}${fileExtension}`;
+      writeFileSync(`${localDir}/${localFilename}`, file.buffer);
+      return `/images/${folder}/${localFilename}`;
     }
 
     const uploadParams = {
@@ -105,15 +104,15 @@ export const uploadToSpaces = async (file, folder = 'general') => {
     return fileUrl;
   } catch (error) {
     console.error('Upload error:', error);
-    // Final fallback: save locally
+    // Final fallback: save locally to public/images
     try {
       const { writeFileSync, mkdirSync, existsSync } = await import('fs');
       const fileExtension = path.extname(file.originalname);
-      const localDir = `public/uploads/${folder}`;
+      const localDir = path.join(path.dirname(new URL(import.meta.url).pathname), `../../public/images/${folder}`);
       if (!existsSync(localDir)) mkdirSync(localDir, { recursive: true });
-      const localPath = `${localDir}/${crypto.randomBytes(16).toString('hex')}${fileExtension}`;
-      writeFileSync(localPath, file.buffer);
-      return `/${localPath}`;
+      const localFilename = `${crypto.randomBytes(16).toString('hex')}${fileExtension}`;
+      writeFileSync(`${localDir}/${localFilename}`, file.buffer);
+      return `/images/${folder}/${localFilename}`;
     } catch (e2) {
       console.error('Local fallback also failed:', e2);
       throw new Error('Failed to upload file');

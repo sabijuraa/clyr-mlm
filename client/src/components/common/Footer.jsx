@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { 
-  Facebook, Instagram, Youtube, Mail, Phone, MapPin,
+  Facebook, Instagram, Mail, Phone, MapPin,
   Shield, Truck, Headphones, Award, Package
 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
@@ -54,7 +54,6 @@ const Footer = () => {
   const socialLinks = [
     { icon: Facebook, href: brandConfig.social?.facebook || '#', label: 'Facebook' },
     { icon: Instagram, href: brandConfig.social?.instagram || '#', label: 'Instagram' },
-    { icon: Youtube, href: brandConfig.social?.youtube || '#', label: 'YouTube' },
   ];
 
   return (
@@ -69,7 +68,7 @@ const Footer = () => {
               <img 
                 src="/images/clyr-logo.png" 
                 alt="CLYR" 
-                className="h-12 w-auto rounded-lg bg-white p-1"
+                className="h-12 w-auto brightness-0 invert"
               />
             </Link>
             <p className="text-gray-400 mb-6 max-w-sm leading-relaxed">

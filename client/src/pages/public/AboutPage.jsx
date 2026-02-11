@@ -20,15 +20,15 @@ const AboutPage = () => {
     <div className="bg-white">
 
       {/* ===== HERO ===== */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-secondary-800 via-secondary-700 to-primary-800 text-white">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-primary-400 rounded-full blur-3xl" />
-          <div className="absolute bottom-10 right-20 w-96 h-96 bg-primary-300 rounded-full blur-3xl" />
+      <section className="relative overflow-hidden bg-secondary-800 text-white">
+        <div className="absolute inset-0 opacity-5">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-white rounded-full blur-3xl" />
+          <div className="absolute bottom-10 right-20 w-96 h-96 bg-white rounded-full blur-3xl" />
         </div>
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32 text-center">
           <motion.p initial="hidden" whileInView="visible" viewport={{ once: true }}
             variants={fadeUp} custom={0}
-            className="text-primary-300 uppercase tracking-[0.2em] text-sm font-medium mb-6">
+            className="text-secondary-300 uppercase tracking-[0.2em] text-sm font-medium mb-6">
             Über CLYR
           </motion.p>
           <motion.h1 initial="hidden" whileInView="visible" viewport={{ once: true }}
@@ -36,7 +36,7 @@ const AboutPage = () => {
             className="text-4xl md:text-5xl lg:text-6xl font-heading font-bold leading-tight mb-6">
             Mehr als Technologie.
             <br />
-            <span className="text-primary-300">Eine Vision für besseres Wasser.</span>
+            <span className="text-white">Eine Vision für besseres Wasser.</span>
           </motion.h1>
           <motion.p initial="hidden" whileInView="visible" viewport={{ once: true }}
             variants={fadeUp} custom={2}
@@ -239,16 +239,16 @@ const AboutPage = () => {
       </section>
 
       {/* ===== MEHR ALS TECHNOLOGIE ===== */}
-      <section className="py-20 md:py-28 bg-gradient-to-br from-secondary-800 to-primary-900 text-white">
+      <section className="py-20 md:py-28 bg-secondary-800 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }}
             variants={fadeUp}>
-            <p className="text-primary-300 uppercase tracking-[0.2em] text-sm font-medium mb-6">
+            <p className="text-secondary-300 uppercase tracking-[0.2em] text-sm font-medium mb-6">
               Mehr als Technologie
             </p>
             <h2 className="text-3xl md:text-4xl font-heading font-bold mb-8 leading-tight">
               CLYR steht für eine Bewegung hin zu
-              <span className="text-primary-300"> bewussterem Leben</span>, mehr Selbstbestimmung
+              <span className="text-white"> bewussterem Leben</span>, mehr Selbstbestimmung
               und nachhaltiger Gesundheit.
             </h2>
             <p className="text-secondary-200 text-lg leading-relaxed mb-6">

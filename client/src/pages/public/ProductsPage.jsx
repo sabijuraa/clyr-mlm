@@ -207,12 +207,12 @@ export default function ProductsPage() {
               </h4>
               <div className="space-y-2 text-xs text-secondary-600">
                 <div className="flex justify-between">
-                  <span>Deutschland</span>
-                  <span className="font-medium">{formatCurrency(50)}</span>
+                  <span>{lang === 'de' ? 'Oesterreich' : 'Austria'}</span>
+                  <span className="font-medium">{formatCurrency(55)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>{lang === 'de' ? 'Oesterreich' : 'Austria'}</span>
-                  <span className="font-medium">{formatCurrency(69)}</span>
+                  <span>Deutschland</span>
+                  <span className="font-medium">{formatCurrency(70)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>{lang === 'de' ? 'Schweiz' : 'Switzerland'}</span>

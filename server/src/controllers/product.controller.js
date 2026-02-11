@@ -241,7 +241,7 @@ export const createProduct = async (req, res) => {
     if (req.uploadedFiles && req.uploadedFiles.length > 0) {
       images.push(...req.uploadedFiles); // CDN URLs from Spaces
     } else if (req.files && req.files.length > 0) {
-      req.files.forEach(f => images.push(`/uploads/products/${f.filename}`));
+      req.files.forEach(f => images.push(`/images/products/${f.filename}`));
     }
 
     const result = await pool.query(`
@@ -305,22 +305,28 @@ export const updateProduct = async (req, res) => {
     // Handle images: start with kept existing images, then append new uploads
     let images = [];
     
+    // Parse existing images (may be string from DB)
+    let existingImages = existing.images || [];
+    if (typeof existingImages === 'string') {
+      try { existingImages = JSON.parse(existingImages); } catch(e) { existingImages = []; }
+    }
+    
     // If existing_images was sent, use those (user removed some via UI)
     if (req.body.existing_images) {
       try {
         images = JSON.parse(req.body.existing_images);
       } catch (e) {
-        images = existing.images || [];
+        images = existingImages;
       }
     } else {
-      images = existing.images || [];
+      images = existingImages;
     }
 
     // Append new uploaded images
     if (req.uploadedFiles && req.uploadedFiles.length > 0) {
       images.push(...req.uploadedFiles);
     } else if (req.files && req.files.length > 0) {
-      req.files.forEach(f => images.push(`/uploads/products/${f.filename}`));
+      req.files.forEach(f => images.push(`/images/products/${f.filename}`));
     }
 
     const result = await pool.query(`
@@ -506,7 +512,7 @@ export const uploadProductImages = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const newPaths = req.uploadedFiles || (req.files ? req.files.map(f => `/uploads/products/${f.filename}`) : []);
+    const newPaths = req.uploadedFiles || (req.files ? req.files.map(f => `/images/products/${f.filename}`) : []);
     if (newPaths.length === 0) {
       return res.status(400).json({ error: 'No images uploaded' });
     }

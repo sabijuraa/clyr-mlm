@@ -183,7 +183,7 @@ async function seed() {
         price: 120.00, category_slug: 'zubehoer', stock: 50,
         images: JSON.stringify(['/images/products/sango-koralle.jpg']),
         features: JSON.stringify(['Natuerliche Mineralien', 'Nach Maschine, vor Hahn', 'Verbessert Geschmack']),
-        is_featured: false, is_new: false, is_large_item: false, product_type: 'physical'
+        is_featured: true, is_new: false, is_large_item: false, product_type: 'physical'
       },
       {
         name: 'BIO Tuner - Wasserverwirbler', name_en: 'BIO Tuner - Water Vortex', slug: 'bio-tuner', sku: 'CLYR-BIOTUNER',
@@ -204,31 +204,13 @@ async function seed() {
         is_featured: false, is_new: false, is_large_item: false, product_type: 'physical'
       },
       {
-        name: 'Aroma Kartuschen 3er Set - Eukalyptus', name_en: 'Aroma Cartridges 3-Pack Eucalyptus', slug: 'aroma-kartuschen-eukalyptus', sku: 'CLYR-AK-EUK',
-        description: '3er Set Aroma-Kartuschen mit Eukalyptus-Duft und Vitamin-C.',
-        short_description: '3er Set Aroma-Kartuschen Eukalyptus.',
+        name: 'Aroma Kartuschen 3er Set', name_en: 'Aroma Cartridges 3-Pack', slug: 'aroma-kartuschen', sku: 'CLYR-AK',
+        description: '3er Set Aroma-Kartuschen mit Vitamin-C fuer den CLYR Aromaduschkopf. Duft waehlbar: Lavendel, Zitrone, Waldduft, Babypuder oder OceanBlue.',
+        short_description: '3er Set Aroma-Kartuschen. Duft waehlbar.',
         price: 48.00, category_slug: 'duschen', stock: 100,
         images: JSON.stringify(['/images/products/aroma-kartuschen.png']),
-        features: JSON.stringify(['3 Kartuschen', 'Eukalyptus-Duft', 'Vitamin-C']),
-        is_featured: false, is_new: false, is_large_item: false, product_type: 'physical'
-      },
-      {
-        name: 'Aroma Kartuschen 3er Set - Zitrone', name_en: 'Aroma Cartridges 3-Pack Lemon', slug: 'aroma-kartuschen-zitrone', sku: 'CLYR-AK-LEM',
-        description: '3er Set Aroma-Kartuschen mit Zitronen-Duft und Vitamin-C.',
-        short_description: '3er Set Aroma-Kartuschen Zitrone.',
-        price: 48.00, category_slug: 'duschen', stock: 100,
-        images: JSON.stringify(['/images/products/aroma-kartuschen.png']),
-        features: JSON.stringify(['3 Kartuschen', 'Zitronen-Duft', 'Vitamin-C']),
-        is_featured: false, is_new: false, is_large_item: false, product_type: 'physical'
-      },
-      {
-        name: 'Aroma Kartuschen 3er Set - Pfefferminze', name_en: 'Aroma Cartridges 3-Pack Peppermint', slug: 'aroma-kartuschen-pfefferminze', sku: 'CLYR-AK-PFE',
-        description: '3er Set Aroma-Kartuschen mit Pfefferminz-Duft und Vitamin-C.',
-        short_description: '3er Set Aroma-Kartuschen Pfefferminze.',
-        price: 48.00, category_slug: 'duschen', stock: 100,
-        images: JSON.stringify(['/images/products/aroma-kartuschen.png']),
-        features: JSON.stringify(['3 Kartuschen', 'Pfefferminz-Duft', 'Vitamin-C']),
-        is_featured: false, is_new: false, is_large_item: false, product_type: 'physical'
+        features: JSON.stringify(['3 Kartuschen', '5 Duefte waehlbar', 'Vitamin-C']),
+        is_featured: true, is_new: false, is_large_item: false, product_type: 'physical'
       },
       {
         name: 'Filter-Abo (alle 6 Monate)', name_en: 'Filter Subscription (6 months)', slug: 'filter-abo', sku: 'CLYR-FILTER-ABO',
@@ -316,8 +298,8 @@ async function seed() {
       {
         key: 'shipping_costs',
         value: JSON.stringify({
-          DE: { flat: 50.00 },
-          AT: { flat: 69.00 },
+          DE: { flat: 70.00 },
+          AT: { flat: 55.00 },
           CH: { flat: 180.00 }
         }),
         description: 'Shipping costs per country'
@@ -638,121 +620,130 @@ async function seed() {
       ]);
     }
 
-    // ========================================
-    // 11. SEED VARIANT OPTIONS (Faucet Types)
-    // ========================================
-    console.log('Seeding variant options...');
-    
-    const variantOptions = [
-      // Faucet types for CLYR Home Soda
-      {
-        type: 'faucet',
-        name: 'Standard Armatur',
-        name_en: 'Standard Faucet',
-        description: 'Klassische 3-Wege-Armatur in Edelstahl',
-        price_modifier: 0,
-        sort_order: 1
-      },
-      {
-        type: 'faucet',
-        name: 'Premium Armatur',
-        name_en: 'Premium Faucet',
-        description: 'Designer-Armatur mit Touch-Bedienung und LED',
-        price_modifier: 200,
-        sort_order: 2
-      },
-      {
-        type: 'faucet',
-        name: 'Deluxe Armatur',
-        name_en: 'Deluxe Faucet',
-        description: 'Exklusive Armatur mit Display und Smart-Features',
-        price_modifier: 450,
-        sort_order: 3
-      },
-      // Aroma types for Shower
-      {
-        type: 'aroma',
-        name: 'Zitrus',
-        name_en: 'Citrus',
-        description: 'Erfrischend und belebend',
-        price_modifier: 0,
-        sort_order: 1
-      },
-      {
-        type: 'aroma',
-        name: 'Lavendel',
-        name_en: 'Lavender',
-        description: 'Beruhigend und entspannend',
-        price_modifier: 0,
-        sort_order: 2
-      },
-      {
-        type: 'aroma',
-        name: 'Eukalyptus',
-        name_en: 'Eucalyptus',
-        description: 'Befreiend und aktivierend',
-        price_modifier: 0,
-        sort_order: 3
-      }
+
+    await client.query('COMMIT');
+
+
+    const legalPages = [
+      { key: 'privacy', title: 'Datenschutzerklaerung', content: `In folgender Datenschutzerklaerung informieren wir Sie ueber die wichtigsten Aspekte der Datenverarbeitung im Rahmen unserer Webseite. Wir erheben und verarbeiten personenbezogene Daten nur auf Grundlage der gesetzlichen Bestimmungen (Datenschutzgrundverordnung, Telekommunikationsgesetz 2003).\n\nSobald Sie als Benutzer auf unsere Webseite zugreifen oder diese besuchen wird Ihre IP-Adresse, Beginn sowie Beginn und Ende der Sitzung erfasst.\n\nKontakt mit uns: Wenn Sie uns per Email kontaktieren, werden die von Ihnen uebermittelten Daten fuer sechs Monate gespeichert.\n\nCookies: Unsere Website verwendet Cookies. Sie richten keinen Schaden an.\n\nGoogle Maps & Google Fonts werden verwendet.\n\nIhre Rechte: Auskunft, Loeschung, Berichtigung, Uebertragbarkeit, Widerspruch.\n\nWebseitenbetreiber: Theresa Struger\nTelefon: +43 664 2520432\nEmail: admin@clyr.shop` },
+      { key: 'imprint', title: 'Impressum', content: `CLYR Solutions GmbH\nPappelweg 4b, 9524 St. Magdalen\nGeschaeftsfuehrerin: Theresa Struger\nOesterreich\n+43 (0) 664 2520432\nadmin@clyr.shop\nwww.clyr.shop\n\nRegisternummer: (wird ergaenzt)\nRegistergericht: Handelsregister Villach\n\nEU-Streitschlichtung: https://ec.europa.eu/consumers/odr\n\nHaftung fuer Inhalte: Wir entwickeln die Inhalte staendig weiter.\nHaftung fuer Links: Wir sind fuer verlinkte Inhalte nicht verantwortlich.\nUrheberrecht: Alle Inhalte sind urheberrechtlich geschuetzt.\nBilderrechte: Shutterstock, Wix, Canva, Unsplash, Theresa Struger` },
+      { key: 'terms', title: 'Allgemeine Geschaeftsbedingungen (AGB)', content: `AGB der CLYR Solutions GmbH\n\n§1 Geltungsbereich: Diese AGB gelten fuer saemtliche Vertraege der CLYR Solutions GmbH, Pappelweg 4b, 9524 St. Magdalen, Geschaeftsfuehrerin Theresa Struger.\n\n§2 Vertragsgegenstand: Verkauf von Wasseraufbereitungssystemen, Umkehrosmoseanlagen, Zubehoer und Ersatzteile. Optional Montage- und Serviceleistungen.\n\n§3 Vertragsabschluss: Die Praesentation der Produkte stellt kein bindendes Angebot dar. Der Vertrag kommt zustande durch Auftragsbestaetigung, Lieferung oder Rechnungslegung.\n\n§4 Preise: Alle Preise inklusive MwSt. zuzueglich Versandkosten. Zahlung per Vorkasse oder Bankueberweisung.\n\n§5 Lieferung: An die angegebene Adresse. Lieferzeiten unverbindlich. Teillieferungen zulaessig.\n\n§6 Montage: Optional durch zertifizierte Fachkraefte. Gesondert verrechnet.\n\n§7 Selbstmontage: Auf eigene Verantwortung. Keine Haftung bei unsachgemaesser Installation.\n\n§8 Gewaehrleistung: Gesetzliche Rechte nach AT-Recht. Verschleissteile ausgenommen. Garantie nur bei Einhaltung der Wartungsintervalle.\n\n§9 Betrieb und Wartung: Wartungsintervalle zwingend einzuhalten.\n\n§10 Eigentumsvorbehalt: Ware bleibt bis Bezahlung Eigentum der CLYR Solutions GmbH.\n\n§11 Haftung: Unbeschraenkt bei Vorsatz/grober Fahrlaessigkeit. Beschraenkt bei leichter Fahrlaessigkeit.\n\n§12 Gerichtsstand: Oesterreichisches Recht. Gerichtsstand Sitz der CLYR Solutions GmbH.\n\n§13 Salvatorische Klausel.` },
+      { key: 'withdrawal', title: 'Widerrufsbelehrung', content: `Widerrufsrecht\n\nSie haben das Recht, binnen 14 Tagen ohne Angabe von Gruenden diesen Vertrag zu widerrufen.\n\nDie Widerrufsfrist betraegt 14 Tage ab dem Tag, an dem Sie oder ein von Ihnen benannter Dritter die Waren in Besitz genommen haben.\n\nUm Ihr Widerrufsrecht auszuueben, muessen Sie uns (CLYR Solutions GmbH, Pappelweg 4b, 9524 St. Magdalen, admin@clyr.shop, +43 664 2520432) mittels einer eindeutigen Erklaerung ueber Ihren Entschluss informieren.\n\nFolgen des Widerrufs: Wir erstatten alle Zahlungen unverzueglich und spaetestens binnen 14 Tagen.` },
+      { key: 'vp_vertrag', title: 'VP-Vertrag', content: 'Vertriebspartner-Vertrag. Bitte kontaktieren Sie uns fuer Details.' }
     ];
 
-    const optionIds = {};
-    for (const option of variantOptions) {
-      const result = await client.query(`
-        INSERT INTO variant_options (type, name, name_en, description, price_modifier, sort_order)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        ON CONFLICT DO NOTHING
-        RETURNING id
-      `, [option.type, option.name, option.name_en, option.description, option.price_modifier, option.sort_order]);
-      
-      if (result.rows.length > 0) {
-        optionIds[`${option.type}_${option.name}`] = result.rows[0].id;
+    for (const page of legalPages) {
+      await client.query(
+        `INSERT INTO legal_pages (page_key, title, content) VALUES ($1, $2, $3) ON CONFLICT (page_key) DO UPDATE SET title = $2, content = $3`,
+        [page.key, page.title, page.content]
+      );
+    }
+    console.log('Legal pages seeded.');
+
+    // ============ SEED VARIANT OPTIONS ============
+    console.log('Seeding variant options...');
+    
+    // Faucet variants for CLYR Soda
+    const faucetVariants = [
+      { type: 'armatur', name: 'Spiralfeder Chrom', image: '/images/products/faucet-spiralfeder-chrom.png', price: 0, sort: 1 },
+      { type: 'armatur', name: 'Spiralfeder Schwarz', image: '/images/products/faucet-spiralfeder-schwarz.png', price: 0, sort: 2 },
+      { type: 'armatur', name: 'L-Auslauf', image: '/images/products/faucet-l-auslauf.png', price: 0, sort: 3 },
+    ];
+
+    // Aromaduschkopf color variants
+    const showerVariants = [
+      { type: 'farbe', name: 'Schwarz', image: '', price: 0, sort: 1 },
+      { type: 'farbe', name: 'Edelstahl', image: '', price: 0, sort: 2 },
+    ];
+
+    // Aroma Kartuschen scent variants
+    const aromaVariants = [
+      { type: 'duft', name: 'Lavendel', image: '', price: 0, sort: 1 },
+      { type: 'duft', name: 'Zitrone', image: '', price: 0, sort: 2 },
+      { type: 'duft', name: 'Waldduft', image: '', price: 0, sort: 3 },
+      { type: 'duft', name: 'Babypuder', image: '', price: 0, sort: 4 },
+      { type: 'duft', name: 'OceanBlue', image: '', price: 0, sort: 5 },
+    ];
+
+    // Delete old variants
+    await client.query('DELETE FROM product_variants');
+    await client.query('DELETE FROM variant_options');
+
+    const allVariants = [...faucetVariants, ...showerVariants, ...aromaVariants];
+    const variantIds = {};
+    for (const v of allVariants) {
+      const r = await client.query(
+        `INSERT INTO variant_options (type, name, price_modifier, image_url, sort_order, is_active)
+         VALUES ($1, $2, $3, $4, $5, true) RETURNING id`,
+        [v.type, v.name, v.price, v.image, v.sort]
+      );
+      variantIds[v.type + ':' + v.name] = r.rows[0].id;
+    }
+
+    // Assign faucet variants to CLYR Soda
+    const sodaProduct = await client.query("SELECT id FROM products WHERE sku = 'CLYR-SODA'");
+    if (sodaProduct.rows.length > 0) {
+      const sodaId = sodaProduct.rows[0].id;
+      for (const v of faucetVariants) {
+        const optId = variantIds[v.type + ':' + v.name];
+        await client.query(
+          `INSERT INTO product_variants (product_id, option_id, price_modifier, is_default, sort_order)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [sodaId, optId, 0, v.sort === 1, v.sort]
+        );
       }
     }
 
-    // Link variants to products (need to get product IDs first)
-    const sodaProduct = await client.query("SELECT id FROM products WHERE slug = 'clyr-home-soda-standard'");
-    if (sodaProduct.rows.length > 0 && optionIds['faucet_Standard Armatur']) {
-      const productId = sodaProduct.rows[0].id;
-      
-      // Assign faucet options to soda product
-      for (const faucetOption of variantOptions.filter(v => v.type === 'faucet')) {
-        const optId = optionIds[`faucet_${faucetOption.name}`];
+    // Assign color variants to Aromaduschkopf
+    const showerProduct = await client.query("SELECT id FROM products WHERE sku = 'CLYR-AROMA-DK'");
+    if (showerProduct.rows.length > 0) {
+      const showerId = showerProduct.rows[0].id;
+      for (const v of showerVariants) {
+        const optId = variantIds[v.type + ':' + v.name];
+        await client.query(
+          `INSERT INTO product_variants (product_id, option_id, price_modifier, is_default, sort_order)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [showerId, optId, 0, v.sort === 1, v.sort]
+        );
+      }
+    }
+
+    console.log('Variant options seeded.');
+
+    // Assign scent variants to Aroma Kartuschen
+    const aromaProduct = await client.query("SELECT id FROM products WHERE sku = 'CLYR-AK'");
+    if (aromaProduct.rows.length > 0) {
+      const aromaId = aromaProduct.rows[0].id;
+      for (const v of aromaVariants) {
+        const optId = variantIds[v.type + ':' + v.name];
         if (optId) {
-          await client.query(`
-            INSERT INTO product_variants (product_id, option_id, price_modifier, is_default)
-            VALUES ($1, $2, $3, $4)
-            ON CONFLICT (product_id, option_id) DO NOTHING
-          `, [productId, optId, faucetOption.price_modifier, faucetOption.name === 'Standard Armatur']);
+          await client.query(
+            `INSERT INTO product_variants (product_id, option_id, price_modifier, is_default, sort_order)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [aromaId, optId, 0, v.sort === 1, v.sort]
+          );
         }
       }
     }
 
-    await client.query('COMMIT');
-    
-    console.log('');
-    console.log('✅ CLYR Database seeded successfully!');
-    console.log('');
-    console.log('📧 Admin Login:');
-    console.log('   Email: theresa@clyr.at');
-    console.log('   Password: Admin123!');
-    console.log('');
-    console.log('📧 Demo Partner Login:');
-    console.log('   Email: demo@partner.com');
-    console.log('   Password: Partner123!');
-    console.log('');
-    console.log('🛒 Products Added:');
-    console.log('   - CLYR Home Soda Standard (€3,332.50 net)');
-    console.log('   - CLYR Home Soda Premium (€3,332.50 net)');
-    console.log('   - CLYR Aroma Dusche Zitrus (€126 net)');
-    console.log('   - CLYR Aroma Dusche Lavendel (€126 net)');
-    console.log('   - CLYR Aroma Dusche Eukalyptus (€126 net)');
-    console.log('   - Professionelle Installation (€400 net)');
-    console.log('   - Filter-Abo jährlich (€149 net)');
-    console.log('   - CO2-Flasche (€39.90 net)');
-    console.log('   - Aroma-Kapseln Set (€24.90 net)');
-    console.log('');
-    console.log('═══════════════════════════════════════════════════════');
+    console.log('All variant assignments complete.');
+
+    // ============ SEED SHIPPING SETTINGS ============
+    console.log('Seeding shipping settings...');
+    const shippingSettings = [
+      { key: 'shipping_at', value: '55', desc: 'Versandkosten Oesterreich' },
+      { key: 'shipping_de', value: '70', desc: 'Versandkosten Deutschland' },
+      { key: 'shipping_ch', value: '180', desc: 'Versandkosten Schweiz' },
+    ];
+    for (const s of shippingSettings) {
+      await client.query(
+        `INSERT INTO settings (key, value, description) VALUES ($1, $2, $3)
+         ON CONFLICT (key) DO UPDATE SET value = $2`,
+        [s.key, s.value, s.desc]
+      );
+    }
+    console.log('Shipping settings seeded.');
+
     console.log('');
     console.log('✅ SEEDING COMPLETE! Use these accounts to login:');
     console.log('');

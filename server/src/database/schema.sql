@@ -1184,3 +1184,17 @@ CREATE TRIGGER update_credit_notes_updated_at BEFORE UPDATE ON credit_notes FOR 
 CREATE TRIGGER update_customer_accounts_updated_at BEFORE UPDATE ON customer_accounts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_data_imports_updated_at BEFORE UPDATE ON data_imports FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_vat_reports_updated_at BEFORE UPDATE ON vat_reports FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============ LEGAL PAGES TABLE ============
+CREATE TABLE IF NOT EXISTS legal_pages (
+    id SERIAL PRIMARY KEY,
+    page_key VARCHAR(50) UNIQUE NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL DEFAULT '',
+    title_en VARCHAR(255),
+    content_en TEXT,
+    last_updated_by INTEGER REFERENCES users(id),
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

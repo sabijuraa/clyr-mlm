@@ -48,8 +48,8 @@ export default function CheckoutPage() {
   const effectiveSubtotal = cartItems.length > 0 ? subtotal : effectiveCartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   
   // Shipping costs per country
-  const shippingByCountry = { DE: 50, AT: 69, CH: 180 };
-  const effectiveShipping = cartItems.length > 0 ? shipping : (shippingByCountry[formData.country] || 69);
+  const shippingByCountry = { DE: 70, AT: 55, CH: 180 };
+  const effectiveShipping = cartItems.length > 0 ? shipping : (shippingByCountry[formData.country] || 55);
   
   // VAT calculation based on country and VAT ID
   const getClientVatRate = () => {

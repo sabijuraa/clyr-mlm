@@ -158,7 +158,7 @@ const HomePage = () => {
             {[
               { icon: Droplets, title: t('Höchste Wasserqualität', 'Highest Water Quality'), desc: t('9-Stufen Filtration eliminiert Schadstoffe, Mikroplastik und Medikamentenrückstände.', '9-stage filtration eliminates contaminants, microplastics and medication residues.') },
               { icon: Sparkles, title: t('Modernes, elegantes Design', 'Modern, Elegant Design'), desc: t('Kompakte Systeme, die sich harmonisch in jede Küche integrieren.', 'Compact systems that blend harmoniously into any kitchen.') },
-              { icon: Zap, title: t('Alltagstaugliche Bedienung', 'Everyday Usability'), desc: t('Intuitiv und einfach – reines Wasser auf Knopfdruck, ohne komplizierte Routinen.', 'Intuitive and simple – pure water at the push of a button.') },
+              { icon: Zap, title: t('Alltagstaugliche Bedienung', 'Everyday Usability'), desc: t('Intuitiv und einfach – reines Wasser direkt aus dem Wasserhahn, ohne komplizierte Routinen.', 'Intuitive and simple – pure water straight from your faucet, no complicated routines.') },
               { icon: Leaf, title: t('Nachhaltige Lösungen', 'Sustainable Solutions'), desc: t('Schluss mit Plastikflaschen. Gut für Ihre Familie und die Umwelt.', 'No more plastic bottles. Good for your family and the environment.') },
               { icon: Shield, title: t('Technologie auf höchstem Niveau', 'Top-Level Technology'), desc: t('LED-UVC Entkeimung, Bio-Tuner und automatische Membranspülung.', 'LED-UVC disinfection, Bio-Tuner and automatic membrane flushing.') },
               { icon: Heart, title: t('Für die ganze Familie', 'For the Whole Family'), desc: t('Gesundes Wasser für Kochen, Trinken und das Wohlbefinden der ganzen Familie.', 'Healthy water for cooking, drinking and the wellbeing of your whole family.') },
@@ -181,7 +181,7 @@ const HomePage = () => {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-2 gap-12 md:gap-16 items-center">
             <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={fadeUp} className="relative">
-              <div className="absolute -inset-4 bg-gradient-to-br from-primary-100 to-primary-50 rounded-3xl -rotate-2" />
+              <div className="absolute -inset-4 bg-gradient-to-br from-secondary-100 to-secondary-50 rounded-3xl -rotate-2" />
               <img src="/images/founders-together.jpeg" alt="CLYR Gründer" className="relative rounded-2xl w-full shadow-xl object-cover" />
               <div className="absolute -bottom-6 -right-6 bg-white rounded-2xl p-5 shadow-xl border border-gray-100">
                 <div className="flex items-center gap-3">

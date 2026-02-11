@@ -333,17 +333,65 @@ const AdminPartnersPage = () => {
                       </div>
                     </div>
 
-                    {/* Partner Info */}
+                    {/* Partner Info & Controls */}
                     <div>
                       <h3 className="text-sm font-semibold text-secondary-500 uppercase mb-3">Partner-Daten</h3>
                       <div className="space-y-3">
+                        {/* Editable Rank */}
+                        <div className="flex items-start gap-3">
+                          <Award className="w-4 h-4 text-secondary-400 mt-2 flex-shrink-0" />
+                          <div className="flex-1">
+                            <p className="text-xs text-secondary-400 mb-1">Rang aendern</p>
+                            <select
+                              value={partnerDetail.partner?.rank_id || 1}
+                              onChange={async (e) => {
+                                try {
+                                  await adminAPI.updatePartnerRank(partnerDetail.partner.id, parseInt(e.target.value));
+                                  toast.success('Rang geaendert!');
+                                  loadPartnerDetail(partnerDetail.partner.id);
+                                } catch (err) { toast.error('Fehler'); }
+                              }}
+                              className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg"
+                            >
+                              <option value={1}>R1 Starter</option>
+                              <option value={2}>R2 Bronze</option>
+                              <option value={3}>R3 Silber</option>
+                              <option value={4}>R4 Gold</option>
+                              <option value={5}>R5 Platin</option>
+                              <option value={6}>R6 Manager</option>
+                              <option value={7}>R7 Direktor</option>
+                            </select>
+                          </div>
+                        </div>
+                        {/* Editable Status */}
+                        <div className="flex items-start gap-3">
+                          <Calendar className="w-4 h-4 text-secondary-400 mt-2 flex-shrink-0" />
+                          <div className="flex-1">
+                            <p className="text-xs text-secondary-400 mb-1">Status aendern</p>
+                            <select
+                              value={partnerDetail.partner?.status || 'pending'}
+                              onChange={async (e) => {
+                                try {
+                                  await adminAPI.updatePartnerStatus(partnerDetail.partner.id, e.target.value);
+                                  toast.success('Status geaendert!');
+                                  loadPartnerDetail(partnerDetail.partner.id);
+                                  fetchPartners();
+                                } catch (err) { toast.error('Fehler'); }
+                              }}
+                              className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg"
+                            >
+                              <option value="pending">Ausstehend</option>
+                              <option value="active">Aktiv</option>
+                              <option value="inactive">Inaktiv</option>
+                              <option value="suspended">Gesperrt</option>
+                            </select>
+                          </div>
+                        </div>
                         {[
-                          { icon: Award, label: 'Rang', value: partnerDetail.partner?.rank_name || '-' },
                           { icon: Hash, label: 'Empfehlungscode', value: partnerDetail.partner?.referral_code || '-' },
                           { icon: Users, label: 'Upline', value: partnerDetail.partner?.upline_first_name ? `${partnerDetail.partner.upline_first_name} ${partnerDetail.partner.upline_last_name} (${partnerDetail.partner.upline_email})` : 'Kein Upline' },
                           { icon: CreditCard, label: 'IBAN', value: partnerDetail.partner?.iban || '-' },
                           { icon: Building, label: 'BIC', value: partnerDetail.partner?.bic || '-' },
-                          { icon: Calendar, label: 'Status', value: formatPartnerStatus(partnerDetail.partner?.status) },
                         ].map((item, i) => (
                           <div key={i} className="flex items-start gap-3">
                             <item.icon className="w-4 h-4 text-secondary-400 mt-0.5 flex-shrink-0" />

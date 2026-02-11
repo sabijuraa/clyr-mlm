@@ -6,47 +6,54 @@ import { useLanguage } from '../../context/LanguageContext';
 import ReferralLinkCard from '../../components/dashboard/ReferralLinkCard';
 import Button from '../../components/common/Button';
 import { copyToClipboard } from '../../utils/helpers';
+import api from '../../services/api';
 import toast from 'react-hot-toast';
-
-// Demo products
-const demoProducts = [
-  { id: 1, name: 'AquaPure Pro 3000', slug: 'aquapure-pro-3000', image: '/products/machine-1.jpg' },
-  { id: 2, name: 'FreshFlow Kompakt', slug: 'freshflow-kompakt', image: '/products/machine-2.jpg' },
-  { id: 3, name: 'Premium Filterset', slug: 'premium-filterset-6er', image: '/products/filter-1.jpg' },
-  { id: 4, name: 'AquaPure Home', slug: 'aquapure-home', image: '/products/machine-3.jpg' },
-];
 
 const ReferralLinksPage = () => {
   const { user } = useAuth();
   const { t } = useLanguage();
-  const [copied, setCopied] = useState(false);
+  const [products, setProducts] = useState([]);
 
-  const referralCode = user?.referralCode || 'ABC123';
+  const referralCode = user?.referralCode || user?.referral_code || 'CODE';
   const baseUrl = window.location.origin;
 
   const mainLink = `${baseUrl}?ref=${referralCode}`;
   const partnerLink = `${baseUrl}/partner/register?ref=${referralCode}`;
 
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        const res = await api.get('/products');
+        const prods = res.data.products || res.data || [];
+        setProducts(Array.isArray(prods) ? prods : []);
+      } catch (e) { console.error('Failed to load products:', e); }
+    };
+    loadProducts();
+  }, []);
+
   const handleCopy = async (link) => {
     const success = await copyToClipboard(link);
     if (success) {
-      toast.success(t('dashboard.referral.copied'));
+      toast.success('Link kopiert!');
     }
   };
 
-  const productLinks = demoProducts.map(product => ({
-    ...product,
-    link: `${baseUrl}/product/${product.slug}?ref=${referralCode}`,
-    clicks: Math.floor(Math.random() * 100),
-    conversions: Math.floor(Math.random() * 10)
-  }));
+  const productLinks = products.map(product => {
+    let images = product.images || [];
+    if (typeof images === 'string') { try { images = JSON.parse(images); } catch(e) { images = []; } }
+    return {
+      ...product,
+      link: `${baseUrl}/product/${product.slug}?ref=${referralCode}`,
+      image: images[0] || '/images/products/clyr-soda-system.png'
+    };
+  });
 
   return (
     <div className="space-y-8">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-heading font-bold text-secondary-700">
-          {t('dashboard.referral.title')}
+          Empfehlungslinks
         </h1>
         <p className="text-secondary-500">
           Teilen Sie diese Links, um Provisionen zu verdienen
@@ -87,7 +94,7 @@ const ReferralLinksPage = () => {
               icon={Copy}
               onClick={() => handleCopy(mainLink)}
             >
-              {t('dashboard.referral.copy')}
+              Link kopieren
             </Button>
             <button className="p-3 bg-white/20 hover:bg-white/30 rounded-xl transition-colors">
               <Share2 className="w-5 h-5" />
@@ -131,7 +138,7 @@ const ReferralLinksPage = () => {
               icon={Copy}
               onClick={() => handleCopy(partnerLink)}
             >
-              {t('dashboard.referral.copy')}
+              Link kopieren
             </Button>
             <button className="p-3 bg-white/20 hover:bg-white/30 rounded-xl transition-colors">
               <Share2 className="w-5 h-5" />
@@ -169,15 +176,22 @@ const ReferralLinksPage = () => {
         </h2>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {productLinks.map((product, index) => (
-            <ReferralLinkCard
-              key={product.id}
-              title={product.name}
-              link={product.link}
-              productImage={product.image}
-              clicks={product.clicks}
-              conversions={product.conversions}
-              index={index}
-            />
+            <motion.div key={product.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+              className="bg-white rounded-2xl border border-gray-100 p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <img src={product.image} alt={product.name} className="w-12 h-12 object-contain rounded-lg bg-gray-50 p-1" />
+                <h3 className="font-semibold text-secondary-700 text-sm">{product.name}</h3>
+              </div>
+              <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg mb-3">
+                <input type="text" value={product.link} readOnly
+                  className="flex-1 bg-transparent text-xs truncate outline-none text-secondary-600" />
+              </div>
+              <Button variant="outline" size="sm" icon={Copy} className="w-full"
+                onClick={() => handleCopy(product.link)}>
+                Link kopieren
+              </Button>
+            </motion.div>
           ))}
         </div>
       </div>

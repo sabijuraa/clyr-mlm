@@ -31,14 +31,13 @@ const generateOrderNumber = async () => {
 
 /**
  * Get shipping cost based on country and items
- * CLYR uses flat-rate shipping per country (from catalog):
- * DE: 50 EUR, AT: 69 EUR, CH: 180 EUR
+ * CLYR shipping: AT: 55 EUR, DE: 70 EUR, CH: 180 EUR
  */
 const getShippingCost = async (country, items, products) => {
   const settingsResult = await query("SELECT value FROM settings WHERE key = 'shipping_costs'");
   const shippingCosts = settingsResult.rows[0]?.value || {
-    DE: { flat: 50.00 },
-    AT: { flat: 69.00 },
+    DE: { flat: 70.00 },
+    AT: { flat: 55.00 },
     CH: { flat: 180.00 }
   };
 

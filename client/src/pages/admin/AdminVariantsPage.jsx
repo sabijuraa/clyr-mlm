@@ -26,8 +26,9 @@ const AdminVariantsPage = () => {
         api.get('/variants/options'),
         api.get('/products'),
       ]);
-      setOptions(optionsRes.data.options || {});
-      setProducts(productsRes.data.products || []);
+      setOptions(optionsRes.data.options || optionsRes.data || {});
+      const prods = productsRes.data.products || productsRes.data || [];
+      setProducts(Array.isArray(prods) ? prods : []);
     } catch (error) {
       console.error('Failed to fetch data:', error);
       toast.error('Fehler beim Laden');
