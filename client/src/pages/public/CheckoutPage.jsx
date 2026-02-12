@@ -110,55 +110,82 @@ export default function CheckoutPage() {
     setLoading(true);
 
     try {
+      // Ensure items have integer productId
+      const orderItems = effectiveCartItems.map(item => ({
+        productId: parseInt(item.id || item.productId, 10),
+        quantity: parseInt(item.quantity, 10) || 1
+      })).filter(item => !isNaN(item.productId) && item.productId > 0);
+
+      if (orderItems.length === 0) {
+        alert('Warenkorb ist leer. Bitte fügen Sie Produkte hinzu.');
+        setLoading(false);
+        return;
+      }
+
       const orderData = {
         customer: {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          phone: formData.phone,
-          company: formData.company || null,
-          vatId: formData.vatId || null
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+          email: formData.email.trim().toLowerCase(),
+          phone: formData.phone.trim(),
+          company: formData.company?.trim() || null,
+          vatId: formData.vatId?.trim() || null
         },
         billing: {
-          street: formData.addressLine1 + (formData.addressLine2 ? ', ' + formData.addressLine2 : ''),
-          zip: formData.postalCode,
-          city: formData.city,
+          street: (formData.addressLine1 + (formData.addressLine2 ? ', ' + formData.addressLine2 : '')).trim(),
+          zip: formData.postalCode.trim(),
+          city: formData.city.trim(),
           country: formData.country
         },
-        items: effectiveCartItems.map(item => ({
-          productId: item.id || item.productId,
-          quantity: item.quantity
-        })),
+        items: orderItems,
         referralCode: referralValid ? referralCode : null,
         paymentMethod: 'stripe'
       };
 
+      console.log('Submitting order:', JSON.stringify(orderData, null, 2));
+
       const response = await ordersAPI.create(orderData);
       const data = response.data;
       const orderId = data.order?.id || data.id;
-      const orderTotal = data.order?.total || data.total || effectiveTotal;
+      const orderTotal = parseFloat(data.order?.total || data.total || effectiveTotal);
 
-      // Create Stripe payment intent
+      // Try Stripe payment
       try {
         const piResponse = await ordersAPI.createPaymentIntent(orderTotal, { orderId: String(orderId) });
 
         if (piResponse.data?.url) {
-          // Stripe Checkout Session - redirect to Stripe
+          // Redirect to Stripe Checkout
+          if (typeof clearCart === 'function') clearCart();
+          localStorage.removeItem('cart');
+          localStorage.removeItem('clyr_cart');
           window.location.href = piResponse.data.url;
           return;
         }
       } catch (stripeErr) {
-        console.log('Stripe not configured, proceeding without payment:', stripeErr.message);
+        console.log('Stripe not available, redirecting to confirmation:', stripeErr.message);
       }
 
-      // Fallback: if Stripe is not configured, go directly to confirmation
+      // Fallback: no Stripe, go to confirmation
       if (typeof clearCart === 'function') clearCart();
       localStorage.removeItem('cart');
       localStorage.removeItem('clyr_cart');
       navigate(`/order-confirmation/${orderId}`);
     } catch (error) {
-      console.error('Error creating order:', error);
-      const msg = error.response?.data?.error || error.response?.data?.message || 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.';
+      console.error('Checkout error:', error);
+      console.error('Error response:', error.response?.data);
+      
+      // Build detailed error message
+      let msg = '';
+      const errData = error.response?.data;
+      if (errData?.details && Array.isArray(errData.details)) {
+        msg = errData.details.map(d => d.message || d.msg).join(', ');
+      } else if (errData?.message) {
+        msg = errData.message;
+      } else if (errData?.error) {
+        msg = errData.error;
+      } else {
+        msg = 'Ein Fehler ist aufgetreten. Bitte überprüfen Sie Ihre Eingaben und versuchen Sie es erneut.';
+      }
       alert(msg);
     } finally {
       setLoading(false);

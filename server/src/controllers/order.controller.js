@@ -195,7 +195,7 @@ export const createPaymentIntent = asyncHandler(async (req, res) => {
     throw new AppError('Stripe ist nicht konfiguriert. Bitte STRIPE_SECRET_KEY in den Umgebungsvariablen setzen.', 500);
   }
 
-  const baseUrl = process.env.FRONTEND_URL || process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+  const baseUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
   const orderId = metadata.orderId;
 
   try {
@@ -277,6 +277,12 @@ export const getPublicInvoice = asyncHandler(async (req, res) => {
  * Create order
  */
 export const createOrder = asyncHandler(async (req, res) => {
+  console.log('=== CREATE ORDER REQUEST ===');
+  console.log('Body keys:', Object.keys(req.body));
+  console.log('Items:', JSON.stringify(req.body.items));
+  console.log('Customer email:', req.body.customer?.email);
+  console.log('Billing country:', req.body.billing?.country);
+  
   const {
     customer,
     billing,

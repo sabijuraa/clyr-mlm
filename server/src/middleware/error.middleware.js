@@ -83,13 +83,11 @@ export const errorHandler = (err, req, res, next) => {
     });
   }
 
-  // Default server error
-  const isProduction = process.env.NODE_ENV === 'production';
-  
+  // Default server error  
   res.status(500).json({
     error: 'Server-Fehler',
-    message: isProduction ? 'Ein unerwarteter Fehler ist aufgetreten' : err.message,
-    ...(isProduction ? {} : { stack: err.stack })
+    message: err.message || 'Ein unerwarteter Fehler ist aufgetreten',
+    ...(process.env.NODE_ENV !== 'production' ? { stack: err.stack } : {})
   });
 };
 
