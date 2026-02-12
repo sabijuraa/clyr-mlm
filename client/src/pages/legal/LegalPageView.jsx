@@ -42,7 +42,7 @@ const LegalPageView = ({ pageKey, fallbackTitle, fallbackContent }) => {
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <div className="text-center mb-8 sm:mb-10">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-secondary-700 mb-5">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary-400 mb-5">
               <Icon className="w-7 h-7 text-white" />
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-secondary-700">{title}</h1>
@@ -61,19 +61,33 @@ const LegalPageView = ({ pageKey, fallbackTitle, fallbackContent }) => {
       </div>
       <style>{`
         .legal-content { color: #374151; line-height: 1.8; font-size: 0.9375rem; }
-        .legal-content h2 { font-size: 1.3rem; font-weight: 700; color: #1f2937; margin-top: 2rem; margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 2px solid #e5e7eb; }
-        .legal-content h3 { font-size: 1.1rem; font-weight: 600; color: #374151; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+        .legal-content h2 {
+          font-size: 1.3rem; font-weight: 700;
+          color: #3d4f5f;
+          margin-top: 2rem; margin-bottom: 0.75rem;
+          padding-bottom: 0.5rem;
+          border-bottom: 2px solid #5fb3b3;
+        }
+        .legal-content h3 {
+          font-size: 1.1rem; font-weight: 600;
+          color: #5fb3b3;
+          margin-top: 1.5rem; margin-bottom: 0.5rem;
+        }
         .legal-content p { margin-bottom: 1rem; }
         .legal-content ul, .legal-content ol { margin-bottom: 1rem; padding-left: 1.75rem; }
         .legal-content ul { list-style-type: disc; }
         .legal-content ol { list-style-type: decimal; }
         .legal-content li { margin-bottom: 0.5rem; line-height: 1.6; }
-        .legal-content a { color: #2563eb; text-decoration: underline; word-break: break-all; }
-        .legal-content a:hover { color: #1d4ed8; }
-        .legal-content .contact-block { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1.25rem 1.5rem; margin: 1.25rem 0; }
+        .legal-content a { color: #5fb3b3; text-decoration: underline; word-break: break-all; }
+        .legal-content a:hover { color: #4a9d9d; }
+        .legal-content .contact-block {
+          background: #f0fdfa; border: 1px solid #ccfbf1;
+          border-left: 4px solid #5fb3b3;
+          border-radius: 0.75rem; padding: 1.25rem 1.5rem; margin: 1.25rem 0;
+        }
         .legal-content .contact-block p { margin-bottom: 0.25rem; }
         .legal-content hr { border: none; border-top: 1px solid #e5e7eb; margin: 2rem 0; }
-        .legal-content strong { font-weight: 700; color: #1f2937; }
+        .legal-content strong { font-weight: 700; color: #3d4f5f; }
         .legal-content em { color: #6b7280; }
         @media (max-width: 640px) {
           .legal-content { font-size: 0.875rem; line-height: 1.7; }
