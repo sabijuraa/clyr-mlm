@@ -446,10 +446,10 @@ export const createOrder = asyncHandler(async (req, res) => {
         subtotal, shipping_cost, vat_rate, vat_amount, discount_amount, total,
         partner_id, referral_code, discount_code,
         payment_method, stripe_payment_intent_id, payment_status,
-        customer_notes, is_reverse_charge, vat_note
+        customer_notes, is_reverse_charge
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-        $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31
+        $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30
       ) RETURNING *`,
       [
         orderNumber, customerId, customer.email.toLowerCase(), customer.firstName, customer.lastName, customer.phone,
@@ -460,7 +460,7 @@ export const createOrder = asyncHandler(async (req, res) => {
         subtotal, shippingCost, vatRate, vatAmount, discountAmount, total,
         partnerId, referralCode?.toUpperCase(), appliedDiscountCode?.code,
         paymentMethod, stripePaymentIntentId, stripePaymentIntentId ? 'paid' : 'pending',
-        customerNotes, isReverseCharge, vatNote
+        customerNotes, isReverseCharge
       ]
     );
 
