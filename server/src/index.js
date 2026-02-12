@@ -52,7 +52,7 @@ const PORT = process.env.PORT || 5000;
 
 // Ensure upload directories exist
 import fs from 'fs';
-['uploads', 'uploads/cms', 'uploads/branding', 'uploads/products', 'uploads/academy', 'public/invoices', 'public/images', 'public/images/products', 'public/images/branding'].forEach(dir => {
+['uploads', 'uploads/cms', 'uploads/branding', 'uploads/products', 'uploads/academy', 'public/invoices', 'public/images', 'public/images/products', 'public/images/branding', 'public/downloads'].forEach(dir => {
   const fullPath = path.join(__dirname, '..', dir);
   if (!fs.existsSync(fullPath)) fs.mkdirSync(fullPath, { recursive: true });
 });
@@ -94,6 +94,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/public', express.static(path.join(__dirname, '../public')));
 app.use('/images', express.static(path.join(__dirname, '../public/images')));
+app.use('/downloads', express.static(path.join(__dirname, '../public/downloads')));
 app.use('/invoices', express.static(path.join(__dirname, '../public/invoices')));
 
 // Request logging
@@ -302,16 +303,13 @@ app.listen(PORT, '0.0.0.0', async () => {
       )
     `);
     // Ensure legal pages have at least placeholder content
-    const legalDefaults = [
-      ['privacy', 'Datenschutzerklaerung'],
-      ['imprint', 'Impressum'],
-      ['terms', 'Allgemeine Geschaeftsbedingungen (AGB)'],
-      ['withdrawal', 'Widerrufsbelehrung'],
-    ];
-    for (const [key, title] of legalDefaults) {
+    // Load legal content from separate file
+    const { legalContent } = await import('./database/legal-content.js');
+    const legalDefaults = Object.entries(legalContent).map(([key, val]) => [key, val.title, val.content]);
+    for (const [key, title, defaultContent] of legalDefaults) {
       await dbQuery(
-        `INSERT INTO legal_pages (page_key, title, content) VALUES ($1, $2, 'Bitte im Admin-Panel bearbeiten.') ON CONFLICT (page_key) DO NOTHING`,
-        [key, title]
+        `INSERT INTO legal_pages (page_key, title, content) VALUES ($1, $2, $3) ON CONFLICT (page_key) DO UPDATE SET content = CASE WHEN legal_pages.content = 'Bitte im Admin-Panel bearbeiten.' THEN $3 ELSE legal_pages.content END`,
+        [key, title, defaultContent]
       );
     }
     console.log('Critical tables verified.');

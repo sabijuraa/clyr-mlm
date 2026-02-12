@@ -134,7 +134,43 @@ export const getProductBySlug = async (req, res) => {
       return res.status(404).json({ error: 'Product not found' });
     }
     
-    res.json(result.rows[0]);
+    const product = result.rows[0];
+    
+    // Load variants from product_variants + variant_options + variant_types
+    try {
+      const variantsResult = await pool.query(`
+        SELECT pv.id, pv.is_default, pv.price_modifier, pv.sort_order,
+               vo.name, vo.name_en, vo.display_value,
+               vt.name as type_name, vt.slug as type_slug
+        FROM product_variants pv
+        JOIN variant_options vo ON pv.option_id = vo.id
+        JOIN variant_types vt ON vo.variant_type_id = vt.id
+        WHERE pv.product_id = $1 AND pv.is_active = true
+        ORDER BY vt.sort_order, pv.sort_order, vo.sort_order
+      `, [product.id]);
+      
+      if (variantsResult.rows.length > 0) {
+        // Group by variant type: { faucet: [{id, name, priceModifier, isDefault}], color: [...] }
+        const grouped = {};
+        for (const row of variantsResult.rows) {
+          const typeKey = row.type_slug || row.type_name;
+          if (!grouped[typeKey]) grouped[typeKey] = [];
+          grouped[typeKey].push({
+            id: row.id,
+            name: row.name,
+            name_en: row.name_en || row.name,
+            displayValue: row.display_value,
+            priceModifier: parseFloat(row.price_modifier) || 0,
+            isDefault: row.is_default
+          });
+        }
+        product.variants = grouped;
+      }
+    } catch (variantErr) {
+      console.log('No variants or variant tables not set up:', variantErr.message);
+    }
+    
+    res.json(product);
   } catch (error) {
     console.error('Get product by slug error:', error);
     res.status(500).json({ error: 'Failed to fetch product' });

@@ -1,6 +1,7 @@
 import express from 'express';
 import * as academyController from '../controllers/academy.controller.js';
 import { authenticate, isAdmin } from '../middleware/auth.middleware.js';
+import { uploadAcademy, uploadSingleToSpaces } from '../middleware/upload.middleware.js';
 
 const router = express.Router();
 
@@ -17,6 +18,9 @@ router.post('/admin/content', authenticate, isAdmin, academyController.createCon
 router.put('/admin/content/:id', authenticate, isAdmin, academyController.updateContent);
 router.delete('/admin/content/:id', authenticate, isAdmin, academyController.deleteContent);
 router.get('/admin/partner/:partnerId/progress', authenticate, isAdmin, academyController.getPartnerProgressStats);
+
+// File upload for academy content (videos, PDFs, documents)
+router.post('/admin/upload', authenticate, isAdmin, uploadAcademy.single('file'), uploadSingleToSpaces('academy'), academyController.uploadFile);
 
 export default router;
 

@@ -75,6 +75,23 @@ export const uploadDocuments = multer({
   fileFilter: documentFileFilter
 });
 
+// Academy upload (videos, PDFs, documents - up to 100MB)
+const academyFileFilter = (req, file, cb) => {
+  const allowedTypes = /jpeg|jpg|png|gif|webp|pdf|doc|docx|mp4|mov|avi|mkv|webm|mp3|wav|pptx|ppt|xlsx|xls|zip/;
+  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+  if (extname) {
+    return cb(null, true);
+  } else {
+    cb(new Error('Dateityp nicht erlaubt. Erlaubt: Video, PDF, Dokumente, Bilder'));
+  }
+};
+
+export const uploadAcademy = multer({
+  storage: storage,
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
+  fileFilter: academyFileFilter
+});
+
 // ========================================
 // UPLOAD TO SPACES HELPER
 // ========================================

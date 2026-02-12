@@ -5,7 +5,7 @@ import { Phone, Mail, MapPin } from 'lucide-react';
 import {
   ArrowRight, Droplets, Shield, Leaf, Award, Truck, Headphones,
   Check, Star, ChevronRight, ShoppingBag, Users, GraduationCap,
-  Package, Zap, Clock, Briefcase, Heart, Sparkles, Quote, Target
+  Package, Zap, Clock, Briefcase, Heart, Sparkles, Quote, Target, Download
 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useCart } from '../../context/CartContext';
@@ -375,16 +375,16 @@ const HomePage = () => {
             <div className="w-16 h-16 rounded-2xl bg-primary-100 flex items-center justify-center mx-auto mb-8"><Droplets className="w-8 h-8 text-primary-600" /></div>
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-heading font-bold text-secondary-800 leading-tight mb-6">{t('Entdecke die neue Dimension von Wasserqualität.', 'Discover the New Dimension of Water Quality.')}</h2>
             <p className="text-secondary-500 text-lg max-w-2xl mx-auto mb-12">{t('Machen Sie den ersten Schritt zu reinerem Wasser, mehr Gesundheit und einem bewussteren Lebensstil.', 'Take the first step towards purer water, better health and a more conscious lifestyle.')}</p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
               <Link to="/products" className="group inline-flex items-center justify-center gap-3 px-8 py-4 bg-secondary-800 text-white font-semibold rounded-xl hover:bg-primary-600 transition-all shadow-lg hover:-translate-y-0.5">
                 <ShoppingBag className="w-5 h-5" />{t('Produkte entdecken', 'Discover Products')}<ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
+              <a href="/downloads/CLYR-Broschuere.pdf" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-3 px-8 py-4 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 transition-all shadow-lg hover:-translate-y-0.5">
+                <Download className="w-5 h-5" />{t('Download Broschüre', 'Download Brochure')}
+              </a>
               <Link to="/partner/register" className="inline-flex items-center justify-center gap-3 px-8 py-4 border-2 border-secondary-200 text-secondary-700 font-semibold rounded-xl hover:border-primary-400 hover:text-primary-600 transition-all">
                 <Users className="w-5 h-5" />{t('Partner werden', 'Become Partner')}
               </Link>
-              <a href={`mailto:${brandConfig.company.email}`} className="inline-flex items-center justify-center gap-3 px-8 py-4 border-2 border-secondary-200 text-secondary-700 font-semibold rounded-xl hover:border-primary-400 hover:text-primary-600 transition-all">
-                <Mail className="w-5 h-5" />{t('Beratung anfragen', 'Request Consultation')}
-              </a>
             </div>
           </motion.div>
         </div>

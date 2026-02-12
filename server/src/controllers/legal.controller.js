@@ -43,16 +43,16 @@ export const updateLegalPage = async (req, res) => {
       UPDATE legal_pages SET
         title = COALESCE($1, title), content = $2,
         title_en = $3, content_en = $4,
-        last_updated_by = $5, updated_at = NOW()
-      WHERE page_key = $6 RETURNING *
-    `, [title, content, title_en || null, content_en || null, req.user?.id || null, pageKey]);
+        updated_at = NOW()
+      WHERE page_key = $5 RETURNING *
+    `, [title, content, title_en || null, content_en || null, pageKey]);
 
     if (result.rows.length === 0) {
       // Create if not exists
       const insertResult = await query(`
-        INSERT INTO legal_pages (page_key, title, content, title_en, content_en, last_updated_by)
-        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *
-      `, [pageKey, title || pageKey, content, title_en, content_en, req.user?.id]);
+        INSERT INTO legal_pages (page_key, title, content, title_en, content_en)
+        VALUES ($1, $2, $3, $4, $5) RETURNING *
+      `, [pageKey, title || pageKey, content, title_en, content_en]);
       return res.json({ page: insertResult.rows[0] });
     }
 

@@ -199,6 +199,50 @@ const AcademyPage = () => {
                     </div>
                   )}
 
+                  {/* Embedded video player */}
+                  {item.content_url && item.type === 'video' && (
+                    <div className="mb-3">
+                      {item.content_url.includes('youtube.com') || item.content_url.includes('youtu.be') ? (
+                        <div className="aspect-video rounded-lg overflow-hidden bg-black">
+                          <iframe
+                            src={item.content_url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                            className="w-full h-full" frameBorder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen title={item.title} />
+                        </div>
+                      ) : item.content_url.includes('vimeo.com') ? (
+                        <div className="aspect-video rounded-lg overflow-hidden bg-black">
+                          <iframe
+                            src={item.content_url.replace('vimeo.com/', 'player.vimeo.com/video/')}
+                            className="w-full h-full" frameBorder="0"
+                            allow="autoplay; fullscreen; picture-in-picture" allowFullScreen title={item.title} />
+                        </div>
+                      ) : item.content_url.match(/\.(mp4|webm|mov)$/i) ? (
+                        <video controls className="w-full rounded-lg max-h-64" preload="metadata">
+                          <source src={item.content_url} />
+                          Ihr Browser unterstuetzt kein Video.
+                        </video>
+                      ) : null}
+                    </div>
+                  )}
+
+                  {/* PDF preview link */}
+                  {item.content_url && item.type === 'document' && item.content_url.match(/\.pdf$/i) && (
+                    <div className="mb-3">
+                      <a href={item.content_url} target="_blank" rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-100 transition">
+                        <FileText className="w-4 h-4" /> PDF anzeigen
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Text content for video/document types too */}
+                  {item.content_text && item.type !== 'article' && (
+                    <div className="text-sm text-secondary-600 mb-3 max-h-24 overflow-y-auto whitespace-pre-line">
+                      {item.content_text}
+                    </div>
+                  )}
+
                   {item.duration_minutes && (
                     <p className="text-xs text-gray-400 flex items-center gap-1 mb-3">
                       <Clock className="w-3 h-3" />{item.duration_minutes} Min.

@@ -485,3 +485,26 @@ export const getPartnerProgressStats = async (req, res) => {
     });
   }
 };
+
+// Upload file (video, PDF, document) for academy content
+export const uploadFile = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Keine Datei hochgeladen' });
+    }
+
+    // uploadSingleToSpaces middleware sets req.uploadedFile (CDN URL or local path)
+    const fileUrl = req.uploadedFile || `/uploads/academy/${req.file.filename}`;
+    
+    res.json({
+      success: true,
+      url: fileUrl,
+      filename: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size
+    });
+  } catch (error) {
+    console.error('Academy file upload error:', error);
+    res.status(500).json({ success: false, message: 'Upload fehlgeschlagen' });
+  }
+};

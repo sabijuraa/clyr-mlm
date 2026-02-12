@@ -47,9 +47,9 @@ export default function CheckoutPage() {
   const effectiveCartItems = cartItems.length > 0 ? cartItems : JSON.parse(localStorage.getItem('cart') || '[]');
   const effectiveSubtotal = cartItems.length > 0 ? subtotal : effectiveCartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   
-  // Shipping costs per country
+  // Shipping costs per country - always based on checkout form selection
   const shippingByCountry = { DE: 70, AT: 55, CH: 180 };
-  const effectiveShipping = cartItems.length > 0 ? shipping : (shippingByCountry[formData.country] || 55);
+  const effectiveShipping = shippingByCountry[formData.country] || 55;
   
   // VAT calculation based on country and VAT ID
   const getClientVatRate = () => {
@@ -63,7 +63,9 @@ export default function CheckoutPage() {
   const vatRate = getClientVatRate();
   const taxableAmount = effectiveSubtotal + effectiveShipping;
   const vatAmount = Math.round(taxableAmount * (vatRate / 100) * 100) / 100;
-  const effectiveTotal = cartItems.length > 0 ? total : Math.round((taxableAmount + vatAmount) * 100) / 100;
+  // ALWAYS calculate total locally using the checkout form's country and VAT ID
+  // (cart context total uses default AT VAT which doesn't reflect Reverse Charge)
+  const effectiveTotal = Math.round((taxableAmount + vatAmount) * 100) / 100;
   const isReverseCharge = formData.country === 'DE' && !!formData.vatId;
 
   const handleChange = (e) => {
