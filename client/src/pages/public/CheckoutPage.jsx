@@ -130,20 +130,35 @@ export default function CheckoutPage() {
           quantity: item.quantity
         })),
         referralCode: referralValid ? referralCode : null,
-        paymentMethod: 'invoice'
+        paymentMethod: 'stripe'
       };
 
       const response = await ordersAPI.create(orderData);
       const data = response.data;
+      const orderId = data.order?.id || data.id;
+      const orderTotal = data.order?.total || data.total || effectiveTotal;
 
-      // Clear cart from both context and localStorage
+      // Create Stripe payment intent
+      try {
+        const piResponse = await ordersAPI.createPaymentIntent(orderTotal, { orderId: String(orderId) });
+
+        if (piResponse.data?.url) {
+          // Stripe Checkout Session - redirect to Stripe
+          window.location.href = piResponse.data.url;
+          return;
+        }
+      } catch (stripeErr) {
+        console.log('Stripe not configured, proceeding without payment:', stripeErr.message);
+      }
+
+      // Fallback: if Stripe is not configured, go directly to confirmation
       if (typeof clearCart === 'function') clearCart();
       localStorage.removeItem('cart');
       localStorage.removeItem('clyr_cart');
-      navigate(`/order-confirmation/${data.order?.id || data.id}`);
+      navigate(`/order-confirmation/${orderId}`);
     } catch (error) {
       console.error('Error creating order:', error);
-      const msg = error.response?.data?.error || 'Fehler beim Erstellen der Bestellung';
+      const msg = error.response?.data?.error || error.response?.data?.message || 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.';
       alert(msg);
     } finally {
       setLoading(false);

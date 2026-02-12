@@ -165,6 +165,7 @@ app.use('/api/admin', adminRoutes);
 // CMS & Content
 app.use('/api/cms', cmsRoutes);
 app.use('/api/academy', academyRoutes);
+app.use('/api/downloads', express.static(path.join(__dirname, '../public/downloads')));
 app.use('/api/newsletter', newsletterRoutes);
 
 // Financial

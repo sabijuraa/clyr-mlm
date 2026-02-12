@@ -1,58 +1,113 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CheckCircle, Package, Mail, ArrowRight, Home, FileText, Download } from 'lucide-react';
+import { CheckCircle, Package, Mail, ArrowRight, Home, FileText, Download, CreditCard } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
+import { useCart } from '../../context/CartContext';
 import api from '../../services/api';
-import confetti from 'canvas-confetti';
 
 const OrderConfirmationPage = () => {
   const { orderId } = useParams();
+  const [searchParams] = useSearchParams();
   const { lang } = useLanguage();
+  const { clearCart } = useCart();
   const [downloading, setDownloading] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState('checking');
+
+  // Clear cart on mount (coming back from Stripe or direct)
+  useEffect(() => {
+    if (typeof clearCart === 'function') clearCart();
+    try {
+      localStorage.removeItem('cart');
+      localStorage.removeItem('clyr_cart');
+    } catch (e) {}
+  }, []);
+
+  // Check payment status if coming from Stripe
+  useEffect(() => {
+    const sessionId = searchParams.get('session_id');
+    const cancelled = searchParams.get('cancelled');
+
+    if (cancelled) {
+      setPaymentStatus('cancelled');
+      return;
+    }
+
+    if (sessionId) {
+      // Stripe redirect - payment was successful (Stripe only redirects to success_url on success)
+      setPaymentStatus('paid');
+    } else {
+      // Direct access or fallback - just show confirmation
+      setPaymentStatus('confirmed');
+    }
+  }, [searchParams]);
 
   const handleDownloadInvoice = async () => {
     setDownloading(true);
     try {
-      // Try to generate and download invoice
-      await api.post(`/admin/invoices/generate/${orderId}`).catch(() => {});
-      const res = await api.get(`/orders/${orderId}/invoice`, { responseType: 'blob' });
+      const res = await api.get(`/orders/${orderId}/public-invoice`, { responseType: 'blob' });
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const a = document.createElement('a');
       a.href = url;
       a.download = `Rechnung-${orderId}.pdf`;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (e) {
-      alert(lang === 'de' ? 'Rechnung wird vorbereitet. Bitte versuchen Sie es in wenigen Minuten erneut.' : 'Invoice is being prepared. Please try again in a few minutes.');
+      alert(lang === 'de' 
+        ? 'Rechnung wird vorbereitet. Bitte versuchen Sie es in wenigen Minuten erneut oder kontaktieren Sie uns.' 
+        : 'Invoice is being prepared. Please try again in a few minutes or contact us.');
     } finally { setDownloading(false); }
   };
 
   useEffect(() => {
+    if (paymentStatus === 'cancelled') return;
+    
     const duration = 3000;
     const end = Date.now() + duration;
 
-    const interval = setInterval(() => {
-      if (Date.now() > end) return clearInterval(interval);
+    let interval;
+    import('canvas-confetti').then(({ default: confetti }) => {
+      interval = setInterval(() => {
+        if (Date.now() > end) return clearInterval(interval);
+        confetti({
+          particleCount: 3, angle: 60, spread: 55,
+          origin: { x: 0 }, colors: ['#3d4f5f', '#5fb3b3', '#2DD4BF']
+        });
+        confetti({
+          particleCount: 3, angle: 120, spread: 55,
+          origin: { x: 1 }, colors: ['#3d4f5f', '#5fb3b3', '#2DD4BF']
+        });
+      }, 150);
+    }).catch(() => {});
 
-      confetti({
-        particleCount: 3,
-        angle: 60,
-        spread: 55,
-        origin: { x: 0 },
-        colors: ['#3d4f5f', '#5fb3b3', '#2DD4BF']
-      });
-      confetti({
-        particleCount: 3,
-        angle: 120,
-        spread: 55,
-        origin: { x: 1 },
-        colors: ['#3d4f5f', '#5fb3b3', '#2DD4BF']
-      });
-    }, 150);
+    return () => { if (interval) clearInterval(interval); };
+  }, [paymentStatus]);
 
-    return () => clearInterval(interval);
-  }, []);
+  if (paymentStatus === 'cancelled') {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
+          <div className="w-28 h-28 mx-auto mb-8 rounded-full bg-yellow-100 flex items-center justify-center">
+            <CreditCard className="w-14 h-14 text-yellow-600" />
+          </div>
+          <h1 className="text-3xl font-bold text-secondary-700 mb-4">
+            {lang === 'de' ? 'Zahlung abgebrochen' : 'Payment Cancelled'}
+          </h1>
+          <p className="text-lg text-secondary-500 mb-8">
+            {lang === 'de' 
+              ? 'Die Zahlung wurde abgebrochen. Ihre Bestellung wurde noch nicht abgeschlossen.' 
+              : 'Payment was cancelled. Your order has not been completed.'}
+          </p>
+          <Link to="/checkout" className="inline-flex items-center gap-2 px-6 py-3 bg-secondary-700 text-white font-semibold rounded-full hover:bg-primary-500 transition-colors">
+            {lang === 'de' ? 'Zurück zur Kasse' : 'Back to Checkout'}
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
@@ -90,9 +145,10 @@ const OrderConfirmationPage = () => {
             transition={{ delay: 0.4 }}
             className="text-xl text-secondary-500 mb-8"
           >
-            {lang === 'de' 
-              ? 'Ihre Bestellung wurde erfolgreich aufgegeben.' 
-              : 'Your order has been successfully placed.'}
+            {paymentStatus === 'paid'
+              ? (lang === 'de' ? 'Ihre Zahlung war erfolgreich!' : 'Your payment was successful!')
+              : (lang === 'de' ? 'Ihre Bestellung wurde erfolgreich aufgegeben.' : 'Your order has been successfully placed.')
+            }
           </motion.p>
 
           {/* Order Number */}
@@ -122,8 +178,8 @@ const OrderConfirmationPage = () => {
               </h3>
               <p className="text-sm text-secondary-500">
                 {lang === 'de' 
-                  ? 'Sie erhalten in Kürze eine Bestätigung per E-Mail.' 
-                  : 'You will receive a confirmation email shortly.'}
+                  ? 'Sie erhalten in Kürze eine Bestätigung per E-Mail mit Ihrer Rechnung.' 
+                  : 'You will receive a confirmation email shortly with your invoice.'}
               </p>
             </div>
 
@@ -141,6 +197,7 @@ const OrderConfirmationPage = () => {
               </p>
             </div>
 
+            {/* Invoice Download Card */}
             <div className="bg-white rounded-2xl p-6 border border-gray-100 text-left md:col-span-2">
               <div className="w-12 h-12 rounded-xl bg-primary-500 flex items-center justify-center mb-4">
                 <FileText className="w-6 h-6 text-white" />
@@ -154,9 +211,11 @@ const OrderConfirmationPage = () => {
                   : 'Download your invoice as PDF.'}
               </p>
               <button onClick={handleDownloadInvoice} disabled={downloading}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition text-sm font-medium disabled:opacity-50">
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-500 text-white rounded-xl hover:bg-primary-600 transition text-sm font-semibold disabled:opacity-50">
                 <Download className="w-4 h-4" />
-                {downloading ? (lang === 'de' ? 'Wird erstellt...' : 'Generating...') : (lang === 'de' ? 'Rechnung PDF' : 'Invoice PDF')}
+                {downloading 
+                  ? (lang === 'de' ? 'Wird erstellt...' : 'Generating...') 
+                  : (lang === 'de' ? 'Rechnung PDF herunterladen' : 'Download Invoice PDF')}
               </button>
             </div>
           </motion.div>

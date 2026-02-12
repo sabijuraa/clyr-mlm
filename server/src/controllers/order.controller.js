@@ -4,7 +4,7 @@ import { asyncHandler, AppError } from '../middleware/error.middleware.js';
 import { calculateCommissions } from '../services/commission.service.js';
 import { generateInvoicePDF } from '../services/invoice.service.js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
 /**
  * Generate unique order number
@@ -182,26 +182,95 @@ export const calculateOrderTotals = asyncHandler(async (req, res) => {
 });
 
 /**
- * Create payment intent
+ * Create Stripe Checkout Session (redirect to Stripe payment page)
  */
 export const createPaymentIntent = asyncHandler(async (req, res) => {
   const { amount, currency = 'eur', metadata = {} } = req.body;
 
-  if (!amount || amount < 50) {
-    throw new AppError('Betrag muss mindestens 0,50€ sein', 400);
+  if (!amount || amount < 0.50) {
+    throw new AppError('Betrag muss mindestens 0,50 EUR sein', 400);
   }
 
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: Math.round(amount * 100), // Convert to cents
-    currency,
-    automatic_payment_methods: { enabled: true },
-    metadata
-  });
+  if (!process.env.STRIPE_SECRET_KEY || !stripe) {
+    throw new AppError('Stripe ist nicht konfiguriert. Bitte STRIPE_SECRET_KEY in den Umgebungsvariablen setzen.', 500);
+  }
 
-  res.json({
-    clientSecret: paymentIntent.client_secret,
-    paymentIntentId: paymentIntent.id
-  });
+  const baseUrl = process.env.FRONTEND_URL || process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+  const orderId = metadata.orderId;
+
+  try {
+    // Create Stripe Checkout Session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'payment',
+      line_items: [{
+        price_data: {
+          currency: currency,
+          product_data: {
+            name: `CLYR Bestellung${orderId ? ' #' + orderId : ''}`,
+            description: 'CLYR Solutions GmbH',
+          },
+          unit_amount: Math.round(amount * 100),
+        },
+        quantity: 1,
+      }],
+      metadata: { orderId: orderId || '' },
+      success_url: `${baseUrl}/order-confirmation/${orderId || 'success'}?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/checkout?cancelled=true`,
+    });
+
+    // Update order with Stripe session ID
+    if (orderId) {
+      await query(
+        'UPDATE orders SET stripe_payment_intent_id = $1, payment_method = $2 WHERE id = $3',
+        [session.id, 'stripe', orderId]
+      ).catch(() => {});
+    }
+
+    res.json({
+      url: session.url,
+      sessionId: session.id,
+      clientSecret: null,
+      paymentIntentId: session.id
+    });
+  } catch (stripeError) {
+    console.error('Stripe session creation failed:', stripeError.message);
+    throw new AppError('Zahlungsservice nicht verfuegbar: ' + stripeError.message, 500);
+  }
+});
+
+/**
+ * Public invoice download (no auth required, for order confirmation page)
+ */
+export const getPublicInvoice = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const orderResult = await query(
+    `SELECT o.* FROM orders o WHERE o.id = $1`,
+    [id]
+  );
+
+  if (orderResult.rows.length === 0) {
+    throw new AppError('Bestellung nicht gefunden', 404);
+  }
+
+  const order = orderResult.rows[0];
+
+  // Get order items
+  const itemsResult = await query(
+    'SELECT * FROM order_items WHERE order_id = $1',
+    [order.id]
+  );
+  order.items = itemsResult.rows;
+
+  // Generate PDF on the fly
+  const { generateInvoicePDF } = await import('../services/invoice.service.js');
+  const pdfBuffer = await generateInvoicePDF(order, order.invoice_number);
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="Rechnung-${order.order_number || order.id}.pdf"`);
+  res.setHeader('Content-Length', pdfBuffer.length);
+  res.end(pdfBuffer);
 });
 
 /**
@@ -721,7 +790,7 @@ export const refundOrder = asyncHandler(async (req, res) => {
 
   await transaction(async (client) => {
     // Process Stripe refund if applicable
-    if (order.stripe_payment_intent_id) {
+    if (order.stripe_payment_intent_id && stripe) {
       await stripe.refunds.create({
         payment_intent: order.stripe_payment_intent_id,
         amount: Math.round(refundAmount * 100),

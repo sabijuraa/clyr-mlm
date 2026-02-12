@@ -2,7 +2,7 @@ import Stripe from 'stripe';
 import { query, transaction } from '../config/database.js';
 import { calculateCommissions } from '../services/commission.service.js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
 /**
  * Handle Stripe webhooks
@@ -28,6 +28,10 @@ export const handleStripeWebhook = async (req, res) => {
         await handlePaymentSucceeded(event.data.object);
         break;
 
+      case 'checkout.session.completed':
+        await handleCheckoutSessionCompleted(event.data.object);
+        break;
+
       case 'payment_intent.payment_failed':
         await handlePaymentFailed(event.data.object);
         break;
@@ -49,6 +53,73 @@ export const handleStripeWebhook = async (req, res) => {
     console.error('Webhook handler error:', error);
     res.status(500).json({ error: 'Webhook handler failed' });
   }
+};
+
+/**
+ * Handle completed Stripe Checkout Session
+ */
+const handleCheckoutSessionCompleted = async (session) => {
+  const orderId = session.metadata?.orderId;
+  if (!orderId) {
+    console.log('No orderId in checkout session metadata');
+    return;
+  }
+
+  const orderResult = await query(
+    'SELECT * FROM orders WHERE id = $1 OR stripe_payment_intent_id = $2',
+    [orderId, session.id]
+  );
+
+  if (orderResult.rows.length === 0) {
+    console.log('No order found for checkout session:', session.id);
+    return;
+  }
+
+  const order = orderResult.rows[0];
+
+  if (order.payment_status === 'paid') return;
+
+  await transaction(async (client) => {
+    await client.query(
+      `UPDATE orders SET 
+        payment_status = 'paid',
+        payment_method = 'stripe',
+        stripe_payment_intent_id = $1,
+        updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2`,
+      [session.payment_intent || session.id, order.id]
+    );
+
+    if (order.partner_id) {
+      await calculateCommissions(client, order.id, order.partner_id, parseFloat(order.subtotal));
+    }
+
+    await client.query(
+      `INSERT INTO activity_log (action, entity_type, entity_id, details)
+       VALUES ($1, $2, $3, $4)`,
+      ['payment_received', 'order', order.id, JSON.stringify({ sessionId: session.id, amount: session.amount_total })]
+    );
+  });
+
+  // Auto-generate invoice
+  try {
+    const { generateInvoice } = await import('../services/invoice.service.js');
+    await generateInvoice(order.id);
+  } catch (e) {
+    console.error('Invoice generation after payment failed:', e.message);
+  }
+
+  // Send confirmation email
+  try {
+    const { sendOrderConfirmation } = await import('../services/email.service.js');
+    const itemsResult = await query('SELECT * FROM order_items WHERE order_id = $1', [order.id]);
+    const partnerEmail = order.partner_id ? (await query('SELECT email FROM users WHERE id = $1', [order.partner_id])).rows[0]?.email : null;
+    await sendOrderConfirmation({ ...order, payment_status: 'paid', partner_email: partnerEmail }, itemsResult.rows);
+  } catch (e) {
+    console.error('Confirmation email failed:', e.message);
+  }
+
+  console.log('Checkout session completed for order:', order.order_number);
 };
 
 /**

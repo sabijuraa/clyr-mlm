@@ -17,6 +17,9 @@ router.post(
 // Get order by ID (for confirmation page)
 router.get('/confirmation/:orderNumber', orderController.getOrderConfirmation);
 
+// Public invoice download (no auth - uses order ID, generates on-the-fly)
+router.get('/:id/public-invoice', orderController.getPublicInvoice);
+
 // Create payment intent
 router.post('/create-payment-intent', orderController.createPaymentIntent);
 

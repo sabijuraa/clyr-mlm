@@ -81,7 +81,7 @@ const Navbar = () => {
               </Link>
             ))}
             <a
-              href="/downloads/CLYR-Broschuere.pdf"
+              href="/api/downloads/CLYR-Broschuere.pdf"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 font-medium text-primary-500 hover:text-primary-600 transition-colors"
@@ -210,7 +210,7 @@ const Navbar = () => {
             
             {/* Broschüre Download */}
             <a
-              href="/downloads/CLYR-Broschuere.pdf"
+              href="/api/downloads/CLYR-Broschuere.pdf"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-4 py-3 rounded-xl font-medium text-primary-500 hover:bg-primary-50 transition-colors"
