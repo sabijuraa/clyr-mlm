@@ -37,7 +37,7 @@ const getShippingCost = async (country, items, products) => {
   const settingsResult = await query("SELECT value FROM settings WHERE key = 'shipping_costs'");
   const shippingCosts = settingsResult.rows[0]?.value || {
     DE: { flat: 70.00 },
-    AT: { flat: 55.00 },
+    AT: { flat: 0.50 },
     CH: { flat: 180.00 }
   };
 

@@ -207,7 +207,7 @@ async function seed() {
         name: 'Aroma Kartuschen 3er Set', name_en: 'Aroma Cartridges 3-Pack', slug: 'aroma-kartuschen', sku: 'CLYR-AK',
         description: '3er Set Aroma-Kartuschen mit Vitamin-C fuer den CLYR Aromaduschkopf. Duft waehlbar: Lavendel, Zitrone, Waldduft, Babypuder oder OceanBlue.',
         short_description: '3er Set Aroma-Kartuschen. Duft waehlbar.',
-        price: 48.00, category_slug: 'duschen', stock: 100,
+        price: 0.50, category_slug: 'duschen', stock: 100,
         images: JSON.stringify(['/images/products/aroma-kartuschen.png']),
         features: JSON.stringify(['3 Kartuschen', '5 Duefte waehlbar', 'Vitamin-C']),
         is_featured: true, is_new: false, is_large_item: false, product_type: 'physical'
@@ -299,7 +299,7 @@ async function seed() {
         key: 'shipping_costs',
         value: JSON.stringify({
           DE: { flat: 70.00 },
-          AT: { flat: 55.00 },
+          AT: { flat: 0.50 },
           CH: { flat: 180.00 }
         }),
         description: 'Shipping costs per country'
@@ -731,7 +731,7 @@ async function seed() {
     // ============ SEED SHIPPING SETTINGS ============
     console.log('Seeding shipping settings...');
     const shippingSettings = [
-      { key: 'shipping_at', value: '55', desc: 'Versandkosten Oesterreich' },
+      { key: 'shipping_at', value: '0.50', desc: 'Versandkosten Oesterreich' },
       { key: 'shipping_de', value: '70', desc: 'Versandkosten Deutschland' },
       { key: 'shipping_ch', value: '180', desc: 'Versandkosten Schweiz' },
     ];

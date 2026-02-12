@@ -74,7 +74,7 @@ const PRIVACY_HTML = `
   <li>Wiederruf und Widerspruch zur Datenverarbeitung</li>
   <li>Einschränkung</li>
 </ul>
-<p>Wenn sie vermuten, dass im Zuge der Verarbeitung Ihrer Daten Verstöße gegen das Datenschutzrecht passiert sind, so haben Sie die Möglichkeit sich bei uns (<a href="mailto:office@freshliving.at">office@freshliving.at</a>) oder der Datenschutzbehörde zu beschweren.</p>
+<p>Wenn sie vermuten, dass im Zuge der Verarbeitung Ihrer Daten Verstöße gegen das Datenschutzrecht passiert sind, so haben Sie die Möglichkeit sich bei uns (<a href="mailto:service@clyr.shop">service@clyr.shop</a>) oder der Datenschutzbehörde zu beschweren.</p>
 
 <hr/>
 
