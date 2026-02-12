@@ -308,7 +308,7 @@ app.listen(PORT, '0.0.0.0', async () => {
     const legalDefaults = Object.entries(legalContent).map(([key, val]) => [key, val.title, val.content]);
     for (const [key, title, defaultContent] of legalDefaults) {
       await dbQuery(
-        `INSERT INTO legal_pages (page_key, title, content) VALUES ($1, $2, $3) ON CONFLICT (page_key) DO UPDATE SET content = CASE WHEN legal_pages.content = 'Bitte im Admin-Panel bearbeiten.' THEN $3 ELSE legal_pages.content END`,
+        `INSERT INTO legal_pages (page_key, title, content) VALUES ($1, $2, $3) ON CONFLICT (page_key) DO UPDATE SET title = $2, content = CASE WHEN legal_pages.content NOT LIKE '%<h2>%' THEN $3 ELSE legal_pages.content END`,
         [key, title, defaultContent]
       );
     }
