@@ -179,7 +179,7 @@ const appConfig = {
   currency: {
     code: 'EUR',
     symbol: '€',
-    locale: 'de-DE'
+    locale: 'en-US'
   },
 
   // Main Products (per Theresa's messages)

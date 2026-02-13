@@ -65,9 +65,12 @@ class InvoiceService {
 
   getLogoPath() {
     const candidates = [
+      path.join(__dirname, '../../public/images/clyr-logo.jpeg'),
       path.join(__dirname, '../../public/images/clyr-logo.png'),
-      path.join(__dirname, '../../../client/public/images/clyr-logo.png'),
+      path.join(__dirname, '../../public/images/clyr-logo.jpg'),
       path.join(__dirname, '../../../client/public/images/clyr-logo.jpeg'),
+      path.join(__dirname, '../../../client/public/images/clyr-logo.png'),
+      path.join(__dirname, '../../../client/public/images/clyr-logo.jpg'),
     ];
     for (const p of candidates) {
       if (fs.existsSync(p)) return p;
@@ -78,13 +81,17 @@ class InvoiceService {
   drawHeader(doc, company, title) {
     const logoPath = this.getLogoPath();
     if (logoPath) {
-      try { doc.image(logoPath, 50, 40, { width: 100 }); } catch (e) { /* skip */ }
+      try {
+        doc.image(logoPath, 50, 35, { width: 120 });
+      } catch (e) {
+        console.error('Logo loading failed:', e.message, 'Path:', logoPath);
+      }
     }
     doc.font('Helvetica-Bold').fontSize(18).fillColor(COLORS.primary)
        .text(title, 300, 45, { align: 'right', width: 245 });
     doc.font('Helvetica').fontSize(7.5).fillColor(COLORS.textLight)
-       .text(`${company.name} | ${company.address} | ${company.zip} ${company.city}`, 50, 95, { width: 300 });
-    return 110;
+       .text(`${company.name} | ${company.address} | ${company.zip} ${company.city}`, 50, 100, { width: 300 });
+    return 115;
   }
 
   drawFooter(doc, company) {

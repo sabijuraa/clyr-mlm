@@ -49,7 +49,7 @@ export default function CheckoutPage() {
   
   // Shipping costs per country - always based on checkout form selection
   const shippingByCountry = { DE: 0.50, AT: 0.50, CH: 0.50 };
-  const effectiveShipping = shippingByCountry[formData.country] || 55;
+  const effectiveShipping = formData.country in shippingByCountry ? shippingByCountry[formData.country] : 55;
   
   // VAT calculation based on country and VAT ID
   const getClientVatRate = () => {

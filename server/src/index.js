@@ -57,6 +57,18 @@ import fs from 'fs';
   if (!fs.existsSync(fullPath)) fs.mkdirSync(fullPath, { recursive: true });
 });
 
+// Auto-copy logo from client to server for invoice PDFs
+const logoSrc = path.join(__dirname, '../../client/public/images/clyr-logo.jpeg');
+const logoDst = path.join(__dirname, '../public/images/clyr-logo.jpeg');
+if (fs.existsSync(logoSrc) && !fs.existsSync(logoDst)) {
+  try { fs.copyFileSync(logoSrc, logoDst); console.log('Logo copied for invoices'); } catch (e) {}
+}
+const logoSrc2 = path.join(__dirname, '../../client/public/images/clyr-logo.png');
+const logoDst2 = path.join(__dirname, '../public/images/clyr-logo.png');
+if (fs.existsSync(logoSrc2) && !fs.existsSync(logoDst2)) {
+  try { fs.copyFileSync(logoSrc2, logoDst2); console.log('Logo PNG copied for invoices'); } catch (e) {}
+}
+
 // ========================================
 // MIDDLEWARE
 // ========================================
