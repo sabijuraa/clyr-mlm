@@ -20,7 +20,7 @@ export const CartProvider = ({ children }) => {
   const [isOpen, setIsOpen] = useState(false);
   
   // Country for shipping/tax calculation
-  const [country, setCountry] = useState('DE');
+  const [country, setCountry] = useState('AT');
   
   // VAT ID status (for reverse charge)
   const [hasVatId, setHasVatId] = useState(false);
@@ -38,7 +38,7 @@ export const CartProvider = ({ children }) => {
       try {
         const parsed = JSON.parse(savedCart);
         setItems(parsed.items || []);
-        setCountry(parsed.country || 'DE');
+        setCountry(parsed.country || 'AT');
         setHasVatId(parsed.hasVatId || false);
       } catch (err) {
         console.error('Failed to parse cart:', err);
