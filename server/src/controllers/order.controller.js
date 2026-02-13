@@ -195,8 +195,48 @@ export const createPaymentIntent = asyncHandler(async (req, res) => {
     throw new AppError('Stripe ist nicht konfiguriert. Bitte STRIPE_SECRET_KEY in den Umgebungsvariablen setzen.', 500);
   }
 
-  const baseUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+  // Determine the public-facing URL for Stripe redirects
+  // Priority: env vars > request origin/referer > hardcoded fallback
+  const getPublicUrl = (req) => {
+    // 1. Explicit env vars
+    if (process.env.FRONTEND_URL && process.env.FRONTEND_URL !== '${APP_URL}') return process.env.FRONTEND_URL;
+    if (process.env.CLIENT_URL) return process.env.CLIENT_URL;
+    
+    // 2. From request origin or referer (most reliable behind load balancer)
+    const origin = req.headers.origin || '';
+    if (origin && origin.startsWith('http')) return origin;
+    const referer = req.headers.referer || '';
+    if (referer && referer.startsWith('http')) {
+      try { return new URL(referer).origin; } catch (e) {}
+    }
+    
+    // 3. X-Forwarded headers (set by load balancer)
+    const proto = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.headers['x-forwarded-host'] || req.headers.host || req.get('host');
+    if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+      return `${proto}://${host}`;
+    }
+    
+    // 4. APP_URL env var
+    if (process.env.APP_URL) return process.env.APP_URL;
+    
+    // 5. Hardcoded fallback
+    return 'https://clyr-api-kr8fa.ondigitalocean.app';
+  };
+
+  const baseUrl = getPublicUrl(req).replace(/\/+$/, '');
   const orderId = metadata.orderId;
+
+  console.log('=== STRIPE CHECKOUT SESSION ===');
+  console.log('baseUrl:', baseUrl);
+  console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
+  console.log('CLIENT_URL:', process.env.CLIENT_URL);
+  console.log('APP_URL:', process.env.APP_URL);
+  console.log('origin:', req.headers.origin);
+  console.log('referer:', req.headers.referer);
+  console.log('x-forwarded-proto:', req.headers['x-forwarded-proto']);
+  console.log('x-forwarded-host:', req.headers['x-forwarded-host']);
+  console.log('host:', req.headers.host);
 
   try {
     // Create Stripe Checkout Session
