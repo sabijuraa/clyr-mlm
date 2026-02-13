@@ -162,7 +162,7 @@ export const getStatement = asyncHandler(async (req, res) => {
      WHERE c.user_id = $1 
      AND c.created_at >= $2 
      AND c.created_at <= $3
-     AND c.status IN ('released', 'paid')
+     AND c.status IN ('held', 'released', 'paid', 'pending')
      ORDER BY c.created_at ASC`,
     [userId, startDate, endDate]
   );
@@ -422,7 +422,7 @@ export const generateStatementForPartner = asyncHandler(async (req, res) => {
      WHERE c.user_id = $1 
      AND c.created_at >= $2 
      AND c.created_at <= $3
-     AND c.status IN ('released', 'paid')
+     AND c.status IN ('held', 'released', 'paid', 'pending')
      ORDER BY c.created_at ASC`,
     [partnerId, startDate, endDate]
   );
