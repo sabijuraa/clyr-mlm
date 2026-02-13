@@ -1,8 +1,9 @@
 // client/src/pages/public/CheckoutPage.jsx
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { referralAPI, ordersAPI } from '../../services/api';
+import api from '../../services/api';
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
@@ -10,26 +11,152 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const { items: cartItems, referral: cartReferral, partnerName: cartPartnerName, clearCart, total, subtotal, vat, shipping } = useCart();
 
-  // Handle Stripe redirect back to checkout
+  // Payment confirmation state - shown INLINE after Stripe redirect
+  const [orderConfirmed, setOrderConfirmed] = useState(false);
+  const [confirmedOrderId, setConfirmedOrderId] = useState(null);
+  const [paymentStatus, setPaymentStatus] = useState('checking');
+  const [downloading, setDownloading] = useState(false);
+
+  // Handle Stripe redirect back to checkout - show confirmation INLINE
   useEffect(() => {
     const status = searchParams.get('status');
     const orderId = searchParams.get('order');
     const sessionId = searchParams.get('session_id');
 
     if (status === 'success' && orderId) {
-      // Payment successful - clear cart and go to confirmation
+      // Payment successful - show confirmation right here
+      setOrderConfirmed(true);
+      setConfirmedOrderId(orderId);
       if (typeof clearCart === 'function') clearCart();
       try {
         localStorage.removeItem('cart');
         localStorage.removeItem('clyr_cart');
       } catch (e) {}
-      navigate(`/order-confirmation/${orderId}?session_id=${sessionId || ''}`, { replace: true });
+
+      // Verify payment and trigger commission/invoice/email
+      setPaymentStatus('verifying');
+      api.post(`/orders/${orderId}/verify-payment`, { sessionId })
+        .then(res => {
+          setPaymentStatus(res.data?.status || 'paid');
+        })
+        .catch(err => {
+          console.error('Payment verification failed:', err);
+          setPaymentStatus('paid'); // Stripe only redirects on success
+        });
       return;
     }
     if (status === 'cancelled') {
       alert('Zahlung wurde abgebrochen. Sie können es erneut versuchen.');
     }
-  }, [searchParams, navigate, clearCart]);
+  }, [searchParams, clearCart]);
+
+  // Download invoice
+  const handleDownloadInvoice = async () => {
+    if (!confirmedOrderId) return;
+    setDownloading(true);
+    try {
+      const res = await api.get(`/orders/${confirmedOrderId}/public-invoice`, { responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Rechnung-${confirmedOrderId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('Rechnung wird vorbereitet. Bitte versuchen Sie es in wenigen Minuten erneut.');
+    } finally { setDownloading(false); }
+  };
+
+  // ===== CONFIRMATION VIEW (after successful Stripe payment) =====
+  if (orderConfirmed) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white py-20">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          {/* Success Icon */}
+          <div className="w-28 h-28 mx-auto mb-8 rounded-full bg-green-100 flex items-center justify-center shadow-lg">
+            <svg className="w-14 h-14 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+
+          <h1 className="text-4xl font-bold text-gray-800 mb-4">
+            Vielen Dank für Ihre Bestellung!
+          </h1>
+
+          <p className="text-xl text-gray-500 mb-8">
+            {paymentStatus === 'verifying' 
+              ? 'Zahlung wird überprüft...'
+              : 'Ihre Zahlung war erfolgreich!'}
+          </p>
+
+          {/* Order Number */}
+          <div className="inline-block bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-10">
+            <p className="text-sm text-gray-500 mb-1">Bestellnummer</p>
+            <p className="text-xl font-bold text-gray-800 font-mono">{confirmedOrderId}</p>
+          </div>
+
+          {/* Info Cards */}
+          <div className="grid md:grid-cols-2 gap-4 mb-12 text-left">
+            <div className="bg-white rounded-2xl p-6 border border-gray-100">
+              <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <h3 className="font-semibold text-gray-800 mb-2">E-Mail Bestätigung</h3>
+              <p className="text-sm text-gray-500">
+                Sie erhalten in Kürze eine Bestätigung per E-Mail mit Ihrer Rechnung.
+              </p>
+            </div>
+
+            <div className="bg-white rounded-2xl p-6 border border-gray-100">
+              <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+              </div>
+              <h3 className="font-semibold text-gray-800 mb-2">Versand</h3>
+              <p className="text-sm text-gray-500">
+                Ihre Bestellung wird in 2-4 Werktagen geliefert.
+              </p>
+            </div>
+          </div>
+
+          {/* Invoice Download */}
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 mb-10 text-left">
+            <h3 className="font-semibold text-gray-800 mb-2">Rechnung herunterladen</h3>
+            <p className="text-sm text-gray-500 mb-3">
+              Laden Sie Ihre Rechnung als PDF herunter.
+            </p>
+            <button onClick={handleDownloadInvoice} disabled={downloading}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition text-sm font-semibold disabled:opacity-50">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              {downloading ? 'Wird erstellt...' : 'Rechnung PDF herunterladen'}
+            </button>
+          </div>
+
+          {/* Navigation */}
+          <div className="flex flex-wrap justify-center gap-4">
+            <Link to="/shop"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gray-800 text-white font-semibold rounded-full hover:bg-blue-600 transition-colors">
+              Weiter einkaufen
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+            </Link>
+            <Link to="/"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gray-100 text-gray-700 font-semibold rounded-full hover:bg-gray-200 transition-colors">
+              Zur Startseite
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
   
   // Form data
   const [formData, setFormData] = useState({
@@ -186,11 +313,13 @@ export default function CheckoutPage() {
         console.log('Stripe not available, redirecting to confirmation:', stripeErr.message);
       }
 
-      // Fallback: no Stripe, go to confirmation
+      // Fallback: no Stripe, show confirmation inline
       if (typeof clearCart === 'function') clearCart();
       localStorage.removeItem('cart');
       localStorage.removeItem('clyr_cart');
-      navigate(`/order-confirmation/${orderId}`);
+      setConfirmedOrderId(orderId);
+      setOrderConfirmed(true);
+      setPaymentStatus('confirmed');
     } catch (error) {
       console.error('Checkout error:', error);
       console.error('Error response:', error.response?.data);
