@@ -9,6 +9,27 @@ export default function CheckoutPage() {
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const { items: cartItems, referral: cartReferral, partnerName: cartPartnerName, clearCart, total, subtotal, vat, shipping } = useCart();
+
+  // Handle Stripe redirect back to checkout
+  useEffect(() => {
+    const status = searchParams.get('status');
+    const orderId = searchParams.get('order');
+    const sessionId = searchParams.get('session_id');
+
+    if (status === 'success' && orderId) {
+      // Payment successful - clear cart and go to confirmation
+      if (typeof clearCart === 'function') clearCart();
+      try {
+        localStorage.removeItem('cart');
+        localStorage.removeItem('clyr_cart');
+      } catch (e) {}
+      navigate(`/order-confirmation/${orderId}?session_id=${sessionId || ''}`, { replace: true });
+      return;
+    }
+    if (status === 'cancelled') {
+      alert('Zahlung wurde abgebrochen. Sie können es erneut versuchen.');
+    }
+  }, [searchParams, navigate, clearCart]);
   
   // Form data
   const [formData, setFormData] = useState({
@@ -255,11 +276,44 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              {/* Shipping Address */}
+              {/* Billing Address - Rechnungsadresse */}
               <div className="bg-white p-6 rounded-lg shadow">
-                <h2 className="text-xl font-semibold mb-4">Lieferadresse</h2>
+                <h2 className="text-xl font-semibold mb-4">Rechnungsadresse</h2>
                 
                 <div className="space-y-4">
+                  {/* Company & VAT ID - prominent at top of billing */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Firma (optional)</label>
+                      <input
+                        type="text"
+                        name="company"
+                        value={formData.company}
+                        onChange={handleChange}
+                        className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                        placeholder="Firmenname"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        USt-IdNr. / UID-Nr. (optional)
+                        {formData.vatId && (
+                          <span className="text-xs text-green-600 ml-2">
+                            {formData.country === 'DE' ? 'Reverse Charge' : 'UID erfasst'}
+                          </span>
+                        )}
+                      </label>
+                      <input
+                        type="text"
+                        name="vatId"
+                        value={formData.vatId}
+                        onChange={handleChange}
+                        className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                        placeholder={formData.country === 'DE' ? 'DE123456789' : formData.country === 'AT' ? 'ATU12345678' : 'CHE-123.456.789'}
+                      />
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium mb-2">Straße und Hausnummer *</label>
                     <input
@@ -317,42 +371,20 @@ export default function CheckoutPage() {
                         required
                         className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
                       >
-                        <option value="AT">Oesterreich</option>
+                        <option value="AT">Österreich</option>
                         <option value="DE">Deutschland</option>
                         <option value="CH">Schweiz</option>
                       </select>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Firma (optional)</label>
-                      <input
-                        type="text"
-                        name="company"
-                        value={formData.company}
-                        onChange={handleChange}
-                        className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
-                        placeholder="Firmenname"
-                      />
+                  {/* Reverse Charge notice */}
+                  {isReverseCharge && (
+                    <div className="bg-green-50 border border-green-200 rounded p-3 text-sm text-green-800">
+                      Reverse Charge: Die Steuerschuldnerschaft geht auf den Leistungsempfänger über. 
+                      Keine MwSt. wird berechnet.
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        USt-IdNr. (optional)
-                        {formData.country === 'DE' && formData.vatId && (
-                          <span className="text-xs text-green-600 ml-2">Reverse Charge</span>
-                        )}
-                      </label>
-                      <input
-                        type="text"
-                        name="vatId"
-                        value={formData.vatId}
-                        onChange={handleChange}
-                        className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
-                        placeholder={formData.country === 'DE' ? 'DE123456789' : formData.country === 'AT' ? 'ATU12345678' : 'CHE-123.456.789'}
-                      />
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
 

@@ -38,8 +38,8 @@ export const subscribe = async (email, options = {}) => {
         WHERE id = $2
       `, [token, subscriber.id]);
       
-      await sendConfirmationEmail(email, token, language);
-      return { success: true, message: 'Bestätigungs-E-Mail gesendet', resubscribed: true };
+      await sendConfirmationEmail(email, token, language).catch(e => console.error('Newsletter confirmation email failed:', e.message));
+      return { success: true, message: 'Erfolgreich angemeldet! Bestätigungs-E-Mail wird gesendet.', resubscribed: true };
     }
   }
   
@@ -62,9 +62,9 @@ export const subscribe = async (email, options = {}) => {
     options.ipAddress
   ]);
   
-  await sendConfirmationEmail(email, token, language);
+  await sendConfirmationEmail(email, token, language).catch(e => console.error('Newsletter confirmation email failed:', e.message));
   
-  return { success: true, message: 'Bestätigungs-E-Mail gesendet' };
+  return { success: true, message: 'Erfolgreich angemeldet! Bestätigungs-E-Mail wird gesendet.' };
 };
 
 /**

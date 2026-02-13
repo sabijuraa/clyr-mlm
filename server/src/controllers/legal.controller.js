@@ -84,8 +84,6 @@ export const saveCookieConsent = async (req, res) => {
     await query(`
       INSERT INTO cookie_consents (visitor_id, necessary, analytics, marketing, preferences, ip_address, user_agent)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
-      ON CONFLICT (visitor_id) DO UPDATE SET
-        analytics = $3, marketing = $4, preferences = $5, updated_at = NOW()
     `, [
       visitorId || 'anonymous',
       necessary !== false,
@@ -97,7 +95,7 @@ export const saveCookieConsent = async (req, res) => {
     ]);
     res.json({ message: 'Einstellungen gespeichert' });
   } catch (error) {
-    console.error('Save cookie consent error:', error);
+    console.error('Save cookie consent error:', error.message);
     res.json({ message: 'OK' });
   }
 };

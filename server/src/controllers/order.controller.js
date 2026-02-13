@@ -215,8 +215,8 @@ export const createPaymentIntent = asyncHandler(async (req, res) => {
         quantity: 1,
       }],
       metadata: { orderId: orderId || '' },
-      success_url: `${baseUrl}/order-confirmation/${orderId || 'success'}?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/checkout?cancelled=true`,
+      success_url: `${baseUrl}/checkout?status=success&order=${orderId || 'success'}&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/checkout?status=cancelled`,
     });
 
     // Update order with Stripe session ID
