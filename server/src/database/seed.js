@@ -309,11 +309,11 @@ async function seed() {
       {
         key: 'shipping_costs',
         value: JSON.stringify({
-          DE: { flat: 70.00 },
-          AT: { flat: 55.00 },
-          CH: { flat: 180.00 }
+          DE: { flat: 0.50 },
+          AT: { flat: 0.50 },
+          CH: { flat: 0.50 }
         }),
-        description: 'Shipping costs per country'
+        description: 'Shipping costs per country - TEST (change back: DE:70, AT:55, CH:180)'
       },
       {
         key: 'vat_rates',
@@ -742,9 +742,9 @@ async function seed() {
     // ============ SEED SHIPPING SETTINGS ============
     console.log('Seeding shipping settings...');
     const shippingSettings = [
-      { key: 'shipping_at', value: '55', desc: 'Versandkosten Oesterreich' },
-      { key: 'shipping_de', value: '70', desc: 'Versandkosten Deutschland' },
-      { key: 'shipping_ch', value: '180', desc: 'Versandkosten Schweiz' },
+      { key: 'shipping_at', value: '0.50', desc: 'Versandkosten Oesterreich - TEST (change back: 55)' },
+      { key: 'shipping_de', value: '0.50', desc: 'Versandkosten Deutschland - TEST (change back: 70)' },
+      { key: 'shipping_ch', value: '0.50', desc: 'Versandkosten Schweiz - TEST (change back: 180)' },
     ];
     for (const s of shippingSettings) {
       await client.query(
