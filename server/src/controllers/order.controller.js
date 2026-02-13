@@ -255,8 +255,8 @@ export const createPaymentIntent = asyncHandler(async (req, res) => {
         quantity: 1,
       }],
       metadata: { orderId: orderId || '' },
-      success_url: `${baseUrl}/checkout?status=success&order=${orderId || 'success'}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/checkout?status=cancelled`,
+      success_url: `${baseUrl}/api/orders/payment-success?order=${orderId || 'success'}&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/api/orders/payment-success?status=cancelled`,
     });
 
     // Update order with Stripe session ID
@@ -403,6 +403,128 @@ export const verifyPayment = asyncHandler(async (req, res) => {
   }
 
   res.json({ status: order.payment_status, order_number: order.order_number });
+});
+
+/**
+ * Payment Success Page - Stripe redirects here
+ * Serves a full HTML page so no SPA routing is needed
+ */
+export const paymentSuccessPage = asyncHandler(async (req, res) => {
+  const orderId = req.query.order;
+  const sessionId = req.query.session_id;
+  const cancelled = req.query.status === 'cancelled';
+
+  if (cancelled) {
+    return res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>CLYR - Zahlung abgebrochen</title>
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      <style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f8fafc}
+      .card{text-align:center;max-width:500px;padding:40px;background:white;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
+      .icon{width:80px;height:80px;margin:0 auto 20px;border-radius:50%;background:#fef2f2;display:flex;align-items:center;justify-content:center}
+      .btn{display:inline-block;padding:12px 32px;background:#1e293b;color:white;text-decoration:none;border-radius:12px;font-weight:600;margin-top:20px}</style></head>
+      <body><div class="card">
+        <div class="icon"><svg width="40" height="40" fill="none" stroke="#ef4444" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></div>
+        <h1 style="color:#1e293b">Zahlung abgebrochen</h1>
+        <p style="color:#64748b">Die Zahlung wurde nicht abgeschlossen. Ihr Warenkorb bleibt erhalten.</p>
+        <a href="/checkout" class="btn">Zurück zur Kasse</a>
+      </div></body></html>`);
+  }
+
+  // Mark order as paid if we have an orderId
+  let orderNumber = orderId;
+  if (orderId) {
+    try {
+      const orderResult = await query('SELECT * FROM orders WHERE id = $1', [orderId]);
+      if (orderResult.rows.length > 0) {
+        const order = orderResult.rows[0];
+        orderNumber = order.order_number || orderId;
+        
+        if (order.payment_status !== 'paid') {
+          // Mark as paid
+          await query(
+            "UPDATE orders SET payment_status = 'paid', payment_method = 'stripe', updated_at = CURRENT_TIMESTAMP WHERE id = $1",
+            [orderId]
+          );
+
+          // Calculate commissions
+          if (order.partner_id) {
+            try {
+              await transaction(async (client) => {
+                await calculateCommissions(client, order.id, order.partner_id, parseFloat(order.subtotal));
+              });
+              console.log('Commissions calculated for order', orderId);
+            } catch (e) { console.error('Commission error:', e.message); }
+          }
+
+          // Generate invoice
+          try {
+            const { generateInvoice } = await import('../services/invoice.service.js');
+            await generateInvoice(orderId);
+          } catch (e) { console.error('Invoice error:', e.message); }
+
+          // Send emails
+          try {
+            const { sendOrderConfirmation } = await import('../services/email.service.js');
+            const itemsResult = await query('SELECT * FROM order_items WHERE order_id = $1', [orderId]);
+            const updatedOrder = (await query('SELECT * FROM orders WHERE id = $1', [orderId])).rows[0];
+            const partnerEmail = updatedOrder.partner_id ? (await query('SELECT email FROM users WHERE id = $1', [updatedOrder.partner_id])).rows[0]?.email : null;
+            await sendOrderConfirmation({ ...updatedOrder, partner_email: partnerEmail }, itemsResult.rows);
+          } catch (e) { console.error('Email error:', e.message); }
+        }
+      }
+    } catch (e) {
+      console.error('Payment verification error:', e.message);
+    }
+  }
+
+  // Serve success HTML page directly
+  const invoiceUrl = orderId ? '/api/orders/' + orderId + '/public-invoice' : '#';
+  const displayOrderNumber = orderNumber || 'Wird verarbeitet...';
+  
+  const invoiceSection = orderId ? '<div class="invoice-section">' +
+    '<h3>Rechnung herunterladen</h3>' +
+    '<p>Laden Sie Ihre Rechnung als PDF herunter.</p>' +
+    '<a href="' + invoiceUrl + '" class="btn btn-primary" target="_blank">' +
+    '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> ' +
+    'Rechnung PDF</a></div>' : '';
+
+  res.send('<!DOCTYPE html><html><head><meta charset="utf-8"><title>CLYR - Bestellung bestaetigt</title>' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<style>' +
+    'body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:linear-gradient(135deg,#f8fafc,#fff);min-height:100vh;display:flex;align-items:center;justify-content:center}' +
+    '.card{text-align:center;max-width:600px;padding:48px 32px;background:white;border-radius:24px;box-shadow:0 8px 32px rgba(0,0,0,.08);margin:20px}' +
+    '.icon{width:96px;height:96px;margin:0 auto 24px;border-radius:50%;background:#ecfdf5;display:flex;align-items:center;justify-content:center}' +
+    'h1{color:#1e293b;font-size:28px;margin:0 0 8px}' +
+    '.subtitle{color:#64748b;font-size:18px;margin:0 0 24px}' +
+    '.order-box{display:inline-block;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px 32px;margin:0 0 32px}' +
+    '.order-label{font-size:13px;color:#94a3b8;margin:0}' +
+    '.order-id{font-size:18px;font-weight:700;color:#1e293b;font-family:monospace;margin:4px 0 0}' +
+    '.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;text-align:left;margin:0 0 32px}' +
+    '.info-card{background:#f8fafc;border-radius:12px;padding:20px;border:1px solid #f1f5f9}' +
+    '.info-card h3{font-size:14px;font-weight:600;color:#1e293b;margin:0 0 4px}' +
+    '.info-card p{font-size:13px;color:#64748b;margin:0}' +
+    '.btn-group{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}' +
+    '.btn{padding:12px 28px;border-radius:12px;font-weight:600;text-decoration:none;font-size:14px;display:inline-flex;align-items:center;gap:8px;transition:all .2s}' +
+    '.btn-primary{background:#2563eb;color:white}.btn-primary:hover{background:#1d4ed8}' +
+    '.btn-outline{background:#f1f5f9;color:#475569}.btn-outline:hover{background:#e2e8f0}' +
+    '.invoice-section{background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:20px;margin:0 0 28px;text-align:left}' +
+    '.invoice-section h3{font-size:14px;font-weight:600;color:#0c4a6e;margin:0 0 8px}' +
+    '.invoice-section p{font-size:13px;color:#0369a1;margin:0 0 12px}' +
+    '@media(max-width:640px){.info-grid{grid-template-columns:1fr}.card{padding:32px 20px}}' +
+    '</style></head>' +
+    '<body><div class="card">' +
+    '<div class="icon"><svg width="48" height="48" fill="none" stroke="#16a34a" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></div>' +
+    '<h1>Vielen Dank fuer Ihre Bestellung!</h1>' +
+    '<p class="subtitle">Ihre Zahlung war erfolgreich.</p>' +
+    '<div class="order-box"><p class="order-label">Bestellnummer</p><p class="order-id">' + displayOrderNumber + '</p></div>' +
+    '<div class="info-grid">' +
+    '<div class="info-card"><h3>E-Mail Bestaetigung</h3><p>Sie erhalten in Kuerze eine Bestaetigung per E-Mail mit Ihrer Rechnung.</p></div>' +
+    '<div class="info-card"><h3>Versand</h3><p>Ihre Bestellung wird in 2-4 Werktagen geliefert.</p></div>' +
+    '</div>' +
+    invoiceSection +
+    '<div class="btn-group">' +
+    '<a href="/shop" class="btn btn-primary">Weiter einkaufen</a>' +
+    '<a href="/" class="btn btn-outline">Zur Startseite</a>' +
+    '</div></div></body></html>');
 });
 
 /**
