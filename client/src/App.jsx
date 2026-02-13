@@ -138,7 +138,7 @@ function App() {
               <Route path="/product/:slug" element={<ProductDetailPage />} />
               <Route path="/cart" element={<CartPage />} />
               <Route path="/checkout" element={<CheckoutPage />} />
-              <Route path="/order-confirmation/:orderNumber" element={<OrderConfirmationPage />} />
+              <Route path="/order-confirmation/:orderId" element={<OrderConfirmationPage />} />
               <Route path="/gdpr" element={<GdprPage />} />
               
               {/* ====== LEGAL ====== */}

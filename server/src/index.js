@@ -202,10 +202,44 @@ app.use('/api/faq', faqRoutes);         // FAQ management (#38)
 app.use('/api/compliance', complianceRoutes); // Legal compliance (#50, #55, #57)
 
 // ========================================
+// SPA FALLBACK - Serve React app for non-API routes
+// ========================================
+
+// Try multiple possible locations for the built client
+const possibleClientPaths = [
+  path.join(__dirname, '../../client/dist'),
+  path.join(__dirname, '../../../client/dist'),
+  path.join(__dirname, '../../dist'),
+  path.join(__dirname, '../dist'),
+];
+const clientDistPath = possibleClientPaths.find(p => fs.existsSync(p));
+
+if (clientDistPath) {
+  console.log('Serving static files from:', clientDistPath);
+  app.use(express.static(clientDistPath));
+}
+
+// For ANY non-API route, serve index.html (SPA client-side routing)
+app.get('*', (req, res, next) => {
+  // Skip API routes
+  if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/') || req.path.startsWith('/downloads/')) {
+    return next();
+  }
+  
+  if (clientDistPath) {
+    const indexPath = path.join(clientDistPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      return res.sendFile(indexPath);
+    }
+  }
+  next();
+});
+
+// ========================================
 // ERROR HANDLING
 // ========================================
 
-// 404 handler
+// 404 handler (only for API routes now)
 app.use((req, res) => {
   res.status(404).json({ 
     error: 'Route not found',
