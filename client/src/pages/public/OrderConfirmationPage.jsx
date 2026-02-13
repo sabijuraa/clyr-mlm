@@ -33,14 +33,22 @@ const OrderConfirmationPage = () => {
       return;
     }
 
-    if (sessionId) {
-      // Stripe redirect - payment was successful (Stripe only redirects to success_url on success)
-      setPaymentStatus('paid');
+    if (sessionId && orderId) {
+      // Call server to verify payment and trigger commission/email/invoice
+      setPaymentStatus('verifying');
+      api.post(`/orders/${orderId}/verify-payment`, { sessionId })
+        .then(res => {
+          setPaymentStatus(res.data?.status || 'paid');
+        })
+        .catch(err => {
+          console.error('Payment verification failed:', err);
+          // Still show success - Stripe only redirects to success_url on success
+          setPaymentStatus('paid');
+        });
     } else {
-      // Direct access or fallback - just show confirmation
       setPaymentStatus('confirmed');
     }
-  }, [searchParams]);
+  }, [searchParams, orderId]);
 
   const handleDownloadInvoice = async () => {
     setDownloading(true);

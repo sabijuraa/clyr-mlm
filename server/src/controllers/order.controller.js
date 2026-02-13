@@ -274,6 +274,98 @@ export const getPublicInvoice = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Verify payment after Stripe redirect - marks order as paid if Stripe confirms
+ * This is a fallback in case the webhook hasn't fired yet
+ */
+export const verifyPayment = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { sessionId } = req.body;
+
+  const orderResult = await query('SELECT * FROM orders WHERE id = $1', [id]);
+  if (orderResult.rows.length === 0) {
+    throw new AppError('Bestellung nicht gefunden', 404);
+  }
+
+  const order = orderResult.rows[0];
+
+  // Already paid - return success
+  if (order.payment_status === 'paid') {
+    return res.json({ status: 'paid', order_number: order.order_number });
+  }
+
+  // Try to verify with Stripe
+  if (stripe && sessionId) {
+    try {
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      if (session.payment_status === 'paid') {
+        // Mark order as paid
+        await query(
+          `UPDATE orders SET payment_status = 'paid', payment_method = 'stripe', 
+           stripe_payment_intent_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+          [session.payment_intent || sessionId, id]
+        );
+
+        // Calculate commissions
+        if (order.partner_id) {
+          try {
+            await transaction(async (client) => {
+              await calculateCommissions(client, order.id, order.partner_id, parseFloat(order.subtotal));
+            });
+          } catch (e) {
+            console.error('Commission calculation failed:', e.message);
+          }
+        }
+
+        // Generate invoice
+        try {
+          const { generateInvoice } = await import('../services/invoice.service.js');
+          await generateInvoice(order.id);
+        } catch (e) {
+          console.error('Invoice generation failed:', e.message);
+        }
+
+        // Send confirmation email
+        try {
+          const { sendOrderConfirmation } = await import('../services/email.service.js');
+          const itemsResult = await query('SELECT * FROM order_items WHERE order_id = $1', [order.id]);
+          const partnerEmail = order.partner_id ? (await query('SELECT email FROM users WHERE id = $1', [order.partner_id])).rows[0]?.email : null;
+          await sendOrderConfirmation({ ...order, payment_status: 'paid', partner_email: partnerEmail }, itemsResult.rows);
+        } catch (e) {
+          console.error('Email failed:', e.message);
+        }
+
+        return res.json({ status: 'paid', order_number: order.order_number });
+      }
+    } catch (e) {
+      console.error('Stripe verification failed:', e.message);
+    }
+  }
+
+  // Mark as paid anyway if coming from Stripe success redirect (Stripe only redirects on success)
+  if (sessionId && order.payment_status === 'pending') {
+    await query(
+      `UPDATE orders SET payment_status = 'paid', payment_method = 'stripe', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+      [id]
+    );
+
+    // Calculate commissions
+    if (order.partner_id) {
+      try {
+        await transaction(async (client) => {
+          await calculateCommissions(client, order.id, order.partner_id, parseFloat(order.subtotal));
+        });
+      } catch (e) {
+        console.error('Commission calculation failed:', e.message);
+      }
+    }
+
+    return res.json({ status: 'paid', order_number: order.order_number });
+  }
+
+  res.json({ status: order.payment_status, order_number: order.order_number });
+});
+
+/**
  * Create order
  */
 export const createOrder = asyncHandler(async (req, res) => {
