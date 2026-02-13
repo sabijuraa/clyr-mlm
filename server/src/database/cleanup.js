@@ -15,11 +15,7 @@ async function cleanup() {
   console.log('');
 
   try {
-    // 1. Delete commission payouts
-    const payouts = await query('DELETE FROM commission_payouts RETURNING id');
-    console.log(`Deleted ${payouts.rowCount} commission payouts`);
-
-    // 2. Delete commissions
+    // 1. Delete commissions
     const commissions = await query('DELETE FROM commissions RETURNING id');
     console.log(`Deleted ${commissions.rowCount} commissions`);
 
@@ -84,7 +80,7 @@ async function cleanup() {
     if (error.message.includes('foreign key')) {
       console.log('Trying individual cleanup...');
       const tables = [
-        'commission_payouts', 'commissions', 'order_items', 'invoices', 
+        'commissions', 'order_items', 'invoices', 
         'credit_notes', 'orders', 'customer_accounts', 'customers',
         'newsletter_subscribers', 'email_campaigns', 'cookie_consents'
       ];
