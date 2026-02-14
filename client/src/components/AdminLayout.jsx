@@ -122,10 +122,10 @@ export default function AdminLayout() {
           {/* Header */}
           <div className="p-3 border-b border-secondary-600 shrink-0">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+              <Link to="/" className="flex items-center gap-2">
                 <img src="/images/clyr-logo.png" alt="CLYR" className="w-8 h-8 rounded-lg object-contain bg-white p-1" />
                 <h1 className="text-lg font-bold text-white">CLYR Admin</h1>
-              </div>
+              </Link>
               <button
                 onClick={() => setMobileOpen(false)}
                 className="lg:hidden p-1.5 rounded-lg hover:bg-secondary-600 transition-colors"
@@ -184,10 +184,10 @@ export default function AdminLayout() {
             >
               <Icons.Menu />
             </button>
-            <div className="flex items-center gap-2">
+            <Link to="/" className="flex items-center gap-2">
               <img src="/images/clyr-logo.png" alt="CLYR" className="w-7 h-7 rounded-lg object-contain" />
               <span className="font-bold text-secondary-700">Admin</span>
-            </div>
+            </Link>
             <div className="w-10" />
           </div>
         </header>

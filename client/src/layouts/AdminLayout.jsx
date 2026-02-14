@@ -89,7 +89,7 @@ const AdminLayout = () => {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="p-6 border-b border-secondary-600">
-            <NavLink to="/admin" className="flex items-center gap-3">
+            <NavLink to="/" className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-xl bg-secondary-600 
                 flex items-center justify-center shadow-lg shadow-secondary-700/30">
                 <Shield className="w-6 h-6 text-primary-400" />
