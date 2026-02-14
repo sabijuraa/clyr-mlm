@@ -41,4 +41,9 @@ router.get('/export/commissions', adminController.exportCommissions);
 // Activity log
 router.get('/activity', adminController.getActivityLog);
 
+// Rank management
+router.get('/ranks', adminController.getRanks);
+router.patch('/ranks/:id', adminController.updateRank);
+router.patch('/my-rank', adminController.updateOwnRank);
+
 export default router;

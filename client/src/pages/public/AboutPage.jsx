@@ -26,19 +26,19 @@ const AboutPage = () => {
           <div className="absolute bottom-10 right-20 w-96 h-96 bg-white rounded-full blur-3xl" />
         </div>
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32 text-center">
-          <motion.p initial="hidden" whileInView="visible" viewport={{ once: true }}
+          <motion.p initial="hidden" animate="visible"
             variants={fadeUp} custom={0}
             className="text-secondary-300 uppercase tracking-[0.2em] text-sm font-medium mb-6">
             Über CLYR
           </motion.p>
-          <motion.h1 initial="hidden" whileInView="visible" viewport={{ once: true }}
+          <motion.h1 initial="hidden" animate="visible"
             variants={fadeUp} custom={1}
             className="text-4xl md:text-5xl lg:text-6xl font-heading font-bold leading-tight mb-6">
             Mehr als Technologie.
             <br />
             <span className="text-white">Eine Vision für besseres Wasser.</span>
           </motion.h1>
-          <motion.p initial="hidden" whileInView="visible" viewport={{ once: true }}
+          <motion.p initial="hidden" animate="visible"
             variants={fadeUp} custom={2}
             className="text-lg md:text-xl text-secondary-200 max-w-3xl mx-auto leading-relaxed">
             CLYR vereint medizinisches Verständnis, technische Expertise und unternehmerische Vision –
@@ -51,7 +51,7 @@ const AboutPage = () => {
       <section className="py-20 md:py-28">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-2 gap-16 items-center">
-            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.1 }}
+            <motion.div initial="hidden" animate="visible"
               variants={fadeUp}>
               <p className="text-primary-500 uppercase tracking-[0.15em] text-sm font-semibold mb-4">Unsere Vision</p>
               <h2 className="text-3xl md:text-4xl font-heading font-bold text-secondary-800 leading-tight mb-6">
@@ -67,7 +67,7 @@ const AboutPage = () => {
                 fuer Gesundheitsbewusste und fuer Menschen, die mehr aus ihrem Alltag machen moechten.
               </p>
             </motion.div>
-            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.1 }}
+            <motion.div initial="hidden" animate="visible"
               variants={fadeUp} custom={2}
               className="grid grid-cols-2 gap-5">
               {[
@@ -93,7 +93,7 @@ const AboutPage = () => {
       {/* ===== FOUNDERS TOGETHER IMAGE ===== */}
       <section className="py-4">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.1 }}
+          <motion.div initial="hidden" animate="visible"
             variants={fadeUp}
             className="relative rounded-3xl overflow-hidden shadow-2xl">
             <img src="/images/founders-together.jpeg" alt="Theresa Struger und Wolfgang Kronsteiner – Gründer von CLYR"
@@ -113,7 +113,7 @@ const AboutPage = () => {
       <section className="py-20 md:py-28">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-5 gap-12 md:gap-16 items-start">
-            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.1 }}
+            <motion.div initial="hidden" animate="visible"
               variants={fadeUp}
               className="md:col-span-2">
               <div className="relative">
@@ -122,7 +122,7 @@ const AboutPage = () => {
                   className="relative rounded-2xl w-full object-cover shadow-xl" />
               </div>
             </motion.div>
-            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.1 }}
+            <motion.div initial="hidden" animate="visible"
               variants={fadeUp} custom={1}
               className="md:col-span-3">
               <p className="text-primary-500 uppercase tracking-[0.15em] text-sm font-semibold mb-3">Geschäftsführerin</p>
@@ -166,7 +166,7 @@ const AboutPage = () => {
       <section className="py-20 md:py-28 bg-gray-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-5 gap-12 md:gap-16 items-start">
-            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.1 }}
+            <motion.div initial="hidden" animate="visible"
               variants={fadeUp} custom={1}
               className="md:col-span-3 md:order-1">
               <p className="text-primary-500 uppercase tracking-[0.15em] text-sm font-semibold mb-3">Technik & Innovation</p>
@@ -199,7 +199,7 @@ const AboutPage = () => {
                 </p>
               </div>
             </motion.div>
-            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.1 }}
+            <motion.div initial="hidden" animate="visible"
               variants={fadeUp}
               className="md:col-span-2 md:order-2">
               <div className="relative">
@@ -215,7 +215,7 @@ const AboutPage = () => {
       {/* ===== TOGETHER ===== */}
       <section className="py-20 md:py-28">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }}
+          <motion.div initial="hidden" animate="visible"
             variants={fadeUp}>
             <div className="w-16 h-16 rounded-2xl bg-primary-100 flex items-center justify-center mx-auto mb-8">
               <Users className="w-8 h-8 text-primary-600" />
@@ -241,7 +241,7 @@ const AboutPage = () => {
       {/* ===== MEHR ALS TECHNOLOGIE ===== */}
       <section className="py-20 md:py-28 bg-secondary-800 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }}
+          <motion.div initial="hidden" animate="visible"
             variants={fadeUp}>
             <p className="text-secondary-300 uppercase tracking-[0.2em] text-sm font-medium mb-6">
               Mehr als Technologie

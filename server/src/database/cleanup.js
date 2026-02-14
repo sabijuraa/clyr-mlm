@@ -1,8 +1,5 @@
 /**
  * CLYR Database FULL Cleanup
- * Wipes ALL test/dummy data
- * KEEPS ONLY: Admin (Theresa), products, settings, legal pages, categories, ranks
- * 
  * Usage: cd server && node src/database/cleanup.js
  */
 
@@ -59,7 +56,7 @@ async function cleanup() {
     }
   }
 
-  // Delete ALL users EXCEPT admin (Theresa)
+  // Delete ALL users EXCEPT admin
   try {
     const users = await query("DELETE FROM users WHERE role != 'admin' RETURNING email");
     if (users.rowCount > 0) {
@@ -77,33 +74,11 @@ async function cleanup() {
     if (tp.rowCount > 0) console.log('  ✓ Removed test product');
   } catch (e) {}
 
-  // Reset product metadata (remove fake ratings/reviews)
-  try {
-    await query("UPDATE products SET metadata = '{}'::jsonb WHERE metadata IS NOT NULL");
-    console.log('  ✓ Reset product ratings/reviews');
-  } catch (e) {
-    try {
-      await query("UPDATE products SET metadata = NULL");
-      console.log('  ✓ Reset product metadata');
-    } catch (e2) {}
-  }
-
   console.log('');
   console.log(`Total: ${totalDeleted} rows deleted`);
   console.log('');
-  console.log('============================================');
-  console.log('KEPT:');
-  console.log('  ✓ Admin account (Theresa) — login unchanged');
-  console.log('  ✓ 9 products (ratings cleared)');
-  console.log('  ✓ Settings, legal pages, categories, ranks');
-  console.log('');
-  console.log('REMOVED:');
-  console.log('  ✗ Max Mustermann & all demo partners');
-  console.log('  ✗ All orders, invoices & commissions');
-  console.log('  ✗ All customers & newsletter subscribers');
-  console.log('  ✗ Fake product ratings');
-  console.log('  ✗ All stats & activity logs');
-  console.log('============================================');
+  console.log('KEPT: Admin (Theresa), products, settings, legal, categories, ranks');
+  console.log('REMOVED: All orders, invoices, commissions, partners, customers, stats');
   console.log('');
 
   process.exit(0);

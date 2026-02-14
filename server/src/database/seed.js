@@ -82,12 +82,13 @@ async function seed() {
         referral_code, country, rank_id, email_verified
       ) VALUES (
         'theresa@clyr.at', $1, 'Theresa', 'Struger', 'admin', 'active',
-        'THERESA', 'AT', 7, true
+        'THERESA', 'AT', 6, true
       )
       ON CONFLICT (email) DO UPDATE SET
         password_hash = EXCLUDED.password_hash,
         role = EXCLUDED.role,
-        status = EXCLUDED.status
+        status = EXCLUDED.status,
+        rank_id = EXCLUDED.rank_id
     `, [adminPassword]);
 
     // ========================================

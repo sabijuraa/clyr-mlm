@@ -561,7 +561,17 @@ export const adminAPI = {
 
   // Activity
   getActivity: (params = {}) => 
-    api.get('/admin/activity', { params })
+    api.get('/admin/activity', { params }),
+
+  // Ranks & Commission Management
+  getRanks: () =>
+    api.get('/admin/ranks'),
+
+  updateRank: (id, data) =>
+    api.patch(`/admin/ranks/${id}`, data),
+
+  updateOwnRank: (rankId) =>
+    api.patch('/admin/my-rank', { rank_id: rankId })
 };
 
 // ============ BRANDING API (Public) ============

@@ -832,3 +832,72 @@ export const getInvoices = asyncHandler(async (req, res) => {
     }
   });
 });
+
+/**
+ * Get all ranks with commission rates
+ */
+export const getRanks = asyncHandler(async (req, res) => {
+  const result = await query('SELECT * FROM ranks ORDER BY level ASC');
+  res.json(result.rows);
+});
+
+/**
+ * Update a rank's commission rate and details
+ */
+export const updateRank = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { commission_rate, name, one_time_bonus } = req.body;
+
+  const fields = [];
+  const values = [];
+  let paramCount = 0;
+
+  if (commission_rate !== undefined) {
+    paramCount++;
+    fields.push(`commission_rate = $${paramCount}`);
+    values.push(commission_rate);
+  }
+  if (name !== undefined) {
+    paramCount++;
+    fields.push(`name = $${paramCount}`);
+    values.push(name);
+  }
+  if (one_time_bonus !== undefined) {
+    paramCount++;
+    fields.push(`one_time_bonus = $${paramCount}`);
+    values.push(one_time_bonus);
+  }
+
+  if (fields.length === 0) {
+    return res.status(400).json({ error: 'Keine Änderungen' });
+  }
+
+  paramCount++;
+  values.push(id);
+
+  const result = await query(
+    `UPDATE ranks SET ${fields.join(', ')} WHERE id = $${paramCount} RETURNING *`,
+    values
+  );
+
+  if (result.rows.length === 0) {
+    return res.status(404).json({ error: 'Rang nicht gefunden' });
+  }
+
+  res.json(result.rows[0]);
+});
+
+/**
+ * Update own rank (admin self-service)
+ */
+export const updateOwnRank = asyncHandler(async (req, res) => {
+  const { rank_id } = req.body;
+  const userId = req.user.id;
+
+  const result = await query(
+    'UPDATE users SET rank_id = $1 WHERE id = $2 RETURNING id, rank_id',
+    [rank_id, userId]
+  );
+
+  res.json({ message: 'Rang aktualisiert', rank_id });
+});

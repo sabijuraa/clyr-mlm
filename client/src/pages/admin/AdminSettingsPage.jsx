@@ -9,21 +9,27 @@ import {
   RefreshCw,
   Check,
   Eye,
-  Truck
+  Truck,
+  Award,
+  Percent
 } from 'lucide-react';
 import { adminAPI } from '../../services/api';
 import { useBrand } from '../../context/BrandContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
 import Button from '../../components/common/Button';
 import toast from 'react-hot-toast';
 
 const AdminSettingsPage = () => {
   const { lang } = useLanguage();
   const { refreshBranding, ...currentBranding } = useBrand();
+  const { user } = useAuth();
   
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('branding');
+  const [ranks, setRanks] = useState([]);
+  const [myRankId, setMyRankId] = useState(user?.rank_id || 6);
   
   const [branding, setBranding] = useState({
     companyName: '',
@@ -89,6 +95,19 @@ const AdminSettingsPage = () => {
     }
   }, [currentBranding]);
 
+  // Load ranks
+  useEffect(() => {
+    const loadRanks = async () => {
+      try {
+        const res = await adminAPI.getRanks();
+        setRanks(res.data);
+      } catch (err) {
+        console.error('Failed to load ranks:', err);
+      }
+    };
+    loadRanks();
+  }, []);
+
   const handleLogoChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -151,6 +170,7 @@ const AdminSettingsPage = () => {
     { id: 'branding', label: lang === 'de' ? 'Marke & Farben' : 'Brand & Colors', icon: Palette },
     { id: 'company', label: lang === 'de' ? 'Unternehmen' : 'Company', icon: Building },
     { id: 'shipping', label: lang === 'de' ? 'Versand' : 'Shipping', icon: Truck },
+    { id: 'commissions', label: lang === 'de' ? 'Provisionen & Ränge' : 'Commissions & Ranks', icon: Percent },
     { id: 'logo', label: lang === 'de' ? 'Logo' : 'Logo', icon: Image },
   ];
 
@@ -513,6 +533,112 @@ const AdminSettingsPage = () => {
                 }} icon={Save}>Versandkosten speichern</Button>
               </div>
             </motion.div>
+          )}
+
+          {/* Commissions & Ranks Tab */}
+          {activeTab === 'commissions' && (
+            <div className="space-y-6">
+              {/* My Rank */}
+              <div className="bg-white rounded-xl border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-secondary-700 mb-4 flex items-center gap-2">
+                  <Award className="w-5 h-5 text-primary-500" />
+                  {lang === 'de' ? 'Mein Rang' : 'My Rank'}
+                </h3>
+                <p className="text-sm text-secondary-500 mb-3">
+                  {lang === 'de' 
+                    ? 'Als Admin kannst du deinen eigenen Rang und damit deine Provisionsstufe festlegen.' 
+                    : 'As admin you can set your own rank and commission level.'}
+                </p>
+                <div className="flex items-center gap-3">
+                  <select
+                    value={myRankId}
+                    onChange={(e) => setMyRankId(parseInt(e.target.value))}
+                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  >
+                    {ranks.map(r => (
+                      <option key={r.id} value={r.id}>
+                        R{r.level} {r.name} — {r.commission_rate}%
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    onClick={async () => {
+                      try {
+                        await adminAPI.updateOwnRank(myRankId);
+                        toast.success(lang === 'de' ? 'Rang aktualisiert!' : 'Rank updated!');
+                      } catch (err) { toast.error('Fehler'); }
+                    }}
+                    className="px-4 py-2 bg-primary-500 text-white rounded-lg text-sm hover:bg-primary-600"
+                  >
+                    <Save className="w-4 h-4 mr-1 inline" />
+                    {lang === 'de' ? 'Speichern' : 'Save'}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Commission Rates */}
+              <div className="bg-white rounded-xl border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-secondary-700 mb-4 flex items-center gap-2">
+                  <Percent className="w-5 h-5 text-primary-500" />
+                  {lang === 'de' ? 'Provisionssätze pro Rang' : 'Commission Rates per Rank'}
+                </h3>
+                <p className="text-sm text-secondary-500 mb-4">
+                  {lang === 'de'
+                    ? 'Die Differenz zwischen deinem Rang und dem Rang deiner Downline-Partner ist deine Provision auf deren Verkäufe.'
+                    : 'The difference between your rank and your downline partner\'s rank is your commission on their sales.'}
+                </p>
+                <div className="space-y-3">
+                  {ranks.map((rank) => (
+                    <div key={rank.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                        style={{ backgroundColor: rank.color }}>
+                        {rank.level}
+                      </div>
+                      <div className="flex-1">
+                        <span className="font-medium text-secondary-700">{rank.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.5"
+                          value={rank.commission_rate}
+                          onChange={(e) => {
+                            setRanks(prev => prev.map(r => 
+                              r.id === rank.id ? { ...r, commission_rate: parseFloat(e.target.value) || 0 } : r
+                            ));
+                          }}
+                          className="w-20 px-2 py-1.5 text-sm border border-gray-200 rounded-lg text-center"
+                        />
+                        <span className="text-sm text-secondary-500">%</span>
+                        <button
+                          onClick={async () => {
+                            try {
+                              await adminAPI.updateRank(rank.id, { commission_rate: rank.commission_rate });
+                              toast.success(`${rank.name}: ${rank.commission_rate}%`);
+                            } catch (err) { toast.error('Fehler'); }
+                          }}
+                          className="px-3 py-1.5 bg-primary-500 text-white rounded-lg text-xs hover:bg-primary-600 transition-colors"
+                        >
+                          <Check className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Info Box */}
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <p className="text-sm text-blue-700">
+                  <strong>{lang === 'de' ? 'Beispiel:' : 'Example:'}</strong>{' '}
+                  {lang === 'de'
+                    ? 'Du bist Sales Manager (31%). Dein Partner ist Starter (8%). Du verdienst 31% - 8% = 23% Differenzprovision auf seine Verkäufe.'
+                    : 'You are Sales Manager (31%). Your partner is Starter (8%). You earn 31% - 8% = 23% differential commission on their sales.'}
+                </p>
+              </div>
+            </div>
           )}
 
           {/* Logo Tab */}
