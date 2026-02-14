@@ -344,7 +344,7 @@ export const getCampaigns = async (filters = {}) => {
 
 // Helper: Send confirmation email
 async function sendConfirmationEmail(email, token, language = 'de') {
-  const confirmUrl = `${process.env.FRONTEND_URL}/newsletter/confirm?token=${token}`;
+  const confirmUrl = `${process.env.FRONTEND_URL || process.env.CLIENT_URL || 'https://clyr.shop'}/newsletter/confirm?token=${token}`;
   
   const subjects = {
     de: 'Bitte bestätigen Sie Ihre Newsletter-Anmeldung',

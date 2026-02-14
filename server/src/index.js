@@ -88,8 +88,10 @@ app.use(cors({
     // Allow any DigitalOcean app domain or configured origins
     if (allowedOrigins.includes(origin) || 
         origin.endsWith('.ondigitalocean.app') ||
+        origin.endsWith('.clyr.shop') ||
         origin.endsWith('.clyr.at') ||
-        origin.endsWith('.clyr.de')) {
+        origin.endsWith('.clyr.de') ||
+        origin === 'https://clyr.shop') {
       return callback(null, true);
     }
     

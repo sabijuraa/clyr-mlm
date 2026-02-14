@@ -293,7 +293,7 @@ export const getReferralLinks = asyncHandler(async (req, res) => {
     'SELECT id, name, slug FROM products WHERE is_active = true ORDER BY is_featured DESC, name ASC'
   );
 
-  const baseUrl = process.env.FRONTEND_URL || 'https://shop.freshliving.at';
+  const baseUrl = process.env.FRONTEND_URL || 'https://clyr.shop';
   const referralCode = req.user.referral_code;
 
   const links = {

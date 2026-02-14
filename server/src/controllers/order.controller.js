@@ -36,9 +36,9 @@ const generateOrderNumber = async () => {
 const getShippingCost = async (country, items, products) => {
   const settingsResult = await query("SELECT value FROM settings WHERE key = 'shipping_costs'");
   const shippingCosts = settingsResult.rows[0]?.value || {
-    DE: { flat: 0.50 },
-    AT: { flat: 0.50 },
-    CH: { flat: 0.50 }
+    DE: { flat: 70.00 },
+    AT: { flat: 55.00 },
+    CH: { flat: 180.00 }
   };
 
   const countryConfig = shippingCosts[country];
@@ -221,7 +221,7 @@ export const createPaymentIntent = asyncHandler(async (req, res) => {
     if (process.env.APP_URL) return process.env.APP_URL;
     
     // 5. Hardcoded fallback
-    return 'https://clyr-api-kr8fa.ondigitalocean.app';
+    return 'https://clyr.shop';
   };
 
   const baseUrl = getPublicUrl(req).replace(/\/+$/, '');

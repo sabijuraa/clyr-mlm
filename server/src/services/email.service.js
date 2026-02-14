@@ -42,7 +42,7 @@ const formatCurrency = (amount) => {
 export const sendEmail = async ({ to, subject, html, text }) => {
   try {
     const info = await transporter.sendMail({
-      from: `"CLYR" <${process.env.SMTP_FROM || 'noreply@clyr.at'}>`,
+      from: '"CLYR" <service@clyr.shop>',
       to,
       subject,
       html,
@@ -118,7 +118,7 @@ export const sendOrderConfirmation = async (order, items) => {
         </div>
         
         <div class="footer">
-          <p>CLYR GmbH | support@clyr.at</p>
+          <p>CLYR Solutions GmbH | service@clyr.shop</p>
         </div>
       </div>
     </body>
@@ -133,7 +133,7 @@ export const sendOrderConfirmation = async (order, items) => {
   });
 
   // Send notification to admin (Theresa)
-  const adminEmail = process.env.ADMIN_EMAIL || process.env.SMTP_FROM || 'office@freshliving.at';
+  const adminEmail = process.env.ADMIN_EMAIL || process.env.SMTP_FROM || 'service@clyr.shop';
   try {
     await sendEmail({
       to: adminEmail,
@@ -207,7 +207,7 @@ export const sendShippingNotification = async (order, trackingNumber) => {
         </div>
         
         <div class="footer">
-          <p>CLYR GmbH | support@clyr.at</p>
+          <p>CLYR Solutions GmbH | service@clyr.shop</p>
         </div>
       </div>
     </body>
@@ -259,14 +259,14 @@ export const sendPartnerWelcome = async (partner) => {
           </div>
           
           <p style="text-align: center;">
-            <a href="${process.env.FRONTEND_URL || 'https://clyr.at'}/dashboard" class="button">
+            <a href="${process.env.FRONTEND_URL || 'https://clyr.shop'}/dashboard" class="button">
               Zum Dashboard
             </a>
           </p>
         </div>
         
         <div class="footer">
-          <p>CLYR GmbH | support@clyr.at</p>
+          <p>CLYR Solutions GmbH | service@clyr.shop</p>
         </div>
       </div>
     </body>
@@ -320,7 +320,7 @@ export const sendPayoutNotification = async (user, payout) => {
         </div>
         
         <div class="footer">
-          <p>CLYR GmbH | support@clyr.at</p>
+          <p>CLYR Solutions GmbH | service@clyr.shop</p>
         </div>
       </div>
     </body>
@@ -338,7 +338,7 @@ export const sendPayoutNotification = async (user, payout) => {
  * Password reset email
  */
 export const sendPasswordReset = async (user, resetToken) => {
-  const resetUrl = `${process.env.FRONTEND_URL || 'https://clyr.at'}/reset-password?token=${resetToken}`;
+  const resetUrl = `${process.env.FRONTEND_URL || 'https://clyr.shop'}/reset-password?token=${resetToken}`;
   
   const html = `
     <!DOCTYPE html>
@@ -377,7 +377,7 @@ export const sendPasswordReset = async (user, resetToken) => {
         </div>
         
         <div class="footer">
-          <p>CLYR GmbH | support@clyr.at</p>
+          <p>CLYR Solutions GmbH | service@clyr.shop</p>
         </div>
       </div>
     </body>
