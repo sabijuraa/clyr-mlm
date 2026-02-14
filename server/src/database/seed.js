@@ -91,46 +91,6 @@ async function seed() {
     `, [adminPassword]);
 
     // ========================================
-    // 3b. SEED DEMO PARTNER
-    // ========================================
-    console.log('Seeding demo partner...');
-    const partnerPassword = await bcrypt.hash('Partner123!', 12);
-    
-    await client.query(`
-      INSERT INTO users (
-        email, password_hash, first_name, last_name, role, status,
-        referral_code, country, rank_id, email_verified,
-        phone, street, zip, city, iban, bic, bank_name, account_holder
-      ) VALUES (
-        'demo@partner.com', $1, 'Max', 'Mustermann', 'partner', 'active',
-        'DEMO2025', 'DE', 2, true,
-        '+49 170 1234567', 'Musterstraße 123', '80333', 'München',
-        'DE89370400440532013000', 'COBADEFFXXX', 'Commerzbank', 'Max Mustermann'
-      )
-      ON CONFLICT (email) DO UPDATE SET
-        password_hash = EXCLUDED.password_hash,
-        status = EXCLUDED.status
-    `, [partnerPassword]);
-
-    // ========================================
-    // 3c. SEED DEMO CUSTOMER
-    // ========================================
-    console.log('Seeding demo customer...');
-    const customerPassword = await bcrypt.hash('Customer123!', 12);
-    
-    const customerResult = await client.query(`
-      INSERT INTO customers (
-        email, first_name, last_name, phone,
-        street, zip, city, country, password_hash, is_registered
-      ) VALUES (
-        'demo@customer.com', 'Anna', 'Kundin', '+49 171 9876543',
-        'Kundenweg 45', '10115', 'Berlin', 'DE', $1, true
-      )
-      ON CONFLICT (email) DO NOTHING
-      RETURNING id
-    `, [customerPassword]);
-
-    // ========================================
     // 4. SEED PRODUCTS - NEW CLYR PRODUCTS
     // ========================================
     console.log('Seeding CLYR products...');
@@ -565,7 +525,7 @@ async function seed() {
         subtitle: 'München',
         content: 'Das beste Investment für unsere Küche! Endlich kein Schleppen mehr und das Wasser schmeckt fantastisch.',
         content_en: 'The best investment for our kitchen! Finally no more carrying bottles and the water tastes fantastic.',
-        metadata: JSON.stringify({ rating: 5 }),
+        metadata: JSON.stringify({}),
         sort_order: 1
       },
       {
@@ -575,7 +535,7 @@ async function seed() {
         subtitle: 'Wien',
         content: 'Professionelle Installation und super Service. Die Qualität ist wirklich Premium.',
         content_en: 'Professional installation and great service. The quality is truly premium.',
-        metadata: JSON.stringify({ rating: 5 }),
+        metadata: JSON.stringify({}),
         sort_order: 2
       },
       {
@@ -585,7 +545,7 @@ async function seed() {
         subtitle: 'Zürich',
         content: 'Wir haben komplett auf CLYR umgestellt. Umweltfreundlich und praktisch!',
         content_en: 'We switched completely to CLYR. Eco-friendly and practical!',
-        metadata: JSON.stringify({ rating: 5 }),
+        metadata: JSON.stringify({}),
         sort_order: 3
       },
       // CTA Section
@@ -748,23 +708,10 @@ async function seed() {
     console.log('✅ SEEDING COMPLETE! Use these accounts to login:');
     console.log('');
     console.log('┌─────────────────────────────────────────────────────┐');
-    console.log('│  👑 ADMIN ACCOUNT                                   │');
+    console.log('│  ADMIN ACCOUNT                                      │');
     console.log('│  Email:    theresa@clyr.at                          │');
     console.log('│  Password: Admin123!                                │');
     console.log('│  Code:     THERESA                                  │');
-    console.log('└─────────────────────────────────────────────────────┘');
-    console.log('');
-    console.log('┌─────────────────────────────────────────────────────┐');
-    console.log('│  🤝 DEMO PARTNER ACCOUNT                            │');
-    console.log('│  Email:    demo@partner.com                         │');
-    console.log('│  Password: Partner123!                              │');
-    console.log('│  Code:     DEMO2025                                 │');
-    console.log('└─────────────────────────────────────────────────────┘');
-    console.log('');
-    console.log('┌─────────────────────────────────────────────────────┐');
-    console.log('│  🛍️  DEMO CUSTOMER ACCOUNT                          │');
-    console.log('│  Email:    demo@customer.com                        │');
-    console.log('│  Password: Customer123!                             │');
     console.log('└─────────────────────────────────────────────────────┘');
     console.log('');
     console.log('═══════════════════════════════════════════════════════');

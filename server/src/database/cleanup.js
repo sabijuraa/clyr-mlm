@@ -1,7 +1,7 @@
 /**
- * CLYR Database Cleanup Script
- * Removes ALL test data — orders, customers, commissions, newsletters, etc.
- * KEEPS: admin user, partner accounts, products, settings, legal pages, categories, ranks
+ * CLYR Database FULL Cleanup
+ * Wipes ALL test/dummy data
+ * KEEPS ONLY: Admin (Theresa), products, settings, legal pages, categories, ranks
  * 
  * Usage: cd server && node src/database/cleanup.js
  */
@@ -11,11 +11,10 @@ import { query } from '../config/database.js';
 async function cleanup() {
   console.log('');
   console.log('============================================');
-  console.log('CLYR DATABASE CLEANUP');
+  console.log('CLYR DATABASE — FULL CLEANUP');
   console.log('============================================');
   console.log('');
 
-  // Tables to clean, in order (children before parents to respect foreign keys)
   const tables = [
     'bonus_pool_payouts',
     'bonus_pool_distributions',
@@ -40,6 +39,8 @@ async function cleanup() {
     'academy_progress',
     'stock_movements',
     'refresh_tokens',
+    'subscriptions',
+    'discount_codes',
   ];
 
   let totalDeleted = 0;
@@ -52,36 +53,56 @@ async function cleanup() {
         totalDeleted += r.rowCount;
       }
     } catch (e) {
-      // Table might not exist or have FK issues — skip
       if (!e.message.includes('does not exist')) {
-        console.log(`  ⚠ ${table}: ${e.message.substring(0, 60)}`);
+        console.log(`  ⚠ ${table}: ${e.message.substring(0, 80)}`);
       }
     }
   }
 
-  // Delete test product if exists
+  // Delete ALL users EXCEPT admin (Theresa)
   try {
-    const tp = await query("DELETE FROM products WHERE slug = 'testprodukt' RETURNING id");
-    if (tp.rowCount > 0) console.log(`  ✓ Removed test product`);
+    const users = await query("DELETE FROM users WHERE role != 'admin' RETURNING email");
+    if (users.rowCount > 0) {
+      console.log(`  ✓ users: ${users.rowCount} non-admin users deleted`);
+      users.rows.forEach(u => console.log(`    - ${u.email}`));
+      totalDeleted += users.rowCount;
+    }
+  } catch (e) {
+    console.log(`  ⚠ users: ${e.message.substring(0, 80)}`);
+  }
+
+  // Delete test product
+  try {
+    const tp = await query("DELETE FROM products WHERE slug = 'testprodukt' RETURNING name");
+    if (tp.rowCount > 0) console.log('  ✓ Removed test product');
   } catch (e) {}
 
-  // Reset number sequences for clean start
-  const sequences = [
-    'orders_order_number_seq',
-    'invoices_invoice_number_seq',
-  ];
-  for (const seq of sequences) {
-    try { await query(`SELECT setval('${seq}', 1, false)`); } catch (e) {}
+  // Reset product metadata (remove fake ratings/reviews)
+  try {
+    await query("UPDATE products SET metadata = '{}'::jsonb WHERE metadata IS NOT NULL");
+    console.log('  ✓ Reset product ratings/reviews');
+  } catch (e) {
+    try {
+      await query("UPDATE products SET metadata = NULL");
+      console.log('  ✓ Reset product metadata');
+    } catch (e2) {}
   }
-  console.log('  ✓ Reset order/invoice number sequences');
 
   console.log('');
   console.log(`Total: ${totalDeleted} rows deleted`);
   console.log('');
-  console.log('KEPT: Admin user, partner accounts, products, settings,');
-  console.log('      legal pages, categories, ranks, academy content');
+  console.log('============================================');
+  console.log('KEPT:');
+  console.log('  ✓ Admin account (Theresa) — login unchanged');
+  console.log('  ✓ 9 products (ratings cleared)');
+  console.log('  ✓ Settings, legal pages, categories, ranks');
   console.log('');
-  console.log('Admin login unchanged — use same email/password as before.');
+  console.log('REMOVED:');
+  console.log('  ✗ Max Mustermann & all demo partners');
+  console.log('  ✗ All orders, invoices & commissions');
+  console.log('  ✗ All customers & newsletter subscribers');
+  console.log('  ✗ Fake product ratings');
+  console.log('  ✗ All stats & activity logs');
   console.log('============================================');
   console.log('');
 
