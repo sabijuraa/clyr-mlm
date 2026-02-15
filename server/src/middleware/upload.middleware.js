@@ -194,9 +194,9 @@ export const uploadSingleToSpaces = (folder) => {
 // For auth.routes.js - Partner document uploads
 export const uploadPartnerDocuments = [
   uploadDocuments.fields([
-    { name: 'id_document', maxCount: 1 },
-    { name: 'business_license', maxCount: 1 },
-    { name: 'tax_certificate', maxCount: 1 }
+    { name: 'passport', maxCount: 1 },
+    { name: 'bankCard', maxCount: 1 },
+    { name: 'tradeLicense', maxCount: 1 }
   ]),
   async (req, res, next) => {
     try {

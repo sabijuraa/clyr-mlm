@@ -73,6 +73,7 @@ export const validationRules = {
     body('iban')
       .optional()
       .trim()
+      .customSanitizer(value => value ? value.replace(/\s/g, '').toUpperCase() : value)
       .matches(/^[A-Z]{2}[0-9]{2}[A-Z0-9]{4,}$/).withMessage('Ungültige IBAN'),
     body('termsAccepted')
       .equals('true').withMessage('AGB müssen akzeptiert werden')

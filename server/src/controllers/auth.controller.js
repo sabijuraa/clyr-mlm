@@ -191,9 +191,9 @@ export const register = asyncHandler(async (req, res) => {
   const startingRank = req.body.hasOwnMachine ? 2 : 1;
   const proratedFee = calculateProratedFee();
 
-  const passportUrl = req.files?.passport?.[0]?.filename ? `/uploads/documents/${req.files.passport[0].filename}` : null;
-  const bankCardUrl = req.files?.bankCard?.[0]?.filename ? `/uploads/documents/${req.files.bankCard[0].filename}` : null;
-  const tradeLicenseUrl = req.files?.tradeLicense?.[0]?.filename ? `/uploads/documents/${req.files.tradeLicense[0].filename}` : null;
+  const passportUrl = req.files?.passport?.[0]?.filename ? `/uploads/documents/${req.files.passport[0].filename}` : (req.uploadedDocuments?.passport || null);
+  const bankCardUrl = req.files?.bankCard?.[0]?.filename ? `/uploads/documents/${req.files.bankCard[0].filename}` : (req.uploadedDocuments?.bankCard || null);
+  const tradeLicenseUrl = req.files?.tradeLicense?.[0]?.filename ? `/uploads/documents/${req.files.tradeLicense[0].filename}` : (req.uploadedDocuments?.tradeLicense || null);
 
   const result = await transaction(async (client) => {
     const userResult = await client.query(

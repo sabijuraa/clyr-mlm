@@ -126,6 +126,36 @@ async function migrate() {
       }
     }
 
+    // ========================================
+    // Step 4: Ensure legal_pages table and seed VP-Vertrag
+    // ========================================
+    console.log('\nStep 4: Seeding legal pages...\n');
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS legal_pages (
+        id SERIAL PRIMARY KEY,
+        page_key VARCHAR(50) UNIQUE NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        content TEXT NOT NULL DEFAULT '',
+        title_en VARCHAR(255),
+        content_en TEXT,
+        last_updated_by INTEGER REFERENCES users(id),
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    const { legalContent } = await import('./legal-content.js');
+    
+    for (const [key, page] of Object.entries(legalContent)) {
+      await client.query(
+        `INSERT INTO legal_pages (page_key, title, content) VALUES ($1, $2, $3) ON CONFLICT (page_key) DO UPDATE SET title = EXCLUDED.title, content = EXCLUDED.content, updated_at = CURRENT_TIMESTAMP`,
+        [key, page.title, page.content]
+      );
+      console.log('  Seeded: ' + key + ' (' + page.title + ')');
+    }
+
     console.log('\nDone!');
 
   } catch (error) {

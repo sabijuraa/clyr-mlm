@@ -41,6 +41,7 @@ const AdminSetupPage = lazy(() => import('./pages/auth/AdminSetupPage'));
 // Legal pages
 const PrivacyPage = lazy(() => import('./pages/legal/PrivacyPage'));
 const TermsPage = lazy(() => import('./pages/legal/TermsPage'));
+const PartnerTermsPage = lazy(() => import('./pages/legal/PartnerTermsPage'));
 const ImprintPage = lazy(() => import('./pages/legal/ImprintPage'));
 const WithdrawalPage = lazy(() => import('./pages/legal/WithdrawalPage'));
 
@@ -144,6 +145,7 @@ function App() {
               {/* ====== LEGAL ====== */}
               <Route path="/privacy" element={<PrivacyPage />} />
               <Route path="/terms" element={<TermsPage />} />
+              <Route path="/partner-terms" element={<PartnerTermsPage />} />
               <Route path="/imprint" element={<ImprintPage />} />
               <Route path="/withdrawal" element={<WithdrawalPage />} />
               <Route path="/faq" element={<FaqPage />} />

@@ -100,6 +100,10 @@ const PartnerRegisterPage = () => {
         if (value !== undefined && value !== null && value !== '') {
           if (key === 'acceptTerms') {
             formData.append('termsAccepted', value ? 'true' : 'false');
+          } else if (key === 'acceptPrivacy' || key === 'acceptFee' || key === 'acceptWithdrawal') {
+            // Don't send these to server - not needed
+          } else if (key === 'iban') {
+            formData.append(key, String(value).replace(/\s/g, '').toUpperCase());
           } else {
             formData.append(key, value);
           }
@@ -554,12 +558,12 @@ const PartnerRegisterPage = () => {
                           />
                           <span className="text-sm text-secondary-500">
                             {lang === 'de' ? 'Ich akzeptiere den' : 'I accept the'}{' '}
-                            <Link to="/terms" target="_blank" className="text-secondary-700 hover:text-primary-500 font-medium">
+                            <Link to="/partner-terms" target="_blank" className="text-secondary-700 hover:text-primary-500 font-medium">
                               {lang === 'de' ? 'Vertriebspartner-Vertrag (VP-Vertrag)' : 'Distribution Partner Agreement'}
                             </Link>{' '}
                             {lang === 'de' ? 'und die' : 'and the'}{' '}
                             <Link to="/terms" target="_blank" className="text-secondary-700 hover:text-primary-500 font-medium">
-                              {lang === 'de' ? 'Allgemeinen Geschaeftsbedingungen' : 'General Terms'}
+                              {lang === 'de' ? 'Allgemeinen Geschäftsbedingungen' : 'General Terms'}
                             </Link>
                           </span>
                         </label>
