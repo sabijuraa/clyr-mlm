@@ -104,6 +104,17 @@ async function cleanup() {
     // Columns may not exist
   }
 
+  // Fix Theresa's rank to Sales Manager (level 6, 31%)
+  try {
+    const rank = await query("SELECT id FROM ranks WHERE slug = 'sales-manager'");
+    if (rank.rows.length > 0) {
+      await query("UPDATE users SET rank_id = $1 WHERE role = 'admin'", [rank.rows[0].id]);
+      console.log(`  ✓ Set admin rank to Sales Manager (id: ${rank.rows[0].id})`);
+    }
+  } catch (e) {
+    console.log(`  ⚠ rank fix: ${e.message.substring(0, 80)}`);
+  }
+
   console.log('');
   console.log(`Total: ${totalDeleted} rows deleted`);
   console.log('');

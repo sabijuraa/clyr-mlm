@@ -213,6 +213,8 @@ const possibleClientPaths = [
   path.join(__dirname, '../../../client/dist'),
   path.join(__dirname, '../../dist'),
   path.join(__dirname, '../dist'),
+  '/app/client/dist',
+  '/app/dist',
 ];
 const clientDistPath = possibleClientPaths.find(p => fs.existsSync(p));
 
@@ -223,31 +225,61 @@ if (clientDistPath) {
 
 // For ANY non-API route, serve index.html (SPA client-side routing)
 app.get('*', (req, res, next) => {
-  // Skip API routes
-  if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/') || req.path.startsWith('/downloads/')) {
+  // Skip API routes and static file routes
+  if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/') || 
+      req.path.startsWith('/downloads/') || req.path.startsWith('/images/') ||
+      req.path.startsWith('/invoices/') || req.path.startsWith('/public/')) {
     return next();
   }
   
+  // If we have the client dist, serve index.html
   if (clientDistPath) {
     const indexPath = path.join(clientDistPath, 'index.html');
     if (fs.existsSync(indexPath)) {
       return res.sendFile(indexPath);
     }
   }
-  next();
+  
+  // If client dist not available (separate containers), redirect to frontend URL
+  const frontendUrl = process.env.FRONTEND_URL;
+  if (frontendUrl && req.path !== '/') {
+    return res.redirect(frontendUrl + req.originalUrl);
+  }
+  
+  // Last resort: serve a minimal SPA shell that handles client-side routing
+  res.status(200).send(`<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CLYR</title>
+<script>
+  // SPA fallback: redirect to the frontend app
+  var frontendUrl = "${frontendUrl || ''}";
+  if (frontendUrl && window.location.origin !== frontendUrl) {
+    window.location.replace(frontendUrl + window.location.pathname + window.location.search);
+  }
+</script>
+</head><body><p>Redirecting...</p></body></html>`);
 });
 
 // ========================================
 // ERROR HANDLING
 // ========================================
 
-// 404 handler (only for API routes now)
+// 404 handler - only for API routes
 app.use((req, res) => {
-  res.status(404).json({ 
-    error: 'Route not found',
-    path: req.path,
-    method: req.method
-  });
+  // Only return JSON 404 for API routes
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ 
+      error: 'Route not found',
+      path: req.path,
+      method: req.method
+    });
+  }
+  // For non-API routes that somehow got here, redirect to frontend
+  const frontendUrl = process.env.FRONTEND_URL || '';
+  if (frontendUrl) {
+    return res.redirect(frontendUrl + req.originalUrl);
+  }
+  res.status(404).send('Not found');
 });
 
 // Global error handler

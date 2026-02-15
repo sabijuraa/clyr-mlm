@@ -46,7 +46,7 @@
     @apply scroll-smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    overflow-x: hidden;
+    /* DO NOT put overflow-x:hidden on html - it breaks IntersectionObserver on iOS Safari */
   }
   
   body {
@@ -251,16 +251,28 @@
 
 /* Safari/iOS fallback: ensure content is visible if animations don't trigger */
 @media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
   [style*="opacity: 0"], [style*="opacity:0"] {
     opacity: 1 !important;
     transform: none !important;
   }
 }
 
-/* Fallback: after 3s, force all hidden animated sections visible */
-@keyframes forceVisible {
-  to { opacity: 1; transform: translateY(0); }
+/* iOS Safari ultimate fallback: after 2s, force ALL motion-animated elements visible.
+   Framer-motion sets inline styles with opacity:0 and transform.
+   If whileInView fails to fire (iOS bug), this guarantees content shows. */
+@keyframes iosForceShow {
+  to { opacity: 1 !important; transform: none !important; }
 }
-section > div > [style*="opacity"] {
-  animation: forceVisible 0s 3s forwards;
+@supports (-webkit-touch-callout: none) {
+  /* iOS only */
+  [style*="opacity: 0"],
+  [style*="opacity:0"],
+  [style*="translateY"] {
+    animation: iosForceShow 0.5s 2.5s both !important;
+  }
 }

@@ -4,49 +4,23 @@ import { motion } from 'framer-motion';
 import { Phone, Mail, MapPin } from 'lucide-react';
 import {
   ArrowRight, Droplets, Shield, Leaf, Award, Truck, Headphones,
-  Check, Star, ChevronRight, ShoppingBag, Users, GraduationCap,
-  Package, Zap, Clock, Briefcase, Heart, Sparkles, Quote, Target, Download
+  Star, ShoppingBag, Users, GraduationCap,
+  Zap, Clock, Briefcase, Heart, Sparkles, Quote, Target, Download
 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
-import { useCart } from '../../context/CartContext';
-import { formatCurrency } from '../../config/app.config';
-import { productsAPI } from '../../services/api';
 import brandConfig from '../../config/brand.config';
 
 const fadeUp = {
-  hidden: { opacity: 0, y: 40 },
+  hidden: { opacity: 0, y: 30 },
   visible: (i = 0) => ({
     opacity: 1, y: 0,
-    transition: { duration: 0.7, delay: i * 0.15, ease: [0.22, 1, 0.36, 1] }
+    transition: { duration: 0.5, delay: Math.min(i * 0.1, 0.4), ease: [0.22, 1, 0.36, 1] }
   })
 };
 
 const HomePage = () => {
   const { lang } = useLanguage();
-  const { addItem, isInCart } = useCart();
-  const [featuredProducts, setFeaturedProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [activeTestimonial, setActiveTestimonial] = useState(0);
-
-  useEffect(() => {
-    const loadProducts = async () => {
-      try {
-        const response = await productsAPI.getFeatured(4);
-        setFeaturedProducts(response.data.products || response.data || []);
-      } catch (error) {
-        console.error('Failed to load products:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadProducts();
-  }, []);
-
-  const handleAddToCart = (e, product) => {
-    e.preventDefault();
-    e.stopPropagation();
-    addItem(product);
-  };
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -64,10 +38,10 @@ const HomePage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white overflow-x-hidden">
 
       {/* SECTION 1 — PREMIUM HERO */}
-      <section className="relative min-h-[92vh] flex items-center overflow-hidden">
+      <section className="relative min-h-[80vh] sm:min-h-[90vh] flex items-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-secondary-800 via-secondary-700 to-primary-900" />
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute top-1/4 -left-32 w-[500px] h-[500px] bg-primary-400/10 rounded-full blur-3xl" />
@@ -80,7 +54,7 @@ const HomePage = () => {
               <Droplets className="w-4 h-4" /><span>CLYR Solutions GmbH</span>
             </motion.div>
             <motion.h1 initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.15 }}
-              className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-heading font-bold text-white leading-[1.1] mb-8">
+              className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-heading font-bold text-white leading-[1.1] mb-8">
               {t(<>Mehr als Wasser.<br /><span className="text-primary-300">Ein neuer Standard</span> für<br />Gesundheit und Lebensqualität.</>,
                 <>More than Water.<br /><span className="text-primary-300">A New Standard</span> for<br />Health and Quality of Life.</>)}
             </motion.h1>
@@ -120,7 +94,7 @@ const HomePage = () => {
       <section className="py-20 md:py-28 bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-2 gap-16 items-center">
-            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUp}>
+            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.05 }} variants={fadeUp}>
               <p className="text-primary-500 uppercase tracking-[0.15em] text-sm font-semibold mb-4">{t('Wissen', 'Knowledge')}</p>
               <h2 className="text-3xl md:text-4xl font-heading font-bold text-secondary-800 leading-tight mb-6">{t('Warum Wasserqualität entscheidend ist', 'Why Water Quality Matters')}</h2>
               <div className="space-y-4 text-secondary-600 text-lg leading-relaxed">
@@ -129,7 +103,7 @@ const HomePage = () => {
                 <p className="font-medium text-secondary-700">{t('CLYR entwickelt Lösungen, die Wasser wieder zu dem machen, was es sein sollte: rein, hochwertig und zuverlässig.', 'CLYR develops solutions that make water what it should be: pure, high-quality and reliable.')}</p>
               </div>
             </motion.div>
-            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUp} custom={2} className="grid grid-cols-2 gap-5">
+            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.05 }} variants={fadeUp} custom={2} className="grid grid-cols-2 gap-5">
               {[{ value: '99.9%', label: t('Schadstoff-Filtration', 'Contaminant Filtration'), icon: Shield }, { value: '9', label: t('Filterstufen', 'Filter Stages'), icon: Droplets }, { value: '0%', label: t('Mikroplastik', 'Microplastics'), icon: Leaf }, { value: '24/7', label: t('Reines Wasser', 'Pure Water'), icon: Zap }].map((stat, i) => (
                 <motion.div key={i} variants={fadeUp} custom={i * 0.3} className="bg-gray-50 rounded-2xl p-6 text-center hover:shadow-lg transition-all duration-300 border border-gray-100">
                   <div className="w-12 h-12 mx-auto rounded-xl bg-primary-100 flex items-center justify-center mb-4"><stat.icon className="w-6 h-6 text-primary-600" /></div>
@@ -149,7 +123,7 @@ const HomePage = () => {
           <div className="absolute bottom-1/4 -right-32 w-[500px] h-[500px] bg-primary-300/6 rounded-full blur-3xl" />
         </div>
         <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUp} className="text-center mb-16">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.05 }} variants={fadeUp} className="text-center mb-16">
             <p className="text-primary-400 uppercase tracking-[0.15em] text-sm font-semibold mb-4">{t('Unsere Stärken', 'Our Strengths')}</p>
             <h2 className="text-3xl md:text-4xl font-heading font-bold text-white mb-6">{t('Was CLYR anders macht', 'What Makes CLYR Different')}</h2>
             <p className="text-secondary-200 text-lg max-w-2xl mx-auto">{t('CLYR steht für kompromisslose Qualität und Innovation. Unsere Systeme kombinieren modernste Filtertechnologie mit hochwertiger Verarbeitung und intelligentem Design.', 'CLYR stands for uncompromising quality and innovation. Our systems combine cutting-edge filter technology with premium craftsmanship and intelligent design.')}</p>
@@ -163,7 +137,7 @@ const HomePage = () => {
               { icon: Shield, title: t('Technologie auf höchstem Niveau', 'Top-Level Technology'), desc: t('LED-UVC Entkeimung, Bio-Tuner und automatische Membranspülung.', 'LED-UVC disinfection, Bio-Tuner and automatic membrane flushing.') },
               { icon: Heart, title: t('Für die ganze Familie', 'For the Whole Family'), desc: t('Gesundes Wasser für Kochen, Trinken und das Wohlbefinden der ganzen Familie.', 'Healthy water for cooking, drinking and the wellbeing of your whole family.') },
             ].map((item, i) => (
-              <motion.div key={i} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUp} custom={i * 0.5}
+              <motion.div key={i} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.05 }} variants={fadeUp} custom={i * 0.5}
                 className="bg-secondary-600/50 backdrop-blur-sm rounded-2xl p-8 border border-white/10 hover:border-primary-400/30 hover:bg-secondary-600/70 transition-all duration-300">
                 <div className="w-14 h-14 rounded-2xl bg-primary-400/15 flex items-center justify-center mb-5">
                   <item.icon className="w-7 h-7 text-primary-400" />
@@ -180,10 +154,10 @@ const HomePage = () => {
       <section className="py-20 md:py-28 bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-2 gap-12 md:gap-16 items-center">
-            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUp} className="relative">
+            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.05 }} variants={fadeUp} className="relative">
               <div className="absolute -inset-4 bg-gradient-to-br from-secondary-100 to-secondary-50 rounded-3xl -rotate-2" />
               <img src="/images/founders-together.jpeg" alt="CLYR Gründer" className="relative rounded-2xl w-full shadow-xl object-cover" />
-              <div className="absolute -bottom-6 -right-6 bg-white rounded-2xl p-5 shadow-xl border border-gray-100">
+              <div className="absolute -bottom-3 -right-3 sm:-bottom-6 sm:-right-6 bg-white rounded-2xl p-5 shadow-xl border border-gray-100">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center"><Target className="w-6 h-6 text-primary-600" /></div>
                   <div>
@@ -193,7 +167,7 @@ const HomePage = () => {
                 </div>
               </div>
             </motion.div>
-            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUp} custom={1}>
+            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.05 }} variants={fadeUp} custom={1}>
               <p className="text-primary-500 uppercase tracking-[0.15em] text-sm font-semibold mb-4">{t('Über CLYR', 'About CLYR')}</p>
               <h2 className="text-3xl md:text-4xl font-heading font-bold text-secondary-800 leading-tight mb-6">{t('Gesundheit einfacher, zugänglicher und moderner machen', 'Making health simpler, more accessible and more modern')}</h2>
               <div className="space-y-4 text-secondary-600 text-lg leading-relaxed">
@@ -210,12 +184,12 @@ const HomePage = () => {
       </section>
 
       {/* SECTION 5 — LIFESTYLE / EMOTIONAL */}
-      <section className="relative py-32 md:py-44 overflow-hidden">
+      <section className="relative py-20 sm:py-32 md:py-44 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-secondary-800 via-secondary-700 to-primary-900" />
         <div className="absolute inset-0 opacity-20"><div className="absolute top-0 left-0 w-full h-full bg-[url('/images/products/clyr-soda-system.png')] bg-cover bg-center" /></div>
         <div className="absolute inset-0 bg-gradient-to-r from-secondary-900/90 via-secondary-800/80 to-primary-900/70" />
         <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUp}>
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.05 }} variants={fadeUp}>
             <p className="text-primary-300 uppercase tracking-[0.2em] text-sm font-medium mb-6">Lifestyle</p>
             <h2 className="text-3xl md:text-5xl font-heading font-bold text-white leading-tight mb-8">{t('CLYR ist nicht nur Technologie – es ist ein Lebensgefühl.', "CLYR is not just technology – it's a way of life.")}</h2>
             <p className="text-xl text-secondary-200 max-w-2xl mx-auto leading-relaxed mb-4">{t('Reines Wasser beeinflusst Energie, Wohlbefinden und Lebensqualität im Alltag.', 'Pure water influences energy, wellbeing and quality of life in everyday life.')}</p>
@@ -227,7 +201,7 @@ const HomePage = () => {
       {/* SECTION 6 — TESTIMONIALS */}
       <section className="py-20 md:py-28 bg-gray-50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUp} className="text-center mb-16">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.05 }} variants={fadeUp} className="text-center mb-16">
             <p className="text-primary-500 uppercase tracking-[0.15em] text-sm font-semibold mb-4">{t('Erfahrungen', 'Testimonials')}</p>
             <h2 className="text-3xl md:text-4xl font-heading font-bold text-secondary-800">{t('Was unsere Kunden sagen', 'What Our Customers Say')}</h2>
           </motion.div>
@@ -249,70 +223,11 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* SECTION 7A — FEATURED PRODUCTS */}
-      <section className="py-20 md:py-28 bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-end mb-12">
-            <div>
-              <p className="text-primary-500 uppercase tracking-[0.15em] text-sm font-semibold mb-3">Shop</p>
-              <h2 className="text-3xl md:text-4xl font-heading font-bold text-secondary-800 mb-2">{t('Unsere Produkte', 'Our Products')}</h2>
-              <p className="text-secondary-500 text-lg">{t('Premium Wassersysteme für Ihr Zuhause', 'Premium water systems for your home')}</p>
-            </div>
-            <Link to="/products" className="hidden sm:inline-flex items-center gap-2 px-6 py-3 bg-secondary-800 text-white font-semibold rounded-xl hover:bg-primary-600 transition-colors">
-              {t('Alle Produkte', 'All Products')}<ChevronRight className="w-5 h-5" />
-            </Link>
-          </div>
-          {loading ? (
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">{[1,2,3,4].map(i => <div key={i} className="bg-gray-50 rounded-2xl h-96 animate-pulse" />)}</div>
-          ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
-              {featuredProducts.slice(0, 4).map((product, index) => {
-                let images = product.images || [];
-                if (typeof images === 'string') { try { images = JSON.parse(images); } catch(e) { images = []; } }
-                const imgSrc = images.length > 0 ? images[0] : '/images/products/clyr-soda-system.png';
-                const price = typeof product.price === 'string' ? parseFloat(product.price) : product.price;
-                return (
-                  <motion.div key={product.id} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUp} custom={index * 0.5} className="h-full">
-                    <Link to={`/product/${product.slug || product.id}`} className="group block bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all hover:-translate-y-1 border border-gray-100 h-full flex flex-col">
-                      <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 p-6 flex items-center justify-center shrink-0">
-                        <img src={imgSrc} alt={product.name} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300" />
-                      </div>
-                      <div className="p-5 flex flex-col flex-1">
-                        <h3 className="font-semibold text-secondary-800 mb-2 text-base group-hover:text-primary-500 transition-colors line-clamp-1">{product.name}</h3>
-                        <div className="flex items-center justify-between mt-auto pt-2">
-                          {price > 0 ? (
-                            <div>
-                              <div className="text-xl font-bold text-secondary-800">{formatCurrency(price)}</div>
-                              <div className="text-xs text-secondary-500">netto zzgl. MwSt.</div>
-                            </div>
-                          ) : (
-                            <div className="text-sm font-bold text-primary-600">Preis auf Anfrage</div>
-                          )}
-                          <button onClick={(e) => handleAddToCart(e, product)} disabled={isInCart(product.id)}
-                            className={`p-2.5 rounded-xl transition-all ${isInCart(product.id) ? 'bg-green-100 text-green-600' : 'bg-secondary-800 text-white hover:bg-primary-500'}`}>
-                            {isInCart(product.id) ? <Check className="w-5 h-5" /> : <ShoppingBag className="w-5 h-5" />}
-                          </button>
-                        </div>
-                      </div>
-                    </Link>
-                  </motion.div>
-                );
-              })}
-            </div>
-          )}
-          <div className="text-center mt-10 sm:hidden">
-            <Link to="/products" className="inline-flex items-center gap-2 px-6 py-3 bg-secondary-800 text-white font-semibold rounded-xl">
-              {t('Alle Produkte ansehen', 'View All Products')}<ChevronRight className="w-5 h-5" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
       {/* SECTION 7B — PARTNER / COMMUNITY */}
       <section className="py-20 md:py-28 bg-secondary-800">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUp}>
+            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.05 }} variants={fadeUp}>
               <p className="text-primary-400 uppercase tracking-[0.15em] text-sm font-semibold mb-4">{t('Karriere', 'Career')}</p>
               <h2 className="text-3xl md:text-4xl font-heading font-bold text-white leading-tight mb-6">{t('Werden Sie Teil einer wachsenden Community', 'Become Part of a Growing Community')}</h2>
               <p className="text-secondary-200 text-lg leading-relaxed mb-6">{t('CLYR bietet nicht nur innovative Wasserlösungen, sondern auch die Möglichkeit, Teil einer wachsenden Community zu werden.', 'CLYR offers not only innovative water solutions, but also the opportunity to become part of a growing community.')}</p>
@@ -339,7 +254,7 @@ const HomePage = () => {
                 </Link>
               </div>
             </motion.div>
-            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUp} custom={2}>
+            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.05 }} variants={fadeUp} custom={2}>
               <div className="bg-white rounded-3xl p-8 shadow-2xl">
                 <div className="text-center mb-8 pb-8 border-b border-gray-100">
                   <div className="w-20 h-20 bg-gradient-to-br from-primary-100 to-primary-200 rounded-2xl flex items-center justify-center mx-auto mb-4"><Users className="w-10 h-10 text-primary-700" /></div>
@@ -371,7 +286,7 @@ const HomePage = () => {
       {/* SECTION 8 — FINAL CTA */}
       <section className="py-20 md:py-28 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUp}>
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.05 }} variants={fadeUp}>
             <div className="w-16 h-16 rounded-2xl bg-primary-100 flex items-center justify-center mx-auto mb-8"><Droplets className="w-8 h-8 text-primary-600" /></div>
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-heading font-bold text-secondary-800 leading-tight mb-6">{t('Entdecke die neue Dimension von Wasserqualität.', 'Discover the New Dimension of Water Quality.')}</h2>
             <p className="text-secondary-500 text-lg max-w-2xl mx-auto mb-12">{t('Machen Sie den ersten Schritt zu reinerem Wasser, mehr Gesundheit und einem bewussteren Lebensstil.', 'Take the first step towards purer water, better health and a more conscious lifestyle.')}</p>
