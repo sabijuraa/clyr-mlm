@@ -139,7 +139,7 @@ export const partnerFeeSuccess = asyncHandler(async (req, res) => {
       await client.query(`
         CREATE TABLE IF NOT EXISTS subscription_payments (
           id SERIAL PRIMARY KEY,
-          user_id INTEGER REFERENCES users(id),
+          user_id UUID REFERENCES users(id),
           amount DECIMAL(10,2) NOT NULL,
           payment_method VARCHAR(50) DEFAULT 'stripe',
           payment_reference VARCHAR(255),
