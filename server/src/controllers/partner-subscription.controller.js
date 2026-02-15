@@ -86,7 +86,7 @@ export const createPartnerFeeCheckout = asyncHandler(async (req, res) => {
         partnerId: String(partner.id),
         partnerEmail: partner.email,
       },
-      success_url: `${baseUrl}/api/partner/fee-success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${baseUrl}/api/partners/fee-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/login?fee=cancelled`,
     });
 

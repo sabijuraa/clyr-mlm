@@ -125,7 +125,7 @@ const PartnerRegisterPage = () => {
 
       try {
         const api = (await import('../../services/api')).default;
-        const checkoutRes = await api.post('/partner/fee-checkout', {
+        const checkoutRes = await api.post('/partners/fee-checkout', {
           partnerId: registeredUser?.id,
           partnerEmail: data.email,
         });

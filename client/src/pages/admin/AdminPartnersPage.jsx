@@ -365,7 +365,7 @@ const AdminPartnersPage = () => {
                                 try {
                                   await adminAPI.updatePartnerRank(partnerDetail.partner.id, parseInt(e.target.value));
                                   toast.success('Rang geaendert!');
-                                  loadPartnerDetail(partnerDetail.partner.id);
+                                  viewPartnerDetail(partnerDetail.partner.id);
                                   fetchPartners();
                                 } catch (err) { toast.error('Fehler beim Ändern des Rangs'); }
                               }}
@@ -390,7 +390,7 @@ const AdminPartnersPage = () => {
                                 try {
                                   await adminAPI.updatePartnerStatus(partnerDetail.partner.id, e.target.value);
                                   toast.success('Status geaendert!');
-                                  loadPartnerDetail(partnerDetail.partner.id);
+                                  viewPartnerDetail(partnerDetail.partner.id);
                                   fetchPartners();
                                 } catch (err) { toast.error('Fehler'); }
                               }}
@@ -420,6 +420,31 @@ const AdminPartnersPage = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Partner Documents */}
+                  {(partnerDetail.partner?.passport_url || partnerDetail.partner?.bank_card_url || partnerDetail.partner?.trade_license_url) && (
+                    <div className="px-6 pb-4">
+                      <h3 className="text-sm font-semibold text-secondary-500 uppercase mb-3">Dokumente</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {[
+                          { label: 'Ausweis/Reisepass', url: partnerDetail.partner?.passport_url },
+                          { label: 'Bankkarte', url: partnerDetail.partner?.bank_card_url },
+                          { label: 'Gewerbeschein', url: partnerDetail.partner?.trade_license_url },
+                        ].filter(d => d.url).map((doc, i) => (
+                          <a
+                            key={i}
+                            href={doc.url.startsWith('http') ? doc.url : (doc.url.startsWith('/') ? doc.url : '/' + doc.url)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-primary-50 border border-gray-200 hover:border-primary-300 rounded-xl transition-colors"
+                          >
+                            <Eye className="w-4 h-4 text-primary-500 flex-shrink-0" />
+                            <span className="text-sm text-secondary-700 truncate">{doc.label}</span>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Recent Orders */}
                   {partnerDetail.recentOrders?.length > 0 && (
