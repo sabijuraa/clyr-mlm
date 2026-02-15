@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -14,6 +14,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatCurrency } from '../../config/app.config';
 import { copyToClipboard } from '../../utils/helpers';
+import { partnerAPI } from '../../services/api';
 import StatCard from '../../components/dashboard/StatCard';
 import RankProgress from '../../components/dashboard/RankProgress';
 import ActivityFeed from '../../components/dashboard/ActivityFeed';
@@ -21,37 +22,77 @@ import CommissionTable from '../../components/dashboard/CommissionTable';
 import Button from '../../components/common/Button';
 import toast from 'react-hot-toast';
 
-const demoStats = {
-  balance: 1234.56,
-  totalSales: 45,
-  teamSize: 12,
-  monthlyCommission: 567.89
-};
-
-const demoActivities = [
-  { id: 1, type: 'order', title: 'Neue Bestellung', description: 'AquaPure Pro 3000 verkauft', amount: 259.80, createdAt: new Date() },
-  { id: 2, type: 'partner_joined', title: 'Neuer Partner', description: 'Max Mustermann ist beigetreten', createdAt: new Date(Date.now() - 3600000) },
-  { id: 3, type: 'commission', title: 'Provision erhalten', description: 'Differenzprovision von Team', amount: 45.00, createdAt: new Date(Date.now() - 7200000) },
-  { id: 4, type: 'rank_up', title: 'Rangaufstieg!', description: 'Sie sind jetzt Fachberater', createdAt: new Date(Date.now() - 86400000) },
-];
-
-const demoCommissions = [
-  { id: 1, type: 'direct', orderId: 'FL-001', amount: 259.80, status: 'released', createdAt: new Date() },
-  { id: 2, type: 'difference', orderId: 'FL-002', amount: 45.00, status: 'held', createdAt: new Date(Date.now() - 86400000) },
-  { id: 3, type: 'direct', orderId: 'FL-003', amount: 179.80, status: 'paid', createdAt: new Date(Date.now() - 172800000) },
-];
-
 const DashboardPage = () => {
   const { user } = useAuth();
   const { lang } = useLanguage();
   
-  const [stats] = useState(demoStats);
-  const [activities] = useState(demoActivities);
-  const [commissions] = useState(demoCommissions);
-  const [isLoading] = useState(false);
+  const [stats, setStats] = useState({
+    balance: 0,
+    totalSales: 0,
+    teamSize: 0,
+    monthlyCommission: 0
+  });
+  const [activities, setActivities] = useState([]);
+  const [commissions, setCommissions] = useState([]);
+  const [rankData, setRankData] = useState(null);
+  const [teamSales, setTeamSales] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
-  const referralLink = `${window.location.origin}?ref=${user?.referral_code || user?.referralCode || 'ABC123'}`;
+  const referralLink = `${window.location.origin}?ref=${user?.referral_code || user?.referralCode || ''}`;
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    setIsLoading(true);
+    try {
+      const response = await partnerAPI.getDashboard();
+      const data = response.data;
+
+      setStats({
+        balance: parseFloat(data.commissions?.available || data.commissions?.totalEarned || 0),
+        totalSales: parseInt(data.monthlyOrders?.count || user?.own_sales_count || 0),
+        teamSize: parseInt(data.team?.total || 0),
+        monthlyCommission: parseFloat(data.commissions?.thisMonth || data.monthlyOrders?.revenue || 0)
+      });
+
+      setTeamSales(parseInt(data.team?.total || 0) * 3); // Approx or from actual data
+
+      if (data.rank) {
+        setRankData(data.rank);
+      }
+
+      // Build recent commissions from API data
+      if (data.recentOrders && data.recentOrders.length > 0) {
+        setCommissions(data.recentOrders.map(o => ({
+          id: o.id,
+          type: 'direct',
+          orderId: o.order_number || o.id,
+          amount: parseFloat(o.commission || 0),
+          status: o.commission ? 'released' : 'held',
+          createdAt: new Date(o.created_at)
+        })).filter(c => c.amount > 0));
+      }
+
+      // Build activities from recent orders
+      if (data.recentOrders) {
+        setActivities(data.recentOrders.map(o => ({
+          id: o.id,
+          type: 'order',
+          title: lang === 'de' ? 'Bestellung' : 'Order',
+          description: `${o.customer_first_name || ''} ${o.customer_last_name || ''}`.trim() || o.order_number,
+          amount: parseFloat(o.total || 0),
+          createdAt: new Date(o.created_at)
+        })));
+      }
+    } catch (error) {
+      console.error('Failed to load dashboard:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleCopyLink = async () => {
     const success = await copyToClipboard(referralLink);
@@ -115,10 +156,10 @@ const DashboardPage = () => {
       </motion.div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title={lang === 'de' ? 'Guthaben' : 'Balance'} value={formatCurrency(stats.balance)} icon={Wallet} color="primary" trend="up" trendValue="+12%" index={0} />
-        <StatCard title={lang === 'de' ? 'Verkäufe' : 'Sales'} value={stats.totalSales} subtitle={lang === 'de' ? 'Diesen Monat' : 'This month'} icon={ShoppingBag} color="success" trend="up" trendValue="+8" index={1} />
+        <StatCard title={lang === 'de' ? 'Guthaben' : 'Balance'} value={formatCurrency(stats.balance)} icon={Wallet} color="primary" index={0} />
+        <StatCard title={lang === 'de' ? 'Verkäufe' : 'Sales'} value={stats.totalSales} subtitle={lang === 'de' ? 'Diesen Monat' : 'This month'} icon={ShoppingBag} color="success" index={1} />
         <StatCard title={lang === 'de' ? 'Team' : 'Team'} value={stats.teamSize} subtitle="Partner" icon={Users} color="info" index={2} />
-        <StatCard title={lang === 'de' ? 'Monatsprovision' : 'Monthly Commission'} value={formatCurrency(stats.monthlyCommission)} icon={TrendingUp} color="warning" trend="up" trendValue="+23%" index={3} />
+        <StatCard title={lang === 'de' ? 'Monatsprovision' : 'Monthly Commission'} value={formatCurrency(stats.monthlyCommission)} icon={TrendingUp} color="warning" index={3} />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8">
@@ -161,7 +202,7 @@ const DashboardPage = () => {
             animate={{ opacity: 1, y: 0 }} 
             transition={{ delay: 0.4 }}
           >
-            <RankProgress currentRankId={user?.rank_id || user?.rankId || 2} currentSales={stats.totalSales} teamSales={87} />
+            <RankProgress currentRankId={user?.rank_id || user?.rankId || 1} currentSales={stats.totalSales} teamSales={teamSales} />
           </motion.div>
 
           <motion.div 

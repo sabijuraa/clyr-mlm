@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import api from '../../services/api';
+import api, { ordersAPI } from '../../services/api';
 import {
   ShoppingBag,
   Search,
@@ -24,65 +24,58 @@ import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import StatCard from '../../components/dashboard/StatCard';
 
-// Demo data
-const demoOrders = [
-  {
-    id: 'FL-001',
-    customer: { firstName: 'Maria', lastName: 'Schmidt', email: 'maria@email.de' },
-    items: [{ name: 'AquaPure Pro 3000', quantity: 1, price: 1299 }],
-    total: 1348.90,
-    status: 'completed',
-    paymentStatus: 'paid',
-    partner: { name: 'Max Mustermann', code: 'ABC123' },
-    shippingAddress: { street: 'Musterstr. 1', city: 'Berlin', zip: '10115', country: 'DE' },
-    createdAt: new Date(),
-    shippedAt: new Date(Date.now() - 86400000)
-  },
-  {
-    id: 'FL-002',
-    customer: { firstName: 'Thomas', lastName: 'Weber', email: 'thomas@email.de' },
-    items: [{ name: 'FreshFlow Kompakt', quantity: 1, price: 899 }],
-    total: 948.90,
-    status: 'processing',
-    paymentStatus: 'paid',
-    partner: null,
-    shippingAddress: { street: 'Beispielweg 5', city: 'München', zip: '80331', country: 'DE' },
-    createdAt: new Date(Date.now() - 3600000),
-    shippedAt: null
-  },
-  {
-    id: 'FL-003',
-    customer: { firstName: 'Sandra', lastName: 'Müller', email: 'sandra@email.de' },
-    items: [{ name: 'Premium Filterset', quantity: 2, price: 149 }],
-    total: 317.80,
-    status: 'pending',
-    paymentStatus: 'pending',
-    partner: { name: 'Anna Schmidt', code: 'XYZ789' },
-    shippingAddress: { street: 'Teststraße 10', city: 'Hamburg', zip: '20095', country: 'DE' },
-    createdAt: new Date(Date.now() - 7200000),
-    shippedAt: null
-  },
-  {
-    id: 'FL-004',
-    customer: { firstName: 'Peter', lastName: 'Koch', email: 'peter@email.de' },
-    items: [{ name: 'AquaPure Business', quantity: 1, price: 1899 }],
-    total: 2038.90,
-    status: 'cancelled',
-    paymentStatus: 'refunded',
-    partner: { name: 'Max Mustermann', code: 'ABC123' },
-    shippingAddress: { street: 'Abcstr. 20', city: 'Köln', zip: '50667', country: 'DE' },
-    createdAt: new Date(Date.now() - 86400000 * 2),
-    shippedAt: null
-  },
-];
-
 const AdminOrdersPage = () => {
   const { t } = useLanguage();
-  const [orders, setOrders] = useState(demoOrders);
+  const [orders, setOrders] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const fetchOrders = async () => {
+    setIsLoading(true);
+    try {
+      const response = await ordersAPI.getAll({ limit: 200 });
+      const data = response.data;
+      const ordersList = data.orders || data || [];
+      // Normalize order data from API
+      setOrders(ordersList.map(o => ({
+        id: o.order_number || o.id,
+        rawId: o.id,
+        customer: {
+          firstName: o.customer_first_name || o.customerFirstName || '',
+          lastName: o.customer_last_name || o.customerLastName || '',
+          email: o.customer_email || o.customerEmail || ''
+        },
+        items: o.items || [],
+        total: parseFloat(o.total || 0),
+        status: o.status || 'pending',
+        paymentStatus: o.payment_status || o.paymentStatus || 'pending',
+        partner: o.partner_first_name ? {
+          name: `${o.partner_first_name} ${o.partner_last_name || ''}`.trim(),
+          code: o.partner_referral_code || o.referral_code || ''
+        } : null,
+        shippingAddress: {
+          street: o.shipping_street || o.customer_street || '',
+          city: o.shipping_city || o.customer_city || '',
+          zip: o.shipping_zip || o.customer_zip || '',
+          country: o.shipping_country || o.customer_country || ''
+        },
+        createdAt: new Date(o.created_at),
+        shippedAt: o.shipped_at ? new Date(o.shipped_at) : null,
+        order_number: o.order_number
+      })));
+    } catch (error) {
+      console.error('Failed to load orders:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const stats = {
     total: orders.length,
@@ -93,8 +86,8 @@ const AdminOrdersPage = () => {
   };
 
   const filteredOrders = orders.filter(o => {
-    const matchesSearch = 
-      o.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const matchesSearch = !searchQuery ||
+      (o.id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       o.customer.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       o.customer.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       o.customer.email.toLowerCase().includes(searchQuery.toLowerCase());
@@ -121,6 +114,30 @@ const AdminOrdersPage = () => {
     return configs[status] || configs.pending;
   };
 
+  const handleUpdateStatus = async (orderId, newStatus) => {
+    try {
+      await ordersAPI.updateStatus(orderId, newStatus);
+      fetchOrders();
+      setShowDetailModal(false);
+    } catch (err) {
+      console.error('Status update failed:', err);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-2xl font-heading font-bold text-secondary-700">Bestellungen</h1>
+          <p className="text-secondary-500">Alle Bestellungen verwalten</p>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          {[1,2,3,4,5].map(i => <div key={i} className="h-24 bg-white rounded-2xl animate-pulse border border-gray-100" />)}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -143,41 +160,11 @@ const AdminOrdersPage = () => {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatCard
-          title="Gesamt"
-          value={stats.total}
-          icon={ShoppingBag}
-          color="primary"
-          index={0}
-        />
-        <StatCard
-          title="Abgeschlossen"
-          value={stats.completed}
-          icon={CheckCircle}
-          color="primary"
-          index={1}
-        />
-        <StatCard
-          title="In Bearbeitung"
-          value={stats.processing}
-          icon={Truck}
-          color="primary"
-          index={2}
-        />
-        <StatCard
-          title="Ausstehend"
-          value={stats.pending}
-          icon={Clock}
-          color="primary"
-          index={3}
-        />
-        <StatCard
-          title="Umsatz"
-          value={formatCurrency(stats.revenue)}
-          icon={CreditCard}
-          color="primary"
-          index={4}
-        />
+        <StatCard title="Gesamt" value={stats.total} icon={ShoppingBag} color="primary" index={0} />
+        <StatCard title="Abgeschlossen" value={stats.completed} icon={CheckCircle} color="primary" index={1} />
+        <StatCard title="In Bearbeitung" value={stats.processing} icon={Truck} color="primary" index={2} />
+        <StatCard title="Ausstehend" value={stats.pending} icon={Clock} color="primary" index={3} />
+        <StatCard title="Umsatz" value={formatCurrency(stats.revenue)} icon={CreditCard} color="primary" index={4} />
       </div>
 
       {/* Filters */}
@@ -229,90 +216,99 @@ const AdminOrdersPage = () => {
         transition={{ delay: 0.1 }}
         className="bg-white rounded-2xl border border-gray-100 overflow-hidden"
       >
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>
-                <th className="text-left py-4 px-6 text-sm font-semibold text-secondary-500">Bestellung</th>
-                <th className="text-left py-4 px-6 text-sm font-semibold text-secondary-500">Kunde</th>
-                <th className="text-left py-4 px-6 text-sm font-semibold text-secondary-500">Partner</th>
-                <th className="text-right py-4 px-6 text-sm font-semibold text-secondary-500">Betrag</th>
-                <th className="text-center py-4 px-6 text-sm font-semibold text-secondary-500">Status</th>
-                <th className="text-center py-4 px-6 text-sm font-semibold text-secondary-500">Zahlung</th>
-                <th className="text-right py-4 px-6 text-sm font-semibold text-secondary-500">Aktionen</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredOrders.map((order) => {
-                const statusConfig = getStatusConfig(order.status);
-                const StatusIcon = statusConfig.icon;
-                const paymentConfig = getPaymentConfig(order.paymentStatus);
-                const PaymentIcon = paymentConfig.icon;
-                return (
-                  <tr key={order.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-secondary-100 flex items-center justify-center">
-                          <Package className="w-5 h-5 text-primary-400" />
+        {filteredOrders.length === 0 ? (
+          <div className="text-center py-16">
+            <ShoppingBag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="font-semibold text-secondary-700 mb-2">Keine Bestellungen</h3>
+            <p className="text-secondary-500">
+              {searchQuery ? 'Keine Ergebnisse für Ihre Suche' : 'Es gibt noch keine Bestellungen'}
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-100">
+                <tr>
+                  <th className="text-left py-4 px-6 text-sm font-semibold text-secondary-500">Bestellung</th>
+                  <th className="text-left py-4 px-6 text-sm font-semibold text-secondary-500">Kunde</th>
+                  <th className="text-left py-4 px-6 text-sm font-semibold text-secondary-500">Partner</th>
+                  <th className="text-right py-4 px-6 text-sm font-semibold text-secondary-500">Betrag</th>
+                  <th className="text-center py-4 px-6 text-sm font-semibold text-secondary-500">Status</th>
+                  <th className="text-center py-4 px-6 text-sm font-semibold text-secondary-500">Zahlung</th>
+                  <th className="text-right py-4 px-6 text-sm font-semibold text-secondary-500">Aktionen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredOrders.map((order) => {
+                  const statusConfig = getStatusConfig(order.status);
+                  const StatusIcon = statusConfig.icon;
+                  const paymentConfig = getPaymentConfig(order.paymentStatus);
+                  const PaymentIcon = paymentConfig.icon;
+                  return (
+                    <tr key={order.id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-secondary-100 flex items-center justify-center">
+                            <Package className="w-5 h-5 text-primary-400" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-secondary-700">{order.id}</p>
+                            <p className="text-sm text-secondary-500">{formatDate(order.createdAt)}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-secondary-700">{order.id}</p>
-                          <p className="text-sm text-secondary-500">{formatDate(order.createdAt)}</p>
+                      </td>
+                      <td className="py-4 px-6">
+                        <p className="font-medium text-secondary-700">
+                          {order.customer.firstName} {order.customer.lastName}
+                        </p>
+                        <p className="text-sm text-secondary-500">{order.customer.email}</p>
+                      </td>
+                      <td className="py-4 px-6">
+                        {order.partner ? (
+                          <div>
+                            <p className="text-secondary-700">{order.partner.name}</p>
+                            <p className="text-sm text-secondary-500">{order.partner.code}</p>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">Kein Partner</span>
+                        )}
+                      </td>
+                      <td className="py-4 px-6 text-right">
+                        <p className="font-semibold text-secondary-700">{formatCurrency(order.total)}</p>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex justify-center">
+                          <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${statusConfig.color}`}>
+                            <StatusIcon className="w-3.5 h-3.5" />
+                            {statusConfig.label}
+                          </span>
                         </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <p className="font-medium text-secondary-700">
-                        {order.customer.firstName} {order.customer.lastName}
-                      </p>
-                      <p className="text-sm text-secondary-500">{order.customer.email}</p>
-                    </td>
-                    <td className="py-4 px-6">
-                      {order.partner ? (
-                        <div>
-                          <p className="text-secondary-700">{order.partner.name}</p>
-                          <p className="text-sm text-secondary-500">{order.partner.code}</p>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex justify-center">
+                          <span className={`inline-flex items-center gap-1 ${paymentConfig.color}`}>
+                            <PaymentIcon className="w-4 h-4" />
+                            <span className="text-sm font-medium">{paymentConfig.label}</span>
+                          </span>
                         </div>
-                      ) : (
-                        <span className="text-gray-400">Kein Partner</span>
-                      )}
-                    </td>
-                    <td className="py-4 px-6 text-right">
-                      <p className="font-semibold text-secondary-700">{formatCurrency(order.total)}</p>
-                      <p className="text-sm text-secondary-500">{order.items.length} Artikel</p>
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="flex justify-center">
-                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${statusConfig.color}`}>
-                          <StatusIcon className="w-3.5 h-3.5" />
-                          {statusConfig.label}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="flex justify-center">
-                        <span className={`inline-flex items-center gap-1 ${paymentConfig.color}`}>
-                          <PaymentIcon className="w-4 h-4" />
-                          <span className="text-sm font-medium">{paymentConfig.label}</span>
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="flex items-center justify-end">
-                        <button
-                          onClick={() => { setSelectedOrder(order); setShowDetailModal(true); }}
-                          className="p-2 text-gray-400 hover:text-primary-400 hover:bg-slate-50 rounded-lg transition-colors"
-                        >
-                          <Eye className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center justify-end">
+                          <button
+                            onClick={() => { setSelectedOrder(order); setShowDetailModal(true); }}
+                            className="p-2 text-gray-400 hover:text-primary-400 hover:bg-slate-50 rounded-lg transition-colors"
+                          >
+                            <Eye className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </motion.div>
 
       {/* Order Detail Modal */}
@@ -373,27 +369,10 @@ const AdminOrdersPage = () => {
               </div>
             </div>
 
-            {/* Items */}
-            <div>
-              <h4 className="font-semibold text-secondary-700 mb-3 flex items-center gap-2">
-                <Package className="w-5 h-5 text-primary-400" />
-                Artikel
-              </h4>
-              <div className="border border-gray-200 rounded-xl overflow-hidden">
-                {selectedOrder.items.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-4 border-b border-gray-100 last:border-0">
-                    <div>
-                      <p className="font-medium text-secondary-700">{item.name}</p>
-                      <p className="text-sm text-secondary-500">Menge: {item.quantity}</p>
-                    </div>
-                    <p className="font-semibold text-secondary-700">{formatCurrency(item.price * item.quantity)}</p>
-                  </div>
-                ))}
-                <div className="flex items-center justify-between p-4 bg-gray-50 font-semibold">
-                  <span className="text-secondary-700">Gesamt</span>
-                  <span className="text-lg text-secondary-700">{formatCurrency(selectedOrder.total)}</span>
-                </div>
-              </div>
+            {/* Total */}
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl font-semibold">
+              <span className="text-secondary-700">Gesamt</span>
+              <span className="text-lg text-secondary-700">{formatCurrency(selectedOrder.total)}</span>
             </div>
 
             {/* Partner Info */}
@@ -412,12 +391,14 @@ const AdminOrdersPage = () => {
             {/* Actions */}
             <div className="flex gap-3 pt-4 border-t border-gray-100">
               {selectedOrder.status === 'pending' && (
-                <Button variant="primary" className="flex-1" icon={CheckCircle}>
+                <Button variant="primary" className="flex-1" icon={CheckCircle}
+                  onClick={() => handleUpdateStatus(selectedOrder.rawId, 'processing')}>
                   Bestätigen
                 </Button>
               )}
               {selectedOrder.status === 'processing' && (
-                <Button variant="primary" className="flex-1" icon={Truck}>
+                <Button variant="primary" className="flex-1" icon={Truck}
+                  onClick={() => handleUpdateStatus(selectedOrder.rawId, 'completed')}>
                   Als versendet markieren
                 </Button>
               )}
@@ -427,10 +408,8 @@ const AdminOrdersPage = () => {
                 icon={FileText}
                 onClick={async () => {
                   try {
-                    // First try to generate if not exists
-                    await api.post(`/admin/invoices/generate/${selectedOrder.id}`).catch(() => {});
-                    // Then download
-                    const res = await api.get(`/orders/${selectedOrder.id}/invoice`, { responseType: 'blob' });
+                    await api.post(`/admin/invoices/generate/${selectedOrder.rawId}`).catch(() => {});
+                    const res = await api.get(`/orders/${selectedOrder.rawId}/invoice`, { responseType: 'blob' });
                     const url = window.URL.createObjectURL(res.data);
                     const a = document.createElement('a');
                     a.href = url;

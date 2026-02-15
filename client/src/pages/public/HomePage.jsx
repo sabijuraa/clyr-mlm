@@ -120,7 +120,7 @@ const HomePage = () => {
       <section className="py-20 md:py-28 bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-2 gap-16 items-center">
-            <motion.div initial="hidden" animate="visible" variants={fadeUp}>
+            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUp}>
               <p className="text-primary-500 uppercase tracking-[0.15em] text-sm font-semibold mb-4">{t('Wissen', 'Knowledge')}</p>
               <h2 className="text-3xl md:text-4xl font-heading font-bold text-secondary-800 leading-tight mb-6">{t('Warum Wasserqualität entscheidend ist', 'Why Water Quality Matters')}</h2>
               <div className="space-y-4 text-secondary-600 text-lg leading-relaxed">
@@ -129,7 +129,7 @@ const HomePage = () => {
                 <p className="font-medium text-secondary-700">{t('CLYR entwickelt Lösungen, die Wasser wieder zu dem machen, was es sein sollte: rein, hochwertig und zuverlässig.', 'CLYR develops solutions that make water what it should be: pure, high-quality and reliable.')}</p>
               </div>
             </motion.div>
-            <motion.div initial="hidden" animate="visible" variants={fadeUp} custom={2} className="grid grid-cols-2 gap-5">
+            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUp} custom={2} className="grid grid-cols-2 gap-5">
               {[{ value: '99.9%', label: t('Schadstoff-Filtration', 'Contaminant Filtration'), icon: Shield }, { value: '9', label: t('Filterstufen', 'Filter Stages'), icon: Droplets }, { value: '0%', label: t('Mikroplastik', 'Microplastics'), icon: Leaf }, { value: '24/7', label: t('Reines Wasser', 'Pure Water'), icon: Zap }].map((stat, i) => (
                 <motion.div key={i} variants={fadeUp} custom={i * 0.3} className="bg-gray-50 rounded-2xl p-6 text-center hover:shadow-lg transition-all duration-300 border border-gray-100">
                   <div className="w-12 h-12 mx-auto rounded-xl bg-primary-100 flex items-center justify-center mb-4"><stat.icon className="w-6 h-6 text-primary-600" /></div>
@@ -149,7 +149,7 @@ const HomePage = () => {
           <div className="absolute bottom-1/4 -right-32 w-[500px] h-[500px] bg-primary-300/6 rounded-full blur-3xl" />
         </div>
         <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div initial="hidden" animate="visible" variants={fadeUp} className="text-center mb-16">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUp} className="text-center mb-16">
             <p className="text-primary-400 uppercase tracking-[0.15em] text-sm font-semibold mb-4">{t('Unsere Stärken', 'Our Strengths')}</p>
             <h2 className="text-3xl md:text-4xl font-heading font-bold text-white mb-6">{t('Was CLYR anders macht', 'What Makes CLYR Different')}</h2>
             <p className="text-secondary-200 text-lg max-w-2xl mx-auto">{t('CLYR steht für kompromisslose Qualität und Innovation. Unsere Systeme kombinieren modernste Filtertechnologie mit hochwertiger Verarbeitung und intelligentem Design.', 'CLYR stands for uncompromising quality and innovation. Our systems combine cutting-edge filter technology with premium craftsmanship and intelligent design.')}</p>
@@ -163,7 +163,7 @@ const HomePage = () => {
               { icon: Shield, title: t('Technologie auf höchstem Niveau', 'Top-Level Technology'), desc: t('LED-UVC Entkeimung, Bio-Tuner und automatische Membranspülung.', 'LED-UVC disinfection, Bio-Tuner and automatic membrane flushing.') },
               { icon: Heart, title: t('Für die ganze Familie', 'For the Whole Family'), desc: t('Gesundes Wasser für Kochen, Trinken und das Wohlbefinden der ganzen Familie.', 'Healthy water for cooking, drinking and the wellbeing of your whole family.') },
             ].map((item, i) => (
-              <motion.div key={i} initial="hidden" animate="visible" variants={fadeUp} custom={i * 0.5}
+              <motion.div key={i} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUp} custom={i * 0.5}
                 className="bg-secondary-600/50 backdrop-blur-sm rounded-2xl p-8 border border-white/10 hover:border-primary-400/30 hover:bg-secondary-600/70 transition-all duration-300">
                 <div className="w-14 h-14 rounded-2xl bg-primary-400/15 flex items-center justify-center mb-5">
                   <item.icon className="w-7 h-7 text-primary-400" />
@@ -180,7 +180,7 @@ const HomePage = () => {
       <section className="py-20 md:py-28 bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-2 gap-12 md:gap-16 items-center">
-            <motion.div initial="hidden" animate="visible" variants={fadeUp} className="relative">
+            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUp} className="relative">
               <div className="absolute -inset-4 bg-gradient-to-br from-secondary-100 to-secondary-50 rounded-3xl -rotate-2" />
               <img src="/images/founders-together.jpeg" alt="CLYR Gründer" className="relative rounded-2xl w-full shadow-xl object-cover" />
               <div className="absolute -bottom-6 -right-6 bg-white rounded-2xl p-5 shadow-xl border border-gray-100">
@@ -193,7 +193,7 @@ const HomePage = () => {
                 </div>
               </div>
             </motion.div>
-            <motion.div initial="hidden" animate="visible" variants={fadeUp} custom={1}>
+            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUp} custom={1}>
               <p className="text-primary-500 uppercase tracking-[0.15em] text-sm font-semibold mb-4">{t('Über CLYR', 'About CLYR')}</p>
               <h2 className="text-3xl md:text-4xl font-heading font-bold text-secondary-800 leading-tight mb-6">{t('Gesundheit einfacher, zugänglicher und moderner machen', 'Making health simpler, more accessible and more modern')}</h2>
               <div className="space-y-4 text-secondary-600 text-lg leading-relaxed">
@@ -215,7 +215,7 @@ const HomePage = () => {
         <div className="absolute inset-0 opacity-20"><div className="absolute top-0 left-0 w-full h-full bg-[url('/images/products/clyr-soda-system.png')] bg-cover bg-center" /></div>
         <div className="absolute inset-0 bg-gradient-to-r from-secondary-900/90 via-secondary-800/80 to-primary-900/70" />
         <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div initial="hidden" animate="visible" variants={fadeUp}>
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUp}>
             <p className="text-primary-300 uppercase tracking-[0.2em] text-sm font-medium mb-6">Lifestyle</p>
             <h2 className="text-3xl md:text-5xl font-heading font-bold text-white leading-tight mb-8">{t('CLYR ist nicht nur Technologie – es ist ein Lebensgefühl.', "CLYR is not just technology – it's a way of life.")}</h2>
             <p className="text-xl text-secondary-200 max-w-2xl mx-auto leading-relaxed mb-4">{t('Reines Wasser beeinflusst Energie, Wohlbefinden und Lebensqualität im Alltag.', 'Pure water influences energy, wellbeing and quality of life in everyday life.')}</p>
@@ -227,7 +227,7 @@ const HomePage = () => {
       {/* SECTION 6 — TESTIMONIALS */}
       <section className="py-20 md:py-28 bg-gray-50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div initial="hidden" animate="visible" variants={fadeUp} className="text-center mb-16">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUp} className="text-center mb-16">
             <p className="text-primary-500 uppercase tracking-[0.15em] text-sm font-semibold mb-4">{t('Erfahrungen', 'Testimonials')}</p>
             <h2 className="text-3xl md:text-4xl font-heading font-bold text-secondary-800">{t('Was unsere Kunden sagen', 'What Our Customers Say')}</h2>
           </motion.div>
@@ -272,7 +272,7 @@ const HomePage = () => {
                 const imgSrc = images.length > 0 ? images[0] : '/images/products/clyr-soda-system.png';
                 const price = typeof product.price === 'string' ? parseFloat(product.price) : product.price;
                 return (
-                  <motion.div key={product.id} initial="hidden" animate="visible" variants={fadeUp} custom={index * 0.5} className="h-full">
+                  <motion.div key={product.id} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUp} custom={index * 0.5} className="h-full">
                     <Link to={`/product/${product.slug || product.id}`} className="group block bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all hover:-translate-y-1 border border-gray-100 h-full flex flex-col">
                       <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 p-6 flex items-center justify-center shrink-0">
                         <img src={imgSrc} alt={product.name} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300" />
@@ -312,7 +312,7 @@ const HomePage = () => {
       <section className="py-20 md:py-28 bg-secondary-800">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <motion.div initial="hidden" animate="visible" variants={fadeUp}>
+            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUp}>
               <p className="text-primary-400 uppercase tracking-[0.15em] text-sm font-semibold mb-4">{t('Karriere', 'Career')}</p>
               <h2 className="text-3xl md:text-4xl font-heading font-bold text-white leading-tight mb-6">{t('Werden Sie Teil einer wachsenden Community', 'Become Part of a Growing Community')}</h2>
               <p className="text-secondary-200 text-lg leading-relaxed mb-6">{t('CLYR bietet nicht nur innovative Wasserlösungen, sondern auch die Möglichkeit, Teil einer wachsenden Community zu werden.', 'CLYR offers not only innovative water solutions, but also the opportunity to become part of a growing community.')}</p>
@@ -339,7 +339,7 @@ const HomePage = () => {
                 </Link>
               </div>
             </motion.div>
-            <motion.div initial="hidden" animate="visible" variants={fadeUp} custom={2}>
+            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUp} custom={2}>
               <div className="bg-white rounded-3xl p-8 shadow-2xl">
                 <div className="text-center mb-8 pb-8 border-b border-gray-100">
                   <div className="w-20 h-20 bg-gradient-to-br from-primary-100 to-primary-200 rounded-2xl flex items-center justify-center mx-auto mb-4"><Users className="w-10 h-10 text-primary-700" /></div>
@@ -371,7 +371,7 @@ const HomePage = () => {
       {/* SECTION 8 — FINAL CTA */}
       <section className="py-20 md:py-28 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div initial="hidden" animate="visible" variants={fadeUp}>
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUp}>
             <div className="w-16 h-16 rounded-2xl bg-primary-100 flex items-center justify-center mx-auto mb-8"><Droplets className="w-8 h-8 text-primary-600" /></div>
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-heading font-bold text-secondary-800 leading-tight mb-6">{t('Entdecke die neue Dimension von Wasserqualität.', 'Discover the New Dimension of Water Quality.')}</h2>
             <p className="text-secondary-500 text-lg max-w-2xl mx-auto mb-12">{t('Machen Sie den ersten Schritt zu reinerem Wasser, mehr Gesundheit und einem bewussteren Lebensstil.', 'Take the first step towards purer water, better health and a more conscious lifestyle.')}</p>

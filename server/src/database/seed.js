@@ -76,20 +76,24 @@ async function seed() {
     console.log('Seeding admin user...');
     const adminPassword = await bcrypt.hash('Admin123!', 12);
     
+    // Get rank_id for Sales Manager (level 6, 31% commission)
+    const salesManagerRank = await client.query("SELECT id FROM ranks WHERE slug = 'sales-manager'");
+    const salesManagerRankId = salesManagerRank.rows.length > 0 ? salesManagerRank.rows[0].id : 6;
+
     await client.query(`
       INSERT INTO users (
         email, password_hash, first_name, last_name, role, status,
         referral_code, country, rank_id, email_verified
       ) VALUES (
         'theresa@clyr.at', $1, 'Theresa', 'Struger', 'admin', 'active',
-        'THERESA', 'AT', 6, true
+        'THERESA', 'AT', $2, true
       )
       ON CONFLICT (email) DO UPDATE SET
         password_hash = EXCLUDED.password_hash,
         role = EXCLUDED.role,
         status = EXCLUDED.status,
-        rank_id = EXCLUDED.rank_id
-    `, [adminPassword]);
+        rank_id = $2
+    `, [adminPassword, salesManagerRankId]);
 
     // ========================================
     // 4. SEED PRODUCTS - NEW CLYR PRODUCTS

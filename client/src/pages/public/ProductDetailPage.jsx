@@ -74,6 +74,12 @@ const ProductDetailPage = () => {
   const variantModifier = Object.values(selectedVariants).reduce((sum, v) => sum + (v?.priceModifier || 0), 0);
   const totalPrice = basePrice + variantModifier;
 
+  // Real stock data
+  const stock = product.stock !== null && product.stock !== undefined ? parseInt(product.stock) : null;
+  const trackStock = product.track_stock !== false;
+  const isInStock = !trackStock || stock === null || stock > 0;
+  const isLowStock = trackStock && stock !== null && stock > 0 && stock <= (product.low_stock_threshold || 5);
+
   const handleAddToCart = () => {
     const productWithVariants = {
       ...product,
@@ -146,16 +152,6 @@ const ProductDetailPage = () => {
                 )}
               </div>
 
-              {/* Rating Placeholder */}
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-5 h-5 text-amber-400 fill-amber-400" />
-                  ))}
-                </div>
-                <span className="text-secondary-500">4.9 (127 {lang === 'de' ? 'Bewertungen' : 'reviews'})</span>
-              </div>
-
               {/* Price - Show NET price */}
               {totalPrice > 0 ? (
                 <div className="text-3xl font-bold text-secondary-700">
@@ -179,9 +175,9 @@ const ProductDetailPage = () => {
                   {Object.entries(product.variants).map(([type, options]) => (
                     <div key={type}>
                       <label className="block text-sm font-medium text-secondary-700 mb-2">
-                        {type === 'faucet' ? (lang === 'de' ? 'Armatur wählen' : 'Select Faucet') :
-                         type === 'aroma' ? (lang === 'de' ? 'Aroma wählen' : 'Select Aroma') :
-                         type === 'color' ? (lang === 'de' ? 'Farbe wählen' : 'Select Color') :
+                        {type === 'faucet' || type === 'armatur' ? (lang === 'de' ? 'Armatur wählen' : 'Select Faucet') :
+                         type === 'aroma' || type === 'duft' ? (lang === 'de' ? 'Aroma wählen' : 'Select Aroma') :
+                         type === 'color' || type === 'farbe' ? (lang === 'de' ? 'Farbe wählen' : 'Select Color') :
                          lang === 'de' ? 'Option wählen' : 'Select Option'}
                       </label>
                       <div className="flex flex-wrap gap-2">
@@ -210,10 +206,26 @@ const ProductDetailPage = () => {
                 </div>
               )}
 
-              {/* Stock */}
+              {/* Stock - Real data */}
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
-                <span className="text-green-600 font-medium">{lang === 'de' ? 'Auf Lager' : 'In Stock'}</span>
+                {isInStock ? (
+                  <>
+                    <span className={`w-3 h-3 rounded-full ${isLowStock ? 'bg-amber-500' : 'bg-green-500'} animate-pulse`} />
+                    <span className={`font-medium ${isLowStock ? 'text-amber-600' : 'text-green-600'}`}>
+                      {isLowStock 
+                        ? (lang === 'de' ? `Nur noch ${stock} auf Lager` : `Only ${stock} left in stock`)
+                        : (lang === 'de' ? 'Auf Lager' : 'In Stock')
+                      }
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="w-3 h-3 bg-red-500 rounded-full" />
+                    <span className="text-red-600 font-medium">
+                      {lang === 'de' ? 'Derzeit nicht verfügbar' : 'Currently unavailable'}
+                    </span>
+                  </>
+                )}
               </div>
 
               {/* Quantity & Add to Cart */}
@@ -223,19 +235,23 @@ const ProductDetailPage = () => {
                     <Minus className="w-5 h-5" />
                   </button>
                   <span className="w-12 text-center font-semibold text-secondary-700">{quantity}</span>
-                  <button onClick={() => setQuantity(q => q + 1)} className="p-3 hover:bg-secondary-200 rounded-r-xl text-secondary-700">
+                  <button onClick={() => setQuantity(q => q + 1)} className="p-3 hover:bg-secondary-200 rounded-r-xl text-secondary-700"
+                    disabled={trackStock && stock !== null && quantity >= stock}>
                     <Plus className="w-5 h-5" />
                   </button>
                 </div>
 
                 <button
                   onClick={handleAddToCart}
-                  disabled={inCart}
+                  disabled={inCart || !isInStock}
                   className={`flex-1 flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-semibold transition-all ${
+                    !isInStock ? 'bg-gray-200 text-gray-500 cursor-not-allowed' :
                     inCart ? 'bg-green-100 text-green-700' : 'bg-secondary-700 text-white hover:bg-primary-500'
                   }`}
                 >
-                  {inCart ? <><Check className="w-5 h-5" /> {lang === 'de' ? 'Im Warenkorb' : 'In Cart'}</> : <><ShoppingBag className="w-5 h-5" /> {lang === 'de' ? 'In den Warenkorb' : 'Add to Cart'}</>}
+                  {!isInStock ? (lang === 'de' ? 'Nicht verfügbar' : 'Unavailable') :
+                   inCart ? <><Check className="w-5 h-5" /> {lang === 'de' ? 'Im Warenkorb' : 'In Cart'}</> : 
+                   <><ShoppingBag className="w-5 h-5" /> {lang === 'de' ? 'In den Warenkorb' : 'Add to Cart'}</>}
                 </button>
 
                 <button className="p-4 rounded-xl border border-gray-200 text-secondary-600 hover:border-red-200 hover:text-red-500 hover:bg-red-50 transition-all">

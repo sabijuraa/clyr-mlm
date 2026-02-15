@@ -25,37 +25,76 @@ import { formatDate } from '../../utils/helpers';
 import StatCard from '../../components/dashboard/StatCard';
 import Button from '../../components/common/Button';
 
-// Demo data
-const demoStats = {
-  totalRevenue: 125678.90,
-  revenueGrowth: 23.5,
-  totalOrders: 847,
-  ordersGrowth: 12,
-  totalPartners: 156,
-  partnersGrowth: 8,
-  pendingCommissions: 4567.89,
-  activePartners: 124
-};
-
-const demoRecentOrders = [
-  { id: 'FL-001', customer: 'Maria Schmidt', amount: 1299.00, status: 'completed', date: new Date() },
-  { id: 'FL-002', customer: 'Thomas Weber', amount: 899.00, status: 'processing', date: new Date(Date.now() - 3600000) },
-  { id: 'FL-003', customer: 'Sandra Müller', amount: 149.00, status: 'completed', date: new Date(Date.now() - 7200000) },
-  { id: 'FL-004', customer: 'Peter Koch', amount: 1899.00, status: 'pending', date: new Date(Date.now() - 10800000) },
-];
-
-const demoRecentPartners = [
-  { id: 1, name: 'Max Mustermann', email: 'max@email.de', date: new Date(), status: 'active' },
-  { id: 2, name: 'Anna Schmidt', email: 'anna@email.de', date: new Date(Date.now() - 86400000), status: 'pending' },
-  { id: 3, name: 'Peter Müller', email: 'peter@email.de', date: new Date(Date.now() - 172800000), status: 'active' },
-];
-
 const AdminDashboardPage = () => {
   const { t } = useLanguage();
-  const [stats, setStats] = useState(demoStats);
-  const [recentOrders, setRecentOrders] = useState(demoRecentOrders);
-  const [recentPartners, setRecentPartners] = useState(demoRecentPartners);
-  const [isLoading, setIsLoading] = useState(false);
+  const [stats, setStats] = useState({
+    totalRevenue: 0,
+    revenueGrowth: 0,
+    totalOrders: 0,
+    ordersGrowth: 0,
+    totalPartners: 0,
+    partnersGrowth: 0,
+    pendingCommissions: 0,
+    activePartners: 0,
+    ordersByStatus: { completed: 0, processing: 0, pending: 0, cancelled: 0 }
+  });
+  const [recentOrders, setRecentOrders] = useState([]);
+  const [recentPartners, setRecentPartners] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+
+      const res = await fetch('/api/admin/dashboard', { headers });
+      if (res.ok) {
+        const data = await res.json();
+        
+        setStats({
+          totalRevenue: parseFloat(data.revenue?.allTime || data.revenue?.all_time || 0),
+          revenueGrowth: data.revenue?.growth || 0,
+          totalOrders: parseInt(data.orders?.total || 0),
+          ordersGrowth: parseInt(data.orders?.thisMonth || data.orders?.this_month || 0),
+          totalPartners: parseInt(data.partners?.total || 0),
+          partnersGrowth: parseInt(data.partners?.newThisMonth || data.partners?.new_this_month || 0),
+          pendingCommissions: parseFloat(data.commissions?.held || 0) + parseFloat(data.commissions?.pendingPayout || data.commissions?.pending_payout || 0),
+          activePartners: parseInt(data.partners?.active || 0),
+          ordersByStatus: {
+            completed: parseInt(data.orders?.completed || 0),
+            processing: parseInt(data.orders?.processing || 0),
+            pending: parseInt(data.orders?.pending || 0),
+            cancelled: parseInt(data.orders?.cancelled || 0)
+          }
+        });
+
+        setRecentOrders((data.recentOrders || []).map(o => ({
+          id: o.order_number || o.id,
+          customer: `${o.customer_first_name || ''} ${o.customer_last_name || ''}`.trim(),
+          amount: parseFloat(o.total || 0),
+          status: o.status === 'processing' ? 'processing' : o.status === 'completed' ? 'completed' : 'pending',
+          date: new Date(o.created_at)
+        })));
+
+        setRecentPartners((data.recentPartners || []).map(p => ({
+          id: p.id,
+          name: `${p.first_name || ''} ${p.last_name || ''}`.trim(),
+          email: p.email,
+          date: new Date(p.created_at),
+          status: p.status || 'pending'
+        })));
+      }
+    } catch (error) {
+      console.error('Failed to load dashboard data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const getStatusConfig = (status) => {
     const configs = {
@@ -66,6 +105,24 @@ const AdminDashboardPage = () => {
     };
     return configs[status] || configs.pending;
   };
+
+  const totalOrdersForBar = Math.max(stats.ordersByStatus.completed + stats.ordersByStatus.processing + stats.ordersByStatus.pending + stats.ordersByStatus.cancelled, 1);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-heading font-bold text-secondary-700">Admin Dashboard</h1>
+            <p className="text-secondary-500">Übersicht aller Geschäftsdaten</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[1,2,3,4].map(i => <div key={i} className="h-32 bg-white rounded-2xl animate-pulse border border-gray-100" />)}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -90,8 +147,8 @@ const AdminDashboardPage = () => {
           value={formatCurrency(stats.totalRevenue)}
           icon={Wallet}
           color="primary"
-          trend="up"
-          trendValue={`+${stats.revenueGrowth}%`}
+          trend={stats.revenueGrowth > 0 ? 'up' : undefined}
+          trendValue={stats.revenueGrowth > 0 ? `+${stats.revenueGrowth}%` : undefined}
           index={0}
         />
         <StatCard
@@ -99,8 +156,8 @@ const AdminDashboardPage = () => {
           value={stats.totalOrders}
           icon={ShoppingBag}
           color="primary"
-          trend="up"
-          trendValue={`+${stats.ordersGrowth}`}
+          trend={stats.ordersGrowth > 0 ? 'up' : undefined}
+          trendValue={stats.ordersGrowth > 0 ? `+${stats.ordersGrowth}` : undefined}
           index={1}
         />
         <StatCard
@@ -108,8 +165,8 @@ const AdminDashboardPage = () => {
           value={stats.totalPartners}
           icon={Users}
           color="primary"
-          trend="up"
-          trendValue={`+${stats.partnersGrowth}`}
+          trend={stats.partnersGrowth > 0 ? 'up' : undefined}
+          trendValue={stats.partnersGrowth > 0 ? `+${stats.partnersGrowth}` : undefined}
           index={2}
         />
         <StatCard
@@ -160,10 +217,10 @@ const AdminDashboardPage = () => {
           </h3>
           <div className="space-y-4">
             {[
-              { label: 'Abgeschlossen', value: 678, total: 847, color: 'bg-secondary-700' },
-              { label: 'In Bearbeitung', value: 89, total: 847, color: 'bg-secondary-300' },
-              { label: 'Ausstehend', value: 56, total: 847, color: 'bg-secondary-200' },
-              { label: 'Storniert', value: 24, total: 847, color: 'bg-gray-400' },
+              { label: 'Abgeschlossen', value: stats.ordersByStatus.completed, color: 'bg-secondary-700' },
+              { label: 'In Bearbeitung', value: stats.ordersByStatus.processing, color: 'bg-secondary-300' },
+              { label: 'Ausstehend', value: stats.ordersByStatus.pending, color: 'bg-secondary-200' },
+              { label: 'Storniert', value: stats.ordersByStatus.cancelled, color: 'bg-gray-400' },
             ].map((item, idx) => (
               <div key={idx}>
                 <div className="flex justify-between text-sm mb-1">
@@ -173,7 +230,7 @@ const AdminDashboardPage = () => {
                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                   <div
                     className={`h-full ${item.color} rounded-full transition-all duration-500`}
-                    style={{ width: `${(item.value / item.total) * 100}%` }}
+                    style={{ width: `${(item.value / totalOrdersForBar) * 100}%` }}
                   />
                 </div>
               </div>
@@ -203,7 +260,12 @@ const AdminDashboardPage = () => {
           </div>
 
           <div className="space-y-4">
-            {recentOrders.map((order) => {
+            {recentOrders.length === 0 ? (
+              <div className="text-center py-8 text-secondary-400">
+                <ShoppingBag className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                <p className="text-sm">Noch keine Bestellungen</p>
+              </div>
+            ) : recentOrders.map((order) => {
               const statusConfig = getStatusConfig(order.status);
               const StatusIcon = statusConfig.icon;
               return (
@@ -249,7 +311,12 @@ const AdminDashboardPage = () => {
           </div>
 
           <div className="space-y-4">
-            {recentPartners.map((partner) => {
+            {recentPartners.length === 0 ? (
+              <div className="text-center py-8 text-secondary-400">
+                <Users className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                <p className="text-sm">Noch keine Partner</p>
+              </div>
+            ) : recentPartners.map((partner) => {
               const statusConfig = getStatusConfig(partner.status);
               const StatusIcon = statusConfig.icon;
               return (

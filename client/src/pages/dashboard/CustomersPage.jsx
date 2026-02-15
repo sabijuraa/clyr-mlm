@@ -1,53 +1,45 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Users, Search, Mail, Phone, MapPin, ShoppingBag } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatCurrency } from '../../config/app.config';
 import { formatDate } from '../../utils/formatters';
+import { partnerAPI } from '../../services/api';
 import Button from '../../components/common/Button';
-
-// Demo data
-const demoCustomers = [
-  { 
-    id: 1, 
-    firstName: 'Maria', 
-    lastName: 'Schmidt', 
-    email: 'maria.schmidt@email.de',
-    phone: '+49 171 234 5678',
-    city: 'München',
-    totalOrders: 3,
-    totalSpent: 1847.50,
-    lastOrder: new Date(Date.now() - 86400000 * 5)
-  },
-  { 
-    id: 2, 
-    firstName: 'Thomas', 
-    lastName: 'Weber', 
-    email: 'thomas.weber@email.de',
-    phone: '+49 172 345 6789',
-    city: 'Berlin',
-    totalOrders: 1,
-    totalSpent: 1299.00,
-    lastOrder: new Date(Date.now() - 86400000 * 12)
-  },
-  { 
-    id: 3, 
-    firstName: 'Sandra', 
-    lastName: 'Müller', 
-    email: 'sandra.mueller@email.de',
-    phone: '+49 173 456 7890',
-    city: 'Hamburg',
-    totalOrders: 2,
-    totalSpent: 948.00,
-    lastOrder: new Date(Date.now() - 86400000 * 30)
-  },
-];
 
 const CustomersPage = () => {
   const { t } = useLanguage();
-  const [customers, setCustomers] = useState(demoCustomers);
+  const [customers, setCustomers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
+
+  const fetchCustomers = async () => {
+    setIsLoading(true);
+    try {
+      const response = await partnerAPI.getCustomers({ limit: 100 });
+      const data = response.data;
+      const customersList = data.customers || data || [];
+      setCustomers(customersList.map(c => ({
+        id: c.id,
+        firstName: c.first_name || c.firstName || '',
+        lastName: c.last_name || c.lastName || '',
+        email: c.email || '',
+        phone: c.phone || '',
+        city: c.city || '',
+        totalOrders: parseInt(c.total_orders || c.totalOrders || 0),
+        totalSpent: parseFloat(c.total_spent || c.totalSpent || 0),
+        lastOrder: c.last_order_at || c.lastOrder ? new Date(c.last_order_at || c.lastOrder) : null
+      })));
+    } catch (error) {
+      console.error('Failed to load customers:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const filteredCustomers = customers.filter(c => {
     const query = searchQuery.toLowerCase();
@@ -58,6 +50,20 @@ const CustomersPage = () => {
       c.city.toLowerCase().includes(query)
     );
   });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-2xl font-heading font-bold text-secondary-700">{t('dashboard.menu.customers')}</h1>
+          <p className="text-secondary-500">Kunden, die über Ihre Links bestellt haben</p>
+        </div>
+        <div className="space-y-4">
+          {[1,2,3].map(i => <div key={i} className="h-32 bg-white rounded-2xl animate-pulse border border-gray-100" />)}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -124,7 +130,7 @@ const CustomersPage = () => {
                 <div className="flex items-center gap-4 flex-1">
                   <div className="w-14 h-14 rounded-full bg-secondary-700 
                     flex items-center justify-center text-white font-bold text-lg">
-                    {customer.firstName[0]}{customer.lastName[0]}
+                    {customer.firstName[0] || '?'}{customer.lastName[0] || '?'}
                   </div>
                   <div>
                     <h3 className="font-semibold text-secondary-700 text-lg">
@@ -141,14 +147,18 @@ const CustomersPage = () => {
 
                 {/* Contact Info */}
                 <div className="flex flex-wrap gap-4 text-sm">
-                  <div className="flex items-center gap-1 text-secondary-500">
-                    <Phone className="w-4 h-4" />
-                    {customer.phone}
-                  </div>
-                  <div className="flex items-center gap-1 text-secondary-500">
-                    <MapPin className="w-4 h-4" />
-                    {customer.city}
-                  </div>
+                  {customer.phone && (
+                    <div className="flex items-center gap-1 text-secondary-500">
+                      <Phone className="w-4 h-4" />
+                      {customer.phone}
+                    </div>
+                  )}
+                  {customer.city && (
+                    <div className="flex items-center gap-1 text-secondary-500">
+                      <MapPin className="w-4 h-4" />
+                      {customer.city}
+                    </div>
+                  )}
                 </div>
 
                 {/* Stats */}
@@ -165,45 +175,49 @@ const CustomersPage = () => {
               </div>
 
               {/* Last Order */}
-              <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
-                <span className="text-sm text-secondary-500">
-                  Letzte Bestellung: {formatDate(customer.lastOrder)}
-                </span>
-                <Button variant="ghost" size="sm" icon={ShoppingBag}>
-                  Bestellungen
-                </Button>
-              </div>
+              {customer.lastOrder && (
+                <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+                  <span className="text-sm text-secondary-500">
+                    Letzte Bestellung: {formatDate(customer.lastOrder)}
+                  </span>
+                  <Button variant="ghost" size="sm" icon={ShoppingBag}>
+                    Bestellungen
+                  </Button>
+                </div>
+              )}
             </motion.div>
           ))
         )}
       </motion.div>
 
       {/* Summary */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="bg-gradient-to-r from-secondary-600 to-secondary-700 rounded-2xl p-6 text-white"
-      >
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-          <div>
-            <p className="text-4xl font-bold">{customers.length}</p>
-            <p className="text-white/70">Kunden gesamt</p>
+      {customers.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-gradient-to-r from-secondary-600 to-secondary-700 rounded-2xl p-6 text-white"
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+            <div>
+              <p className="text-4xl font-bold">{customers.length}</p>
+              <p className="text-white/70">Kunden gesamt</p>
+            </div>
+            <div>
+              <p className="text-4xl font-bold">
+                {customers.reduce((sum, c) => sum + c.totalOrders, 0)}
+              </p>
+              <p className="text-white/70">Bestellungen</p>
+            </div>
+            <div>
+              <p className="text-4xl font-bold">
+                {formatCurrency(customers.reduce((sum, c) => sum + c.totalSpent, 0))}
+              </p>
+              <p className="text-white/70">Gesamtumsatz</p>
+            </div>
           </div>
-          <div>
-            <p className="text-4xl font-bold">
-              {customers.reduce((sum, c) => sum + c.totalOrders, 0)}
-            </p>
-            <p className="text-white/70">Bestellungen</p>
-          </div>
-          <div>
-            <p className="text-4xl font-bold">
-              {formatCurrency(customers.reduce((sum, c) => sum + c.totalSpent, 0))}
-            </p>
-            <p className="text-white/70">Gesamtumsatz</p>
-          </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      )}
     </div>
   );
 };

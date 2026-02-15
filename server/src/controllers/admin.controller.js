@@ -29,6 +29,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
        COUNT(CASE WHEN status = 'processing' THEN 1 END) as processing,
        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
+       COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled,
        COUNT(CASE WHEN created_at >= $1 THEN 1 END) as this_month
      FROM orders`,
     [monthStart]
@@ -104,6 +105,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
       pending: parseInt(ordersResult.rows[0].pending),
       processing: parseInt(ordersResult.rows[0].processing),
       completed: parseInt(ordersResult.rows[0].completed),
+      cancelled: parseInt(ordersResult.rows[0].cancelled || 0),
       thisMonth: parseInt(ordersResult.rows[0].this_month)
     },
     partners: {

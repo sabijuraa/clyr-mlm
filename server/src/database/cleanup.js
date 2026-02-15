@@ -1,5 +1,6 @@
 /**
  * CLYR Database FULL Cleanup
+ * Removes all test/dummy data, keeps: admin, products, settings, legal, categories, ranks
  * Usage: cd server && node src/database/cleanup.js
  */
 
@@ -74,11 +75,42 @@ async function cleanup() {
     if (tp.rowCount > 0) console.log('  ✓ Removed test product');
   } catch (e) {}
 
+  // Reset admin user stats to zero
+  try {
+    await query(`
+      UPDATE users SET 
+        own_sales_count = 0,
+        own_sales_volume = 0,
+        team_sales_count = 0,
+        team_sales_volume = 0,
+        direct_partners_count = 0,
+        quarterly_sales_count = 0,
+        wallet_balance = 0,
+        total_earned = 0,
+        total_paid_out = 0,
+        consecutive_qualifying_months = 0
+      WHERE role = 'admin'
+    `);
+    console.log('  ✓ Reset admin user stats to 0');
+  } catch (e) {
+    console.log(`  ⚠ admin stats reset: ${e.message.substring(0, 80)}`);
+  }
+
+  // Reset product review_count and average_rating if columns exist
+  try {
+    await query("UPDATE products SET review_count = 0, average_rating = 0 WHERE review_count > 0 OR average_rating > 0");
+    console.log('  ✓ Reset product review stats');
+  } catch (e) {
+    // Columns may not exist
+  }
+
   console.log('');
   console.log(`Total: ${totalDeleted} rows deleted`);
   console.log('');
   console.log('KEPT: Admin (Theresa), products, settings, legal, categories, ranks');
   console.log('REMOVED: All orders, invoices, commissions, partners, customers, stats');
+  console.log('');
+  console.log('Dashboard should now show all zeros. ✅');
   console.log('');
 
   process.exit(0);
