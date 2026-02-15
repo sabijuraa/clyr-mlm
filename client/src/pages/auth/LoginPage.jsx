@@ -183,7 +183,7 @@ const LoginPage = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
           >
-            <h2 className="text-4xl font-heading text-white font-bold mb-6">
+            <h2 className="text-2xl sm:text-4xl font-heading text-white font-bold mb-6">
               {lang === 'de' ? 'Willkommen im Partner-Portal' : 'Welcome to the Partner Portal'}
             </h2>
             <p className="text-xl text-gray-300 mb-10">

@@ -140,7 +140,7 @@ const AdminSetupPage = () => {
             <div className="w-16 h-16 rounded-2xl bg-secondary-600 flex items-center justify-center mb-6">
               <Shield className="w-8 h-8 text-primary-400" />
             </div>
-            <h1 className="text-4xl font-bold text-white mb-4">
+            <h1 className="text-2xl sm:text-4xl font-bold text-white mb-4">
               Admin Setup
             </h1>
             <p className="text-gray-300 text-lg leading-relaxed">

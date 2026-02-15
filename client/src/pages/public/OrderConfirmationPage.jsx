@@ -141,7 +141,7 @@ const OrderConfirmationPage = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="text-4xl font-bold text-secondary-700 mb-4"
+            className="text-2xl sm:text-4xl font-bold text-secondary-700 mb-4"
           >
             {lang === 'de' ? 'Vielen Dank für Ihre Bestellung!' : 'Thank you for your order!'}
           </motion.h1>

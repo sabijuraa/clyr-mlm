@@ -197,24 +197,25 @@ const AdminSettingsPage = () => {
 
       {/* Tabs */}
       <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-        <div className="flex border-b border-gray-200">
+        <div className="flex border-b border-gray-200 overflow-x-auto scrollbar-hide">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 font-medium transition-colors
+              className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 sm:py-4 font-medium transition-colors whitespace-nowrap text-sm sm:text-base min-w-fit
                 ${activeTab === tab.id 
                   ? 'text-primary-400 bg-slate-50 border-b-2 border-secondary-600' 
                   : 'text-secondary-500 hover:text-secondary-700 hover:bg-gray-50'
                 }`}
             >
-              <tab.icon className="w-5 h-5" />
-              {tab.label}
+              <tab.icon className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
             </button>
           ))}
         </div>
 
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {/* Branding Tab */}
           {activeTab === 'branding' && (
             <motion.div

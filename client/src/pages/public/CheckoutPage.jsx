@@ -81,7 +81,7 @@ export default function CheckoutPage() {
             </svg>
           </div>
 
-          <h1 className="text-4xl font-bold text-gray-800 mb-4">
+          <h1 className="text-2xl sm:text-4xl font-bold text-gray-800 mb-4">
             Vielen Dank für Ihre Bestellung!
           </h1>
 

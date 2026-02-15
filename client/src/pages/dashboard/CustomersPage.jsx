@@ -200,17 +200,17 @@ const CustomersPage = () => {
         >
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
             <div>
-              <p className="text-4xl font-bold">{customers.length}</p>
+              <p className="text-2xl sm:text-4xl font-bold">{customers.length}</p>
               <p className="text-white/70">Kunden gesamt</p>
             </div>
             <div>
-              <p className="text-4xl font-bold">
+              <p className="text-2xl sm:text-4xl font-bold">
                 {customers.reduce((sum, c) => sum + c.totalOrders, 0)}
               </p>
               <p className="text-white/70">Bestellungen</p>
             </div>
             <div>
-              <p className="text-4xl font-bold">
+              <p className="text-2xl sm:text-4xl font-bold">
                 {formatCurrency(customers.reduce((sum, c) => sum + c.totalSpent, 0))}
               </p>
               <p className="text-white/70">Gesamtumsatz</p>

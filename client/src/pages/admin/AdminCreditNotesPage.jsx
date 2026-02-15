@@ -157,6 +157,7 @@ const AdminCreditNotesPage = () => {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="bg-secondary-50">
@@ -221,6 +222,7 @@ const AdminCreditNotesPage = () => {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
       

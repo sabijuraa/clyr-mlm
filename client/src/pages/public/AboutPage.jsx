@@ -33,7 +33,7 @@ const AboutPage = () => {
           </motion.p>
           <motion.h1 initial="hidden" animate="visible"
             variants={fadeUp} custom={1}
-            className="text-4xl md:text-5xl lg:text-6xl font-heading font-bold leading-tight mb-6">
+            className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-heading font-bold leading-tight mb-6">
             Mehr als Technologie.
             <br />
             <span className="text-white">Eine Vision für besseres Wasser.</span>
