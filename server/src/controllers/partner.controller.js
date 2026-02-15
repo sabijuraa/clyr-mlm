@@ -57,20 +57,20 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     [userId]
   );
 
-  // Get rank info
+  // Check for rank update FIRST so we return the current rank
+  await checkAndUpdateRank(userId);
+
+  // Get rank info (after potential update)
   const rankResult = await query(
     `SELECT r.*, 
             (SELECT name FROM ranks WHERE level = r.level + 1) as next_rank_name,
             (SELECT commission_rate FROM ranks WHERE level = r.level + 1) as next_rank_rate
      FROM ranks r
-     WHERE r.id = $1`,
-    [req.user.rank_id]
+     WHERE r.id = (SELECT rank_id FROM users WHERE id = $1)`,
+    [userId]
   );
 
   const rank = rankResult.rows[0];
-
-  // Check for rank update
-  await checkAndUpdateRank(userId);
 
   res.json({
     commissions: commissionSummary,

@@ -1,7 +1,200 @@
 // server/src/controllers/partner-subscription.controller.js
 // GROUP 5: #37 Affiliate subscription, #54 Prospect protection, #53 Crossline prohibition
+import Stripe from 'stripe';
 import { query, transaction } from '../config/database.js';
 import { asyncHandler, AppError } from '../middleware/error.middleware.js';
+
+const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
+
+// Helper: get public URL for Stripe redirects
+const getPublicUrl = (req) => {
+  if (process.env.FRONTEND_URL && process.env.FRONTEND_URL !== '${APP_URL}') return process.env.FRONTEND_URL;
+  if (process.env.CLIENT_URL) return process.env.CLIENT_URL;
+  const origin = req.headers.origin || '';
+  if (origin && origin.startsWith('http')) return origin;
+  const referer = req.headers.referer || '';
+  if (referer && referer.startsWith('http')) {
+    try { return new URL(referer).origin; } catch (e) {}
+  }
+  const proto = req.headers['x-forwarded-proto'] || req.protocol;
+  const host = req.headers['x-forwarded-host'] || req.headers.host || req.get('host');
+  if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+    return `${proto}://${host}`;
+  }
+  return 'https://clyr.shop';
+};
+
+// Helper: calculate prorated fee
+const calculateProratedFee = () => {
+  const now = new Date();
+  const monthsRemaining = 12 - now.getMonth();
+  const annualFee = 100.00;
+  return Math.round((annualFee / 12) * monthsRemaining * 100) / 100;
+};
+
+// ==========================================
+// STRIPE CHECKOUT FOR PARTNER FEE
+// ==========================================
+
+/**
+ * Create Stripe Checkout Session for partner annual fee
+ * Called right after registration - no auth required, uses partnerId from body
+ */
+export const createPartnerFeeCheckout = asyncHandler(async (req, res) => {
+  const { partnerId, partnerEmail } = req.body;
+
+  if (!partnerId && !partnerEmail) {
+    throw new AppError('Partner-ID oder E-Mail erforderlich', 400);
+  }
+
+  if (!stripe) {
+    throw new AppError('Stripe ist nicht konfiguriert', 500);
+  }
+
+  // Find the partner
+  const partnerResult = await query(
+    'SELECT id, email, first_name, last_name, status FROM users WHERE ' + (partnerId ? 'id = $1' : 'email = $1'),
+    [partnerId || partnerEmail]
+  );
+
+  if (partnerResult.rows.length === 0) {
+    throw new AppError('Partner nicht gefunden', 404);
+  }
+
+  const partner = partnerResult.rows[0];
+  const proratedFee = calculateProratedFee();
+  const baseUrl = getPublicUrl(req).replace(/\/+$/, '');
+
+  try {
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'payment',
+      customer_email: partner.email,
+      line_items: [{
+        price_data: {
+          currency: 'eur',
+          product_data: {
+            name: 'CLYR Vertriebspartner Jahresgebühr',
+            description: `Intranet-Gebühr ${new Date().getFullYear()} (anteilig)`,
+          },
+          unit_amount: Math.round(proratedFee * 100),
+        },
+        quantity: 1,
+      }],
+      metadata: {
+        type: 'partner_fee',
+        partnerId: String(partner.id),
+        partnerEmail: partner.email,
+      },
+      success_url: `${baseUrl}/api/partner/fee-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/login?fee=cancelled`,
+    });
+
+    res.json({
+      url: session.url,
+      sessionId: session.id,
+      amount: proratedFee,
+    });
+  } catch (err) {
+    console.error('Stripe partner fee checkout failed:', err.message);
+    throw new AppError('Zahlungsservice nicht verfügbar: ' + err.message, 500);
+  }
+});
+
+/**
+ * Handle Stripe success redirect for partner fee
+ * Activates the partner account
+ */
+export const partnerFeeSuccess = asyncHandler(async (req, res) => {
+  const { session_id } = req.query;
+
+  if (!session_id) {
+    return res.redirect('/login?fee=error');
+  }
+
+  const baseUrl = getPublicUrl(req).replace(/\/+$/, '');
+
+  try {
+    if (!stripe) {
+      return res.redirect(`${baseUrl}/login?fee=error&reason=stripe`);
+    }
+
+    const session = await stripe.checkout.sessions.retrieve(session_id);
+
+    if (session.payment_status !== 'paid') {
+      return res.redirect(`${baseUrl}/login?fee=unpaid`);
+    }
+
+    const partnerId = session.metadata?.partnerId;
+    if (!partnerId) {
+      return res.redirect(`${baseUrl}/login?fee=error&reason=no_partner`);
+    }
+
+    const now = new Date();
+    const periodEnd = new Date(now.getFullYear() + 1, 0, 1);
+    const amount = session.amount_total / 100;
+
+    await transaction(async (client) => {
+      // Ensure subscription_payments table exists
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS subscription_payments (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER REFERENCES users(id),
+          amount DECIMAL(10,2) NOT NULL,
+          payment_method VARCHAR(50) DEFAULT 'stripe',
+          payment_reference VARCHAR(255),
+          stripe_session_id VARCHAR(255),
+          period_start TIMESTAMP,
+          period_end TIMESTAMP,
+          status VARCHAR(20) DEFAULT 'paid',
+          paid_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      // Record payment
+      await client.query(
+        `INSERT INTO subscription_payments (user_id, amount, payment_method, payment_reference, stripe_session_id, period_start, period_end, status, paid_at)
+         VALUES ($1, $2, 'stripe', $3, $4, $5, $6, 'paid', CURRENT_TIMESTAMP)`,
+        [partnerId, amount, session.payment_intent || session.id, session.id, now, periodEnd]
+      );
+
+      // Ensure columns exist
+      try { await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(20) DEFAULT 'unpaid'"); } catch(e) {}
+      try { await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_amount DECIMAL(10,2)"); } catch(e) {}
+      try { await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_prorated DECIMAL(10,2)"); } catch(e) {}
+      try { await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS annual_fee_paid_at TIMESTAMP"); } catch(e) {}
+      try { await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS annual_fee_expires_at TIMESTAMP"); } catch(e) {}
+
+      // Activate partner
+      await client.query(
+        `UPDATE users SET 
+          subscription_status = 'active',
+          subscription_amount = $2,
+          annual_fee_paid_at = CURRENT_TIMESTAMP,
+          annual_fee_expires_at = $3,
+          status = 'active'
+         WHERE id = $1`,
+        [partnerId, amount, periodEnd]
+      );
+
+      // Log
+      await client.query(
+        `INSERT INTO activity_log (user_id, action, entity_type, entity_id, details) VALUES ($1, $2, $3, $4, $5)`,
+        [partnerId, 'partner_fee_paid', 'user', partnerId, JSON.stringify({ amount, sessionId: session.id })]
+      );
+    });
+
+    console.log(`Partner ${partnerId} fee paid (EUR ${amount}), account activated.`);
+
+    // Redirect to login with success message
+    res.redirect(`${baseUrl}/login?fee=success`);
+
+  } catch (err) {
+    console.error('Partner fee verification error:', err);
+    res.redirect(`${baseUrl}/login?fee=error`);
+  }
+});
 
 // ==========================================
 // #37: AFFILIATE SUBSCRIPTION (Intranet-Gebuehr)

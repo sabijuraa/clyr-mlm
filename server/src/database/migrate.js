@@ -126,6 +126,19 @@ async function migrate() {
       }
     }
 
+    // Fix any partners who got Direktor rank by accident (rank_id=1 = Direktor)
+    const starterRank = await client.query("SELECT id FROM ranks WHERE slug = 'starter'");
+    const direktorRank = await client.query("SELECT id FROM ranks WHERE slug = 'direktor'");
+    if (starterRank.rows.length > 0 && direktorRank.rows.length > 0) {
+      const fixResult = await client.query(
+        "UPDATE users SET rank_id = $1 WHERE rank_id = $2 AND role = 'partner' AND email != 'theresa@clyr.at'",
+        [starterRank.rows[0].id, direktorRank.rows[0].id]
+      );
+      if (fixResult.rowCount > 0) {
+        console.log('\nFixed ' + fixResult.rowCount + ' partner(s) who had Direktor rank by accident → set to Starter');
+      }
+    }
+
     // ========================================
     // Step 4: Ensure missing columns exist
     // ========================================
@@ -137,6 +150,11 @@ async function migrate() {
       { table: 'users', column: 'passport_url', type: 'TEXT' },
       { table: 'users', column: 'bank_card_url', type: 'TEXT' },
       { table: 'users', column: 'trade_license_url', type: 'TEXT' },
+      { table: 'users', column: 'subscription_status', type: "VARCHAR(20) DEFAULT 'unpaid'" },
+      { table: 'users', column: 'subscription_amount', type: 'DECIMAL(10,2)' },
+      { table: 'users', column: 'subscription_prorated', type: 'DECIMAL(10,2)' },
+      { table: 'users', column: 'annual_fee_paid_at', type: 'TIMESTAMP' },
+      { table: 'users', column: 'annual_fee_expires_at', type: 'TIMESTAMP' },
     ];
 
     for (const col of columnsToAdd) {
@@ -149,9 +167,31 @@ async function migrate() {
     }
 
     // ========================================
-    // Step 5: Ensure legal_pages table and seed VP-Vertrag
+    // Step 5: Ensure subscription_payments table
     // ========================================
-    console.log('\nStep 5: Seeding legal pages...\n');
+    console.log('\nStep 5: Ensuring subscription_payments table...\n');
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS subscription_payments (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        amount DECIMAL(10,2) NOT NULL,
+        payment_method VARCHAR(50) DEFAULT 'stripe',
+        payment_reference VARCHAR(255),
+        stripe_session_id VARCHAR(255),
+        period_start TIMESTAMP,
+        period_end TIMESTAMP,
+        status VARCHAR(20) DEFAULT 'paid',
+        paid_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('  subscription_payments table OK');
+
+    // ========================================
+    // Step 6: Ensure legal_pages table and seed VP-Vertrag
+    // ========================================
+    console.log('\nStep 6: Seeding legal pages...\n');
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS legal_pages (

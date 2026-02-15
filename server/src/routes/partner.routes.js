@@ -5,7 +5,11 @@ import { authenticate, requireRole, requireActivePartner } from '../middleware/a
 
 const router = Router();
 
-// All routes require authentication
+// PUBLIC routes (no auth) - Stripe partner fee
+router.post('/fee-checkout', partnerSubController.createPartnerFeeCheckout);
+router.get('/fee-success', partnerSubController.partnerFeeSuccess);
+
+// All routes below require authentication
 router.use(authenticate);
 
 // Partner dashboard stats

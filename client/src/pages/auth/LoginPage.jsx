@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, Lock, ArrowRight, Eye, EyeOff, Droplets, Shield, Award, Users, Heart, GraduationCap } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Eye, EyeOff, Droplets, Shield, Award, Users, Heart, GraduationCap, CheckCircle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -14,11 +14,24 @@ const LoginPage = () => {
   const { companyName } = useBrand();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [feeMessage, setFeeMessage] = useState(null);
 
   const from = location.state?.from?.pathname || null;
+  const feeStatus = searchParams.get('fee');
+
+  useEffect(() => {
+    if (feeStatus === 'success') {
+      setFeeMessage({ type: 'success', text: lang === 'de' ? 'Zahlung erfolgreich! Ihr Konto ist jetzt aktiv. Bitte melden Sie sich an.' : 'Payment successful! Your account is now active. Please sign in.' });
+    } else if (feeStatus === 'cancelled') {
+      setFeeMessage({ type: 'warning', text: lang === 'de' ? 'Zahlung abgebrochen. Bitte melden Sie sich an und bezahlen Sie die Jahresgebühr, um Ihr Konto zu aktivieren.' : 'Payment cancelled. Please sign in and pay the annual fee to activate your account.' });
+    } else if (feeStatus === 'error') {
+      setFeeMessage({ type: 'error', text: lang === 'de' ? 'Zahlungsfehler. Bitte kontaktieren Sie den Support.' : 'Payment error. Please contact support.' });
+    }
+  }, [feeStatus, lang]);
 
   const { register, handleSubmit, formState: { errors } } = useForm();
 
@@ -57,6 +70,16 @@ const LoginPage = () => {
           </Link>
 
           {/* Header - Charcoal text */}
+          {feeMessage && (
+            <div className={`mb-6 p-4 rounded-xl text-sm ${
+              feeMessage.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' :
+              feeMessage.type === 'warning' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' :
+              'bg-red-50 text-red-700 border border-red-200'
+            }`}>
+              {feeMessage.type === 'success' && <CheckCircle className="w-5 h-5 inline mr-2" />}
+              {feeMessage.text}
+            </div>
+          )}
           <div className="mb-8">
             <h1 className="text-3xl font-heading font-bold text-secondary-700 mb-2">
               {lang === 'de' ? 'Willkommen zurück' : 'Welcome back'}

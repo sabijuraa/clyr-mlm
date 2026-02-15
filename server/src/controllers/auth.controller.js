@@ -188,7 +188,12 @@ export const register = asyncHandler(async (req, res) => {
 
   const passwordHash = await bcrypt.hash(password, 12);
   const newReferralCode = await generateReferralCode(firstName, lastName);
-  const startingRank = req.body.hasOwnMachine ? 2 : 1;
+  // Look up starter rank by slug (not hardcoded id)
+  const starterRankResult = await query("SELECT id FROM ranks WHERE slug = 'starter'");
+  const beraterRankResult = await query("SELECT id FROM ranks WHERE slug = 'berater'");
+  const starterRankId = starterRankResult.rows[0]?.id || 1;
+  const beraterRankId = beraterRankResult.rows[0]?.id || 2;
+  const startingRank = req.body.hasOwnMachine ? beraterRankId : starterRankId;
   const proratedFee = calculateProratedFee();
 
   const passportUrl = req.files?.passport?.[0]?.filename ? `/uploads/documents/${req.files.passport[0].filename}` : (req.uploadedDocuments?.passport || null);

@@ -17,9 +17,26 @@ const AdminPartnersPage = () => {
   const [selectedPartner, setSelectedPartner] = useState(null);
   const [partnerDetail, setPartnerDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [ranks, setRanks] = useState([]);
 
   useEffect(() => {
     fetchPartners();
+    // Fetch ranks from API
+    adminAPI.getRanks().then(res => {
+      const ranksData = res.data?.ranks || res.data || [];
+      setRanks(ranksData.sort((a, b) => a.level - b.level));
+    }).catch(() => {
+      // Fallback ranks if API fails
+      setRanks([
+        { id: 2, name: 'Starter', level: 1 },
+        { id: 3, name: 'Berater', level: 2 },
+        { id: 4, name: 'Fachberater', level: 3 },
+        { id: 5, name: 'Teamleiter', level: 4 },
+        { id: 6, name: 'Manager', level: 5 },
+        { id: 7, name: 'Sales Manager', level: 6 },
+        { id: 1, name: 'Direktor', level: 7 },
+      ]);
+    });
   }, [page, statusFilter]);
 
   const fetchPartners = async () => {
@@ -343,23 +360,22 @@ const AdminPartnersPage = () => {
                           <div className="flex-1">
                             <p className="text-xs text-secondary-400 mb-1">Rang aendern</p>
                             <select
-                              value={partnerDetail.partner?.rank_id || 1}
+                              value={partnerDetail.partner?.rank_id || ''}
                               onChange={async (e) => {
                                 try {
                                   await adminAPI.updatePartnerRank(partnerDetail.partner.id, parseInt(e.target.value));
                                   toast.success('Rang geaendert!');
                                   loadPartnerDetail(partnerDetail.partner.id);
-                                } catch (err) { toast.error('Fehler'); }
+                                  fetchPartners();
+                                } catch (err) { toast.error('Fehler beim Ändern des Rangs'); }
                               }}
                               className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg"
                             >
-                              <option value={1}>R1 Starter</option>
-                              <option value={2}>R2 Bronze</option>
-                              <option value={3}>R3 Silber</option>
-                              <option value={4}>R4 Gold</option>
-                              <option value={5}>R5 Platin</option>
-                              <option value={6}>R6 Manager</option>
-                              <option value={7}>R7 Direktor</option>
+                              {ranks.map(rank => (
+                                <option key={rank.id} value={rank.id}>
+                                  R{rank.level} {rank.name}
+                                </option>
+                              ))}
                             </select>
                           </div>
                         </div>

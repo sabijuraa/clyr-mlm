@@ -115,11 +115,34 @@ const PartnerRegisterPage = () => {
       if (uploadedFiles.tradeLicense) formData.append('tradeLicense', uploadedFiles.tradeLicense);
 
       const { authAPI } = await import('../../services/api');
-      await authAPI.register(formData);
+      const registerResponse = await authAPI.register(formData);
+      const registeredUser = registerResponse.data?.user;
 
+      // Create Stripe checkout for partner fee
       toast.success(lang === 'de' 
-        ? 'Registrierung erfolgreich! Sie können sich jetzt anmelden.' 
-        : 'Registration successful! You can now log in.');
+        ? 'Registrierung erfolgreich! Weiterleitung zur Zahlung...' 
+        : 'Registration successful! Redirecting to payment...');
+
+      try {
+        const api = (await import('../../services/api')).default;
+        const checkoutRes = await api.post('/partner/fee-checkout', {
+          partnerId: registeredUser?.id,
+          partnerEmail: data.email,
+        });
+        
+        if (checkoutRes.data?.url) {
+          // Redirect to Stripe Checkout
+          window.location.href = checkoutRes.data.url;
+          return;
+        }
+      } catch (stripeErr) {
+        console.error('Stripe checkout error:', stripeErr);
+        // If Stripe fails, still let them go to login
+        toast.error(lang === 'de'
+          ? 'Zahlung konnte nicht gestartet werden. Bitte kontaktieren Sie den Support.'
+          : 'Payment could not be initiated. Please contact support.');
+      }
+
       navigate('/login');
       
     } catch (error) {
