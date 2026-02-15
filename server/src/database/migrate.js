@@ -127,9 +127,31 @@ async function migrate() {
     }
 
     // ========================================
-    // Step 4: Ensure legal_pages table and seed VP-Vertrag
+    // Step 4: Ensure missing columns exist
     // ========================================
-    console.log('\nStep 4: Seeding legal pages...\n');
+    console.log('\nStep 4: Ensuring all columns exist...\n');
+
+    const columnsToAdd = [
+      { table: 'users', column: 'terms_accepted_at', type: 'TIMESTAMP' },
+      { table: 'users', column: 'has_own_machine', type: 'BOOLEAN DEFAULT false' },
+      { table: 'users', column: 'passport_url', type: 'TEXT' },
+      { table: 'users', column: 'bank_card_url', type: 'TEXT' },
+      { table: 'users', column: 'trade_license_url', type: 'TEXT' },
+    ];
+
+    for (const col of columnsToAdd) {
+      try {
+        await client.query(`ALTER TABLE ${col.table} ADD COLUMN IF NOT EXISTS ${col.column} ${col.type}`);
+        console.log('  Column OK: ' + col.table + '.' + col.column);
+      } catch (e) {
+        console.log('  Column exists: ' + col.table + '.' + col.column);
+      }
+    }
+
+    // ========================================
+    // Step 5: Ensure legal_pages table and seed VP-Vertrag
+    // ========================================
+    console.log('\nStep 5: Seeding legal pages...\n');
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS legal_pages (
