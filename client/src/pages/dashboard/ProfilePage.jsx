@@ -114,7 +114,7 @@ const ProfilePage = () => {
             <p className="text-secondary-500">{user?.email}</p>
             <div className="flex items-center gap-2 mt-2 justify-center sm:justify-start">
               <span className="px-3 py-1 bg-secondary-100 text-secondary-700 rounded-full text-sm font-medium">
-                {user?.rank?.name || 'Starter'}
+                {user?.rank_name || user?.rank?.name || 'Starter'}
               </span>
               <span className="text-sm text-secondary-500">
                 Partner seit {new Date(user?.createdAt || user?.created_at || Date.now()).getFullYear()}

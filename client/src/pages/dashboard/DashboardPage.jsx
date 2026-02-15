@@ -202,7 +202,11 @@ const DashboardPage = () => {
             animate={{ opacity: 1, y: 0 }} 
             transition={{ delay: 0.4 }}
           >
-            <RankProgress currentRankId={user?.rank_id || user?.rankId || 1} currentSales={stats.totalSales} teamSales={teamSales} />
+            <RankProgress 
+              currentRank={rankData?.current || { name: user?.rank_name || 'Starter' }} 
+              nextRank={rankData?.next || null}
+              progress={rankData?.next ? Math.min(100, Math.round((stats.totalSales / (rankData?.next?.minOwnSales || 10)) * 100)) : 100}
+            />
           </motion.div>
 
           <motion.div 

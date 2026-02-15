@@ -123,7 +123,7 @@ const DashboardLayout = () => {
                   <TrendingUp className="w-5 h-5 text-primary-400" />
                 </div>
                 <div>
-                  <p className="text-white font-semibold">{user?.rank?.name || 'Starter'}</p>
+                  <p className="text-white font-semibold">{user?.rank_name || user?.rank?.name || 'Starter'}</p>
                   <p className="text-secondary-300 text-xs">Current Rank</p>
                 </div>
               </div>
