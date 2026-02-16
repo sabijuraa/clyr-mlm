@@ -104,22 +104,24 @@ export const createPartnerFeeCheckout = asyncHandler(async (req, res) => {
 /**
  * Handle Stripe success redirect for partner fee
  * Activates the partner account
+ * NOTE: Not using asyncHandler - we handle ALL errors with redirects, never JSON
  */
-export const partnerFeeSuccess = asyncHandler(async (req, res) => {
+export const partnerFeeSuccess = async (req, res) => {
   const { session_id } = req.query;
+  const baseUrl = (process.env.FRONTEND_URL || 'https://clyr.shop').replace(/\/+$/, '');
 
   if (!session_id) {
-    return res.redirect('/login?fee=error');
+    return res.redirect(`${baseUrl}/login?fee=missing`);
   }
-
-  const baseUrl = getPublicUrl(req).replace(/\/+$/, '');
 
   try {
     if (!stripe) {
-      return res.redirect(`${baseUrl}/login?fee=error&reason=stripe`);
+      console.error('Fee success: Stripe not configured');
+      return res.redirect(`${baseUrl}/login?fee=error&reason=stripe_not_configured`);
     }
 
     const session = await stripe.checkout.sessions.retrieve(session_id);
+    console.log('Fee success: session retrieved, payment_status:', session.payment_status, 'partnerId:', session.metadata?.partnerId);
 
     if (session.payment_status !== 'paid') {
       return res.redirect(`${baseUrl}/login?fee=unpaid`);
@@ -127,6 +129,7 @@ export const partnerFeeSuccess = asyncHandler(async (req, res) => {
 
     const partnerId = session.metadata?.partnerId;
     if (!partnerId) {
+      console.error('Fee success: No partnerId in session metadata');
       return res.redirect(`${baseUrl}/login?fee=error&reason=no_partner`);
     }
 
@@ -134,9 +137,9 @@ export const partnerFeeSuccess = asyncHandler(async (req, res) => {
     const periodEnd = new Date(now.getFullYear() + 1, 0, 1);
     const amount = session.amount_total / 100;
 
-    await transaction(async (client) => {
-      // Ensure subscription_payments table exists
-      await client.query(`
+    // Ensure tables and columns exist
+    try {
+      await query(`
         CREATE TABLE IF NOT EXISTS subscription_payments (
           id SERIAL PRIMARY KEY,
           user_id UUID REFERENCES users(id),
@@ -151,50 +154,52 @@ export const partnerFeeSuccess = asyncHandler(async (req, res) => {
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `);
+    } catch(e) { /* table already exists */ }
 
+    const colsToAdd = ['subscription_status VARCHAR(20)', 'subscription_amount DECIMAL(10,2)', 'subscription_prorated DECIMAL(10,2)', 'annual_fee_paid_at TIMESTAMP', 'annual_fee_expires_at TIMESTAMP'];
+    for (const col of colsToAdd) {
+      try { await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ${col}`); } catch(e) {}
+    }
+
+    // Check if already processed (idempotent)
+    const existing = await query('SELECT id FROM subscription_payments WHERE stripe_session_id = $1', [session.id]);
+    if (existing.rows.length === 0) {
       // Record payment
-      await client.query(
+      await query(
         `INSERT INTO subscription_payments (user_id, amount, payment_method, payment_reference, stripe_session_id, period_start, period_end, status, paid_at)
          VALUES ($1, $2, 'stripe', $3, $4, $5, $6, 'paid', CURRENT_TIMESTAMP)`,
         [partnerId, amount, session.payment_intent || session.id, session.id, now, periodEnd]
       );
+    }
 
-      // Ensure columns exist
-      try { await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(20) DEFAULT 'unpaid'"); } catch(e) {}
-      try { await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_amount DECIMAL(10,2)"); } catch(e) {}
-      try { await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_prorated DECIMAL(10,2)"); } catch(e) {}
-      try { await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS annual_fee_paid_at TIMESTAMP"); } catch(e) {}
-      try { await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS annual_fee_expires_at TIMESTAMP"); } catch(e) {}
+    // Activate partner
+    await query(
+      `UPDATE users SET 
+        subscription_status = 'active',
+        subscription_amount = $2,
+        annual_fee_paid_at = CURRENT_TIMESTAMP,
+        annual_fee_expires_at = $3,
+        status = 'active'
+       WHERE id = $1`,
+      [partnerId, amount, periodEnd]
+    );
 
-      // Activate partner
-      await client.query(
-        `UPDATE users SET 
-          subscription_status = 'active',
-          subscription_amount = $2,
-          annual_fee_paid_at = CURRENT_TIMESTAMP,
-          annual_fee_expires_at = $3,
-          status = 'active'
-         WHERE id = $1`,
-        [partnerId, amount, periodEnd]
-      );
-
-      // Log
-      await client.query(
+    // Log activity
+    try {
+      await query(
         `INSERT INTO activity_log (user_id, action, entity_type, entity_id, details) VALUES ($1, $2, $3, $4, $5)`,
         [partnerId, 'partner_fee_paid', 'user', partnerId, JSON.stringify({ amount, sessionId: session.id })]
       );
-    });
+    } catch(e) {}
 
     console.log(`Partner ${partnerId} fee paid (EUR ${amount}), account activated.`);
-
-    // Redirect to login with success message
-    res.redirect(`${baseUrl}/login?fee=success`);
+    return res.redirect(`${baseUrl}/login?fee=success`);
 
   } catch (err) {
-    console.error('Partner fee verification error:', err);
-    res.redirect(`${baseUrl}/login?fee=error`);
+    console.error('Partner fee verification error:', err.message || err);
+    return res.redirect(`${baseUrl}/login?fee=error`);
   }
-});
+};
 
 // ==========================================
 // #37: AFFILIATE SUBSCRIPTION (Intranet-Gebuehr)
