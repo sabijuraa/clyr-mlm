@@ -39,14 +39,15 @@ const formatCurrency = (amount) => {
 /**
  * Send email - base function
  */
-export const sendEmail = async ({ to, subject, html, text }) => {
+export const sendEmail = async ({ to, subject, html, text, attachments }) => {
   try {
     const info = await transporter.sendMail({
       from: '"CLYR" <service@clyr.shop>',
       to,
       subject,
       html,
-      text: text || html.replace(/<[^>]*>/g, '')
+      text: text || html.replace(/<[^>]*>/g, ''),
+      attachments: attachments || []
     });
 
     console.log('Email sent:', info.messageId);

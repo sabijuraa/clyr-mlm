@@ -193,6 +193,41 @@ export const partnerFeeSuccess = async (req, res) => {
     } catch(e) {}
 
     console.log(`Partner ${partnerId} fee paid (EUR ${amount}), account activated.`);
+
+    // Generate and send invoice (non-blocking)
+    try {
+      const partnerResult = await query('SELECT * FROM users WHERE id = $1', [partnerId]);
+      if (partnerResult.rows.length > 0) {
+        const partner = partnerResult.rows[0];
+        const { generatePartnerFeeInvoicePDF } = await import('../services/invoice.service.js');
+        const { sendEmail } = await import('../services/email.service.js');
+        
+        const { buffer, invoiceNumber } = await generatePartnerFeeInvoicePDF(partner, amount);
+        
+        await sendEmail({
+          to: partner.email,
+          subject: `CLYR Rechnung ${invoiceNumber} - Vertriebspartner Jahresgebuehr`,
+          html: `
+            <p>Hallo ${partner.first_name},</p>
+            <p>vielen Dank fuer Ihre Zahlung der Vertriebspartner-Jahresgebuehr.</p>
+            <p><strong>Rechnungsnr.:</strong> ${invoiceNumber}<br>
+            <strong>Betrag:</strong> EUR ${amount.toFixed(2)}<br>
+            <strong>Status:</strong> Bezahlt</p>
+            <p>Anbei finden Sie Ihre Rechnung als PDF.</p>
+            <p>Ihr CLYR Team</p>
+          `,
+          attachments: [{
+            filename: `${invoiceNumber}.pdf`,
+            content: buffer,
+            contentType: 'application/pdf'
+          }]
+        });
+        
+        console.log(`Fee invoice ${invoiceNumber} sent to ${partner.email}`);
+      }
+    } catch (invoiceErr) {
+      console.error('Fee invoice generation/send failed (non-critical):', invoiceErr.message);
+    }
     return res.redirect(`${baseUrl}/login?fee=success`);
 
   } catch (err) {

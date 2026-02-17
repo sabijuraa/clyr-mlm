@@ -96,11 +96,11 @@ export const CartProvider = ({ children }) => {
     return items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   }, [items]);
 
-  // Calculate shipping (flat rate per country)
+  // Calculate shipping (product-based: large items vs small items)
   const shipping = useMemo(() => {
     if (items.length === 0) return 0;
-    return calculateShipping(country);
-  }, [country, items.length]);
+    return calculateShipping(country, items);
+  }, [country, items]);
 
   // Calculate VAT
   const vat = useMemo(() => {
@@ -181,6 +181,8 @@ export const CartProvider = ({ children }) => {
         images: images || [],
         image: images?.[0] || null,
         quantity,
+        is_large_item: product.is_large_item || false,
+        is_service: product.is_service || false,
         isSubscription: product.is_subscription_eligible || product.isSubscription || false
       }];
     });

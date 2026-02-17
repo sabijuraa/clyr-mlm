@@ -360,8 +360,23 @@ export const updateProfile = asyncHandler(async (req, res) => {
     city,
     country,
     iban,
-    bic
+    bic,
+    referralCode
   } = req.body;
+
+  // Handle referral code change
+  if (referralCode) {
+    const cleanCode = referralCode.toUpperCase().replace(/[^A-Z0-9\-_]/g, '');
+    if (cleanCode.length < 3 || cleanCode.length > 20) {
+      throw new AppError('Code muss 3-20 Zeichen haben', 400);
+    }
+    // Check uniqueness
+    const existing = await query('SELECT id FROM users WHERE referral_code = $1 AND id != $2', [cleanCode, req.user.id]);
+    if (existing.rows.length > 0) {
+      throw new AppError('Dieser Code ist bereits vergeben', 409);
+    }
+    await query('UPDATE users SET referral_code = $1 WHERE id = $2', [cleanCode, req.user.id]);
+  }
 
   const result = await query(
     `UPDATE users SET

@@ -553,6 +553,115 @@ class InvoiceService {
 
 const invoiceService = new InvoiceService();
 
+/**
+ * Generate PDF invoice for partner annual fee
+ */
+export const generatePartnerFeeInvoicePDF = async (partner, amount) => {
+  const company = await invoiceService.getCompanyInfo();
+  const invoiceNumber = await invoiceService.getNextInvoiceNumber();
+  const invoiceDate = new Date();
+
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ size: 'A4', margin: 50, bufferPages: true });
+      const chunks = [];
+      doc.on('data', chunk => chunks.push(chunk));
+      doc.on('end', () => resolve({ buffer: Buffer.concat(chunks), invoiceNumber }));
+      doc.on('error', reject);
+
+      let y = invoiceService.drawHeader(doc, company, 'RECHNUNG');
+
+      // Invoice meta
+      doc.font('Helvetica').fontSize(9).fillColor(COLORS.text);
+      doc.text(`Rechnungsnr.: ${invoiceNumber}`, 350, y, { align: 'right', width: 195 });
+      doc.text(`Datum: ${invoiceDate.toLocaleDateString('de-DE')}`, 350, y + 13, { align: 'right', width: 195 });
+
+      // Partner address
+      doc.font('Helvetica-Bold').fontSize(9).fillColor(COLORS.primary).text('Rechnungsadresse:', 50, y);
+      y += 14;
+      doc.font('Helvetica').fontSize(9).fillColor(COLORS.text);
+      const name = `${partner.first_name || ''} ${partner.last_name || ''}`.trim();
+      if (partner.company) { doc.text(partner.company, 50, y); y += 12; }
+      if (name) { doc.text(name, 50, y); y += 12; }
+      if (partner.street) { doc.text(partner.street, 50, y); y += 12; }
+      const cityLine = `${partner.zip || ''} ${partner.city || ''}`.trim();
+      if (cityLine) { doc.text(cityLine, 50, y); y += 12; }
+      const cNames = { DE: 'Deutschland', AT: 'Oesterreich', CH: 'Schweiz' };
+      if (partner.country) { doc.text(cNames[partner.country] || partner.country, 50, y); y += 12; }
+      if (partner.vat_id) { doc.fontSize(8).fillColor('#6B7280').text(`UID-Nr.: ${partner.vat_id}`, 50, y); y += 12; }
+
+      y = Math.max(y, 195) + 15;
+      doc.moveTo(50, y).lineTo(545, y).lineWidth(0.5).strokeColor('#E5E7EB').stroke();
+      y += 12;
+
+      // Table header
+      doc.font('Helvetica-Bold').fontSize(8).fillColor(COLORS.primary);
+      doc.text('Pos', 50, y, { width: 30 });
+      doc.text('Beschreibung', 80, y, { width: 280 });
+      doc.text('Netto', 440, y, { width: 100, align: 'right' });
+      y += 18;
+      doc.moveTo(50, y - 4).lineTo(545, y - 4).lineWidth(0.3).strokeColor('#E5E7EB').stroke();
+
+      // Line item
+      doc.font('Helvetica').fontSize(9).fillColor(COLORS.text);
+      doc.text('1', 50, y, { width: 30 });
+      doc.text(`CLYR Vertriebspartner Jahresgebuehr ${invoiceDate.getFullYear()} (anteilig)`, 80, y, { width: 280 });
+      doc.text(`EUR ${amount.toFixed(2)}`, 440, y, { width: 100, align: 'right' });
+      y += 25;
+
+      // Totals
+      doc.moveTo(350, y).lineTo(545, y).lineWidth(0.5).strokeColor('#E5E7EB').stroke();
+      y += 8;
+      doc.font('Helvetica').fontSize(9);
+      doc.text('Nettobetrag:', 350, y, { width: 90, align: 'right' });
+      doc.text(`EUR ${amount.toFixed(2)}`, 440, y, { width: 100, align: 'right' });
+      y += 14;
+
+      // VAT handling based on partner country
+      let vatAmount = 0;
+      let vatNote = '';
+      if (partner.country === 'AT' && !partner.vat_id) {
+        vatAmount = Math.round(amount * 0.20 * 100) / 100;
+        doc.text('20% MwSt.:', 350, y, { width: 90, align: 'right' });
+        doc.text(`EUR ${vatAmount.toFixed(2)}`, 440, y, { width: 100, align: 'right' });
+        y += 14;
+      } else if (partner.country === 'AT' && partner.vat_id) {
+        vatNote = 'Reverse Charge - Steuerschuldnerschaft des Leistungsempfaengers';
+      } else if (partner.country === 'DE') {
+        vatNote = 'Reverse Charge - Steuerschuldnerschaft des Leistungsempfaengers';
+      } else {
+        vatNote = 'Steuerfreie Leistung';
+      }
+
+      const total = amount + vatAmount;
+      y += 2;
+      doc.moveTo(350, y).lineTo(545, y).lineWidth(1).strokeColor(COLORS.primary).stroke();
+      y += 8;
+      doc.font('Helvetica-Bold').fontSize(10).fillColor(COLORS.primary);
+      doc.text('Gesamtbetrag:', 350, y, { width: 90, align: 'right' });
+      doc.text(`EUR ${total.toFixed(2)}`, 440, y, { width: 100, align: 'right' });
+      y += 25;
+
+      if (vatNote) {
+        doc.font('Helvetica').fontSize(8).fillColor('#6B7280');
+        doc.text(vatNote, 50, y);
+        y += 14;
+      }
+
+      // Payment note
+      y += 10;
+      doc.font('Helvetica').fontSize(8).fillColor(COLORS.text);
+      doc.text('Zahlung erfolgt per Stripe. Betrag wurde bereits abgebucht.', 50, y);
+      y += 20;
+      doc.text('Vielen Dank fuer Ihr Vertrauen!', 50, y);
+
+      doc.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
 export const generateInvoice = (orderId) => invoiceService.generateInvoice(orderId);
 export const generateInvoicePDF = (orderData, invoiceNumber) => invoiceService.generateInvoicePDF(orderData, invoiceNumber);
 export const generateCommissionStatement = (a, b, c) => invoiceService.generateCommissionStatement(a, b, c);

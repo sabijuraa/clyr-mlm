@@ -43,14 +43,13 @@ const appConfig = {
     }
   },
 
-  // Fixed Shipping Costs (per Theresa's messages)
-  // Per Theresa: "Shipping costs 50€" (Germany)
-  // Per Theresa: "Shipping costs 69€" (Austria)
-  // Per Theresa: "Shipping costs 180€" (Switzerland)
+  // Shipping Costs (per Theresa 2026-02-17)
+  // Soda System: big shipping / Small items: small shipping
+  // Montage: 0€ / Mixed order: only large rate applies
   shipping: {
-    DE: 70,    // Germany: EUR70 flat
-    AT: 55,    // Austria: EUR55 flat
-    CH: 180    // Switzerland: EUR180 flat
+    DE: { large: 70, small: 14.90 },
+    AT: { large: 55, small: 9.90 },
+    CH: { large: 180, small: 35 }
   },
 
   // Partner/Affiliate Configuration
@@ -235,11 +234,21 @@ const appConfig = {
 
 /**
  * Calculate shipping cost for a country
- * @param {string} country - Country code (DE, AT, CH)
- * @returns {number} - Shipping cost in EUR
+ * Soda System = large shipping, small products = small shipping
+ * Montage/services = 0€, Mixed = large rate only
  */
-export const calculateShipping = (country) => {
-  return appConfig.shipping[country] || appConfig.shipping.DE;
+export const calculateShipping = (country, items = []) => {
+  const config = appConfig.shipping[country] || appConfig.shipping.DE;
+  
+  // Legacy flat rate support
+  if (typeof config === 'number') return config;
+  
+  // Only services? No shipping
+  const hasPhysical = items.length === 0 || items.some(item => !item.is_service && !item.isService);
+  if (!hasPhysical) return 0;
+  
+  const hasLargeItem = items.some(item => item.is_large_item || item.isLargeItem);
+  return hasLargeItem ? (config.large || 70) : (config.small || 14.90);
 };
 
 /**

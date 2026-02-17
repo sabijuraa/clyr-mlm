@@ -155,6 +155,7 @@ async function migrate() {
       { table: 'users', column: 'subscription_prorated', type: 'DECIMAL(10,2)' },
       { table: 'users', column: 'annual_fee_paid_at', type: 'TIMESTAMP' },
       { table: 'users', column: 'annual_fee_expires_at', type: 'TIMESTAMP' },
+      { table: 'products', column: 'is_service', type: 'BOOLEAN DEFAULT false' },
     ];
 
     for (const col of columnsToAdd) {
@@ -165,6 +166,20 @@ async function migrate() {
         console.log('  Column exists: ' + col.table + '.' + col.column);
       }
     }
+
+    // Mark product flags for shipping
+    console.log('\n  Marking product shipping flags...');
+    const largeMark = await client.query("UPDATE products SET is_large_item = true WHERE LOWER(name) LIKE '%soda%' OR LOWER(name) LIKE '%home soda%' OR price > 1000");
+    console.log('  Marked ' + largeMark.rowCount + ' products as large (Soda)');
+    const serviceMark = await client.query("UPDATE products SET is_service = true WHERE LOWER(name) LIKE '%montage%' OR LOWER(name) LIKE '%installation%' OR LOWER(name) LIKE '%einbau%'");
+    console.log('  Marked ' + serviceMark.rowCount + ' products as service (Montage)');
+
+    // Update shipping costs in settings
+    await client.query(`
+      INSERT INTO settings (key, value, description) VALUES ('shipping_costs', $1, 'Shipping costs per country')
+      ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = CURRENT_TIMESTAMP
+    `, [JSON.stringify({ DE: { large: 70, small: 14.90 }, AT: { large: 55, small: 9.90 }, CH: { large: 180, small: 35 } })]);
+    console.log('  Shipping costs updated in settings');
 
     // ========================================
     // Step 5: Ensure subscription_payments table

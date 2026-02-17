@@ -31,14 +31,18 @@ const generateOrderNumber = async () => {
 
 /**
  * Get shipping cost based on country and items
- * CLYR shipping: AT: 55 EUR, DE: 70 EUR, CH: 180 EUR
+ * CLYR shipping rules (per Theresa 2026-02-17):
+ * - Soda System (is_large_item): AT: 55€, DE: 70€, CH: 180€
+ * - Small products (Dusche, Zubehoer): AT: 9.90€, DE: 14.90€, CH: 35€
+ * - Montage/Installation (is_service): 0€ shipping
+ * - Mixed orders: highest rate applies (large overrides small, NOT added)
  */
 const getShippingCost = async (country, items, products) => {
   const settingsResult = await query("SELECT value FROM settings WHERE key = 'shipping_costs'");
   const shippingCosts = settingsResult.rows[0]?.value || {
-    DE: { flat: 70.00 },
-    AT: { flat: 55.00 },
-    CH: { flat: 180.00 }
+    DE: { large: 70.00, small: 14.90 },
+    AT: { large: 55.00, small: 9.90 },
+    CH: { large: 180.00, small: 35.00 }
   };
 
   const countryConfig = shippingCosts[country];
@@ -46,27 +50,31 @@ const getShippingCost = async (country, items, products) => {
     throw new AppError(`Versand nach ${country} nicht verfuegbar`, 400);
   }
 
-  // All countries use flat rate shipping
-  if (countryConfig.flat !== undefined) {
-    return countryConfig.flat;
-  }
-
-  // Fallback: check for small/large pricing (legacy)
+  // Check what types of items are in the order
   const hasLargeItem = items.some(item => {
     const product = products.find(p => p.id === item.productId);
     return product?.is_large_item;
   });
 
-  const subtotal = items.reduce((sum, item) => {
+  // Check if order is ONLY services (Montage etc.) — no shipping
+  const hasPhysicalItem = items.some(item => {
     const product = products.find(p => p.id === item.productId);
-    return sum + (product?.price || 0) * item.quantity;
-  }, 0);
+    return !product?.is_service;
+  });
 
-  if (hasLargeItem || (countryConfig.threshold && subtotal >= countryConfig.threshold)) {
-    return countryConfig.large || countryConfig.small || 0;
+  if (!hasPhysicalItem) return 0;
+
+  // Legacy flat rate support
+  if (countryConfig.flat !== undefined && countryConfig.large === undefined) {
+    return countryConfig.flat;
   }
 
-  return countryConfig.small || 0;
+  // Large item = large shipping (covers small items too)
+  if (hasLargeItem) {
+    return countryConfig.large || 70.00;
+  }
+
+  return countryConfig.small || 14.90;
 };
 
 /**

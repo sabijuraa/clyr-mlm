@@ -195,9 +195,17 @@ export default function CheckoutPage() {
   const effectiveCartItems = cartItems.length > 0 ? cartItems : JSON.parse(localStorage.getItem('cart') || '[]');
   const effectiveSubtotal = cartItems.length > 0 ? subtotal : effectiveCartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   
-  // Shipping costs per country - always based on checkout form selection
-  const shippingByCountry = { DE: 70, AT: 55, CH: 180 };
-  const effectiveShipping = formData.country in shippingByCountry ? shippingByCountry[formData.country] : 55;
+  // Product-based shipping: Soda = large, others = small, Montage = 0
+  // Mixed order: large rate only (not both added)
+  const hasLargeItem = effectiveCartItems.some(item => item.is_large_item || item.isLargeItem);
+  const hasPhysicalItem = effectiveCartItems.some(item => !item.is_service && !item.isService);
+  const shippingRates = {
+    DE: { large: 70, small: 14.90 },
+    AT: { large: 55, small: 9.90 },
+    CH: { large: 180, small: 35 }
+  };
+  const countryShipping = shippingRates[formData.country] || shippingRates.AT;
+  const effectiveShipping = !hasPhysicalItem ? 0 : (hasLargeItem ? countryShipping.large : countryShipping.small);
   
   // VAT calculation based on country and VAT ID
   const getClientVatRate = () => {

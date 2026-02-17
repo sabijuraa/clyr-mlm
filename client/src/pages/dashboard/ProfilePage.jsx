@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
-import { User, Mail, Phone, MapPin, CreditCard, Lock, Save, Camera, Building, Globe, Copy, Check } from 'lucide-react';
+import { User, Mail, Phone, MapPin, CreditCard, Lock, Save, Camera, Building, Globe, Copy, Check, Edit3, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import Button from '../../components/common/Button';
@@ -16,6 +16,8 @@ const ProfilePage = () => {
   const [activeTab, setActiveTab] = useState('personal');
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [editingCode, setEditingCode] = useState(false);
+  const [newCode, setNewCode] = useState(user?.referralCode || user?.referral_code || '');
 
   const { register, handleSubmit, formState: { errors, isDirty } } = useForm({
     defaultValues: {
@@ -80,6 +82,21 @@ const ProfilePage = () => {
     });
   };
 
+  const saveReferralCode = async () => {
+    if (!newCode || newCode.length < 3) {
+      toast.error('Code muss mindestens 3 Zeichen haben');
+      return;
+    }
+    try {
+      await api.put('/auth/update-profile', { referralCode: newCode });
+      updateUser({ ...user, referral_code: newCode, referralCode: newCode });
+      setEditingCode(false);
+      toast.success('Empfehlungscode geaendert!');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Code bereits vergeben oder ungueltig');
+    }
+  };
+
   const tabs = [
     { key: 'personal', label: 'Persoenliche Daten', icon: User },
     { key: 'address', label: 'Adresse', icon: MapPin },
@@ -123,9 +140,36 @@ const ProfilePage = () => {
           </div>
           <div className="sm:ml-auto text-center">
             <p className="text-sm text-secondary-500 mb-1">Ihr Empfehlungscode</p>
-            <p className="text-2xl font-mono font-bold text-primary-400 mb-2">
-              {user?.referralCode || user?.referral_code || '---'}
-            </p>
+            {editingCode ? (
+              <div className="flex items-center gap-2 mb-2">
+                <input
+                  type="text"
+                  value={newCode}
+                  onChange={(e) => setNewCode(e.target.value.toUpperCase().replace(/[^A-Z0-9-_]/g, '').slice(0, 20))}
+                  className="w-36 px-3 py-1.5 text-center font-mono font-bold text-lg border-2 border-primary-400 rounded-lg focus:outline-none"
+                  placeholder="DEIN-CODE"
+                  autoFocus
+                />
+                <button onClick={saveReferralCode}
+                  className="p-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition">
+                  <Check className="w-4 h-4" />
+                </button>
+                <button onClick={() => { setEditingCode(false); setNewCode(user?.referralCode || user?.referral_code || ''); }}
+                  className="p-1.5 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 mb-2 justify-center">
+                <p className="text-2xl font-mono font-bold text-primary-400">
+                  {user?.referralCode || user?.referral_code || '---'}
+                </p>
+                <button onClick={() => { setEditingCode(true); setNewCode(user?.referralCode || user?.referral_code || ''); }}
+                  className="p-1 text-secondary-400 hover:text-primary-500 transition" title="Code aendern">
+                  <Edit3 className="w-4 h-4" />
+                </button>
+              </div>
+            )}
             <button onClick={copyReferralLink}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-secondary-100 text-secondary-700 rounded-lg text-xs font-medium hover:bg-secondary-200 transition">
               {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
