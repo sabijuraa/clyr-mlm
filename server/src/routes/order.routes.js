@@ -15,6 +15,9 @@ router.get('/payment-success', orderController.paymentSuccessPage);
 // Calculate order totals
 router.post('/calculate-totals', orderController.calculateOrderTotals);
 
+// Validate discount code
+router.post('/validate-discount', orderController.validateDiscountCode);
+
 // Create Stripe Checkout Session
 router.post('/create-payment-intent', orderController.createPaymentIntent);
 

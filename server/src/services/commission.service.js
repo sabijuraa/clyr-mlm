@@ -52,6 +52,26 @@ export const calculateCommissions = async (client, orderId, partnerId, orderSubt
   const heldUntil = new Date();
   heldUntil.setDate(heldUntil.getDate() + holdDays);
 
+  // Check if this order used a voucher from the partner (discount deducted from commission)
+  const orderResult = await client.query(
+    'SELECT discount_code, discount_amount FROM orders WHERE id = $1',
+    [orderId]
+  );
+  const orderDiscount = parseFloat(orderResult.rows[0]?.discount_amount) || 0;
+  const orderDiscountCode = orderResult.rows[0]?.discount_code;
+
+  // Check if the voucher belongs to THIS partner
+  let voucherDeduction = 0;
+  if (orderDiscount > 0 && orderDiscountCode) {
+    const voucherResult = await client.query(
+      'SELECT partner_id FROM discount_codes WHERE code = $1',
+      [orderDiscountCode]
+    );
+    if (voucherResult.rows.length > 0 && voucherResult.rows[0].partner_id === partnerId) {
+      voucherDeduction = orderDiscount;
+    }
+  }
+
   // Get partner with rank info
   const partnerResult = await client.query(
     `SELECT u.*, r.commission_rate, r.level as rank_level, r.name as rank_name
@@ -91,14 +111,22 @@ export const calculateCommissions = async (client, orderId, partnerId, orderSubt
   // -----------------------------------------------
   // 2. DIRECT COMMISSION — ALWAYS PAID regardless of activity status
   // Partner's rank rate × order subtotal
+  // If partner used own voucher: deduct voucher amount from commission
   // -----------------------------------------------
-  const directCommission = roundCurrency(orderSubtotal * (partnerCommissionRate / 100));
+  let directCommission = roundCurrency(orderSubtotal * (partnerCommissionRate / 100));
+  
+  // Deduct voucher amount from affiliate's commission
+  if (voucherDeduction > 0) {
+    directCommission = Math.max(0, roundCurrency(directCommission - voucherDeduction));
+  }
+
+  const voucherNote = voucherDeduction > 0 ? ` (abzgl. EUR ${voucherDeduction.toFixed(2)} Gutschein)` : '';
 
   const directCommissionResult = await client.query(
     `INSERT INTO commissions (user_id, order_id, type, amount, rate, base_amount, status, held_until, description)
      VALUES ($1, $2, 'direct', $3, $4, $5, 'held', $6, $7)
      RETURNING *`,
-    [partnerId, orderId, directCommission, partnerCommissionRate, orderSubtotal, heldUntil, `Direkt-Provision (${partnerCommissionRate}%)`]
+    [partnerId, orderId, directCommission, partnerCommissionRate, orderSubtotal, heldUntil, `Direkt-Provision (${partnerCommissionRate}%)${voucherNote}`]
   );
   commissions.push(directCommissionResult.rows[0]);
 

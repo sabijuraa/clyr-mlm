@@ -348,6 +348,82 @@ export const createReferralLink = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get partner's vouchers/discount codes
+ */
+export const getVouchers = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const result = await query(
+    `SELECT dc.*, 
+       (SELECT COUNT(*) FROM orders WHERE discount_code = dc.code) as orders_count,
+       (SELECT COALESCE(SUM(discount_amount), 0) FROM orders WHERE discount_code = dc.code AND payment_status = 'paid') as total_discount_given
+     FROM discount_codes dc
+     WHERE dc.partner_id = $1
+     ORDER BY dc.created_at DESC`,
+    [userId]
+  );
+  res.json({ vouchers: result.rows });
+});
+
+/**
+ * Create a new voucher (alias for createReferralLink with validation)
+ */
+export const createVoucher = asyncHandler(async (req, res) => {
+  const { code, discountType = 'fixed', discountValue, maxUses, expiresAt } = req.body;
+  const userId = req.user.id;
+
+  if (!code || !discountValue) {
+    throw new AppError('Code und Rabattwert sind erforderlich', 400);
+  }
+
+  const cleanCode = code.toUpperCase().replace(/[^A-Z0-9\-]/g, '');
+  if (cleanCode.length < 3) {
+    throw new AppError('Code muss mindestens 3 Zeichen haben', 400);
+  }
+
+  // Check uniqueness
+  const existing = await query('SELECT id FROM discount_codes WHERE code = $1', [cleanCode]);
+  if (existing.rows.length > 0) {
+    throw new AppError('Dieser Code existiert bereits', 409);
+  }
+
+  // Validate limits
+  if (discountType === 'fixed' && discountValue > 500) {
+    throw new AppError('Maximaler Festrabatt ist 500€', 400);
+  }
+  if (discountType === 'percentage' && discountValue > 10) {
+    throw new AppError('Maximaler Prozentrabatt ist 10%', 400);
+  }
+
+  const result = await query(
+    `INSERT INTO discount_codes (code, type, value, partner_id, max_uses, expires_at)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING *`,
+    [cleanCode, discountType, discountValue, userId, maxUses || null, expiresAt || null]
+  );
+
+  res.status(201).json({ message: 'Gutschein erstellt', voucher: result.rows[0] });
+});
+
+/**
+ * Delete a voucher
+ */
+export const deleteVoucher = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.id;
+
+  const result = await query(
+    'DELETE FROM discount_codes WHERE id = $1 AND partner_id = $2 RETURNING id',
+    [id, userId]
+  );
+
+  if (result.rows.length === 0) {
+    throw new AppError('Gutschein nicht gefunden', 404);
+  }
+
+  res.json({ message: 'Gutschein geloescht' });
+});
+
+/**
  * Get referral statistics
  */
 export const getReferralStats = asyncHandler(async (req, res) => {

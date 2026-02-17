@@ -180,6 +180,8 @@ export default function CheckoutPage() {
   const [referralValid, setReferralValid] = useState(false);
   const [referralPartner, setReferralPartner] = useState(cartPartnerName ? { first_name: cartPartnerName.split(' ')[0], last_name: cartPartnerName.split(' ')[1] || '' } : null);
   const [verifyingCode, setVerifyingCode] = useState(false);
+  const [discountCode, setDiscountCode] = useState('');
+  const [discountApplied, setDiscountApplied] = useState(null); // { type, value, amount }
 
   // Auto-verify referral code on mount if present
   useEffect(() => {
@@ -217,10 +219,9 @@ export default function CheckoutPage() {
     return 0;
   };
   const vatRate = getClientVatRate();
-  const taxableAmount = effectiveSubtotal + effectiveShipping;
+  const discountAmount = discountApplied ? discountApplied.amount : 0;
+  const taxableAmount = effectiveSubtotal + effectiveShipping - discountAmount;
   const vatAmount = Math.round(taxableAmount * (vatRate / 100) * 100) / 100;
-  // ALWAYS calculate total locally using the checkout form's country and VAT ID
-  // (cart context total uses default AT VAT which doesn't reflect Reverse Charge)
   const effectiveTotal = Math.round((taxableAmount + vatAmount) * 100) / 100;
   const isReverseCharge = formData.country === 'DE' && !!formData.vatId;
 
@@ -295,6 +296,7 @@ export default function CheckoutPage() {
         },
         items: orderItems,
         referralCode: referralValid ? referralCode : null,
+        discountCode: discountApplied ? discountApplied.code : null,
         paymentMethod: 'stripe'
       };
 
@@ -605,6 +607,53 @@ export default function CheckoutPage() {
                 ))}
               </div>
 
+              {/* Discount Code */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Gutscheincode</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={discountCode}
+                    onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
+                    placeholder="Code eingeben"
+                    disabled={!!discountApplied}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono"
+                  />
+                  {discountApplied ? (
+                    <button onClick={() => { setDiscountApplied(null); setDiscountCode(''); }}
+                      className="px-4 py-2 bg-red-100 text-red-600 rounded-lg text-sm hover:bg-red-200 transition">
+                      Entfernen
+                    </button>
+                  ) : (
+                    <button onClick={async () => {
+                      if (!discountCode) return;
+                      try {
+                        const res = await ordersAPI.validateDiscount(discountCode, effectiveSubtotal);
+                        if (res.data?.valid) {
+                          const d = res.data;
+                          const amt = d.type === 'percentage'
+                            ? Math.round(effectiveSubtotal * (d.value / 100) * 100) / 100
+                            : Math.min(d.value, effectiveSubtotal);
+                          setDiscountApplied({ type: d.type, value: d.value, amount: amt, code: discountCode });
+                        } else {
+                          alert(res.data?.error || 'Ungueltiger Code');
+                        }
+                      } catch (err) {
+                        alert(err.response?.data?.error || 'Code nicht gefunden oder abgelaufen');
+                      }
+                    }}
+                      className="px-4 py-2 bg-primary-500 text-white rounded-lg text-sm hover:bg-primary-600 transition">
+                      Anwenden
+                    </button>
+                  )}
+                </div>
+                {discountApplied && (
+                  <p className="text-sm text-green-600 mt-1">
+                    {discountApplied.type === 'percentage' ? `${discountApplied.value}%` : `€${discountApplied.value}`} Rabatt angewendet!
+                  </p>
+                )}
+              </div>
+
               {/* Totals */}
               <div className="space-y-2 mb-6">
                 <div className="flex justify-between">
@@ -615,6 +664,12 @@ export default function CheckoutPage() {
                   <span>Versand ({formData.country === 'DE' ? 'Deutschland' : formData.country === 'AT' ? 'Oesterreich' : 'Schweiz'})</span>
                   <span>{'\u20AC'}{effectiveShipping.toFixed(2)}</span>
                 </div>
+                {discountApplied && (
+                  <div className="flex justify-between text-green-600">
+                    <span>Rabatt ({discountApplied.code})</span>
+                    <span>-{'\u20AC'}{discountApplied.amount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span>
                     {isReverseCharge 

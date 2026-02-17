@@ -111,6 +111,45 @@ const getVatRate = async (country, hasVatId = false) => {
 };
 
 /**
+ * Validate a discount code
+ */
+export const validateDiscountCode = asyncHandler(async (req, res) => {
+  const { code, subtotal = 0 } = req.body;
+  if (!code) return res.json({ valid: false, error: 'Kein Code angegeben' });
+
+  const result = await query(
+    `SELECT * FROM discount_codes 
+     WHERE code = $1 
+     AND is_active = true 
+     AND (starts_at IS NULL OR starts_at <= CURRENT_TIMESTAMP)
+     AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+     AND (max_uses IS NULL OR current_uses < max_uses)`,
+    [code.toUpperCase()]
+  );
+
+  if (result.rows.length === 0) {
+    return res.json({ valid: false, error: 'Code nicht gefunden oder abgelaufen' });
+  }
+
+  const discount = result.rows[0];
+  if (subtotal < discount.min_order_amount) {
+    return res.json({ valid: false, error: `Mindestbestellwert: €${discount.min_order_amount}` });
+  }
+
+  const amount = discount.type === 'percentage'
+    ? Math.round(subtotal * (discount.value / 100) * 100) / 100
+    : Math.min(parseFloat(discount.value), subtotal);
+
+  res.json({
+    valid: true,
+    type: discount.type,
+    value: parseFloat(discount.value),
+    amount,
+    code: discount.code
+  });
+});
+
+/**
  * Calculate order totals
  */
 export const calculateOrderTotals = asyncHandler(async (req, res) => {
@@ -755,10 +794,35 @@ export const createOrder = asyncHandler(async (req, res) => {
         'UPDATE discount_codes SET current_uses = current_uses + 1 WHERE id = $1',
         [appliedDiscountCode.id]
       );
+
+      // Deduct discount from the voucher-creating partner's commission
+      // The discount amount comes FROM the partner's commission, not the company
+      if (appliedDiscountCode.partner_id && discountAmount > 0) {
+        const voucherPartnerId = appliedDiscountCode.partner_id;
+        
+        // Record negative commission (deduction) for the voucher partner
+        await client.query(
+          `INSERT INTO commissions (user_id, order_id, commission_type, amount, rate, status, notes, available_at)
+           VALUES ($1, $2, 'voucher_deduction', $3, 0, 'approved', $4, CURRENT_TIMESTAMP)`,
+          [
+            voucherPartnerId,
+            newOrder.id,
+            -discountAmount,
+            `Gutschein ${appliedDiscountCode.code}: -€${discountAmount.toFixed(2)} Rabatt an Kunden`
+          ]
+        );
+
+        // Reduce partner's wallet balance
+        await client.query(
+          'UPDATE users SET wallet_balance = COALESCE(wallet_balance, 0) - $1 WHERE id = $2',
+          [discountAmount, voucherPartnerId]
+        );
+      }
     }
 
     // Calculate and create commissions if partner exists and payment is confirmed
-    // Note: calculateCommissions already updates own_sales_count, own_sales_volume, quarterly_sales_count, last_sale_at
+    // Commission is calculated on FULL subtotal (before discount)
+    // The discount is separately deducted from the voucher partner above
     if (partnerId && newOrder.payment_status === 'paid') {
       await calculateCommissions(client, newOrder.id, partnerId, subtotal);
     }

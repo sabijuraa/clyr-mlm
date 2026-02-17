@@ -22,7 +22,8 @@ import {
   ShoppingBag,
   Banknote,
   BookOpen,
-  ShieldAlert
+  ShieldAlert,
+  Ticket
 } from 'lucide-react';
 
 const DashboardLayout = () => {
@@ -49,6 +50,7 @@ const DashboardLayout = () => {
     { label: t('dashboard.menu.overview'), icon: LayoutDashboard, path: '/dashboard' },
     { label: t('dashboard.menu.team'), icon: Users, path: '/dashboard/team' },
     { label: t('dashboard.menu.links'), icon: Link2, path: '/dashboard/links' },
+    { label: 'Gutscheine', icon: Ticket, path: '/dashboard/vouchers' },
     { label: t('dashboard.menu.commissions'), icon: Wallet, path: '/dashboard/commissions' },
     { label: 'Auszahlungen', icon: Banknote, path: '/dashboard/payouts' },
     { label: 'Academy', icon: BookOpen, path: '/dashboard/academy' },

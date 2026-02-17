@@ -25,6 +25,11 @@ router.get('/referral-links', partnerController.getReferralLinks);
 router.post('/referral-links', partnerController.createReferralLink);
 router.get('/referral-stats', partnerController.getReferralStats);
 
+// Vouchers / Discount codes
+router.get('/vouchers', partnerController.getVouchers);
+router.post('/vouchers', partnerController.createVoucher);
+router.delete('/vouchers/:id', partnerController.deleteVoucher);
+
 // Customers
 router.get('/customers', partnerController.getCustomers);
 

@@ -60,6 +60,7 @@ const ReferralLinksPage = lazy(() => import('./pages/dashboard/ReferralLinksPage
 const PayoutsPage = lazy(() => import('./pages/dashboard/PayoutsPage'));
 const AcademyPage = lazy(() => import('./pages/dashboard/AcademyPage'));
 const CompliancePage = lazy(() => import('./pages/dashboard/CompliancePage'));
+const VouchersPage = lazy(() => import('./pages/dashboard/VouchersPage'));
 
 // Admin pages
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage'));
@@ -177,6 +178,7 @@ function App() {
               <Route path="payouts" element={<PayoutsPage />} />
               <Route path="academy" element={<AcademyPage />} />
               <Route path="compliance" element={<CompliancePage />} />
+              <Route path="vouchers" element={<VouchersPage />} />
             </Route>
             
             {/* ====== ADMIN ====== */}

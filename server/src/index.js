@@ -21,6 +21,7 @@ import gdprRoutes from './routes/gdpr.routes.js';
 import importRoutes from './routes/import.routes.js';
 import newsletterRoutes from './routes/newsletter.routes.js';
 import stockRoutes from './routes/stock.routes.js';
+import voucherRoutes from './routes/voucher.routes.js';
 import subscriptionRoutes from './routes/subscription.routes.js';
 import variantRoutes from './routes/variant.routes.js';
 import creditnoteRoutes from './routes/creditnote.routes.js';
@@ -165,6 +166,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/variants', variantRoutes);
 app.use('/api/stock', stockRoutes);
+app.use('/api/vouchers', voucherRoutes);
 
 // Customer Portal
 app.use('/api/customers', customerRoutes);

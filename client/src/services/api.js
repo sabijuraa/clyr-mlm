@@ -237,6 +237,9 @@ export const ordersAPI = {
   create: (orderData) => 
     api.post('/orders', orderData),
 
+  validateDiscount: (code, subtotal) =>
+    api.post('/vouchers/validate', { code, subtotal }),
+
   getConfirmation: (orderNumber) => 
     api.get(`/orders/confirmation/${orderNumber}`),
 
@@ -258,7 +261,10 @@ export const ordersAPI = {
     api.post(`/orders/${id}/refund`, { reason, amount }),
 
   getInvoice: (id) => 
-    api.get(`/orders/${id}/invoice`, { responseType: 'blob' })
+    api.get(`/orders/${id}/invoice`, { responseType: 'blob' }),
+
+  validateVoucher: (code, subtotal) =>
+    api.post('/vouchers/validate', { code, subtotal })
 };
 
 // ============ PARTNER API ============
@@ -320,7 +326,17 @@ export const partnerAPI = {
 
   // Admin: Record subscription payment
   recordSubscriptionPayment: (data) =>
-    api.post('/partners/admin/subscription-payment', data)
+    api.post('/partners/admin/subscription-payment', data),
+
+  // Vouchers
+  getVouchers: () =>
+    api.get('/vouchers/my'),
+  createVoucher: (data) =>
+    api.post('/vouchers', data),
+  toggleVoucher: (id) =>
+    api.patch(`/vouchers/${id}/toggle`),
+  deleteVoucher: (id) =>
+    api.delete(`/vouchers/${id}`)
 };
 
 // ============ REFERRAL API ============

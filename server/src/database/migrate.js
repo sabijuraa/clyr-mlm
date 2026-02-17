@@ -203,6 +203,34 @@ async function migrate() {
     `);
     console.log('  subscription_payments table OK');
 
+    // Ensure discount_codes table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS discount_codes (
+        id SERIAL PRIMARY KEY,
+        code VARCHAR(50) UNIQUE NOT NULL,
+        type VARCHAR(20) DEFAULT 'fixed' CHECK (type IN ('fixed', 'percentage')),
+        value DECIMAL(10,2) NOT NULL,
+        partner_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        max_uses INTEGER,
+        current_uses INTEGER DEFAULT 0,
+        max_uses_per_customer INTEGER DEFAULT 1,
+        min_order_amount DECIMAL(10,2) DEFAULT 0,
+        applicable_products JSONB,
+        applicable_categories JSONB,
+        starts_at TIMESTAMP,
+        expires_at TIMESTAMP,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('  discount_codes table OK');
+
+    // Ensure discount columns on orders
+    try { await client.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_code VARCHAR(50)"); } catch(e) {}
+    try { await client.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(10,2) DEFAULT 0"); } catch(e) {}
+    console.log('  orders discount columns OK');
+
     // ========================================
     // Step 6: Ensure legal_pages table and seed VP-Vertrag
     // ========================================
