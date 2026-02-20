@@ -225,6 +225,15 @@ if (clientDistPath) {
   app.use(express.static(clientDistPath));
 }
 
+// Handle old newsletter confirm URL format (frontend route -> redirect to API)
+app.get('/newsletter/confirm', (req, res) => {
+  const token = req.query.token;
+  if (token) {
+    return res.redirect(`/api/newsletter/confirm/${token}`);
+  }
+  res.redirect('/');
+});
+
 // For ANY non-API route, serve index.html (SPA client-side routing)
 app.get('*', (req, res, next) => {
   // Skip API routes and static file routes

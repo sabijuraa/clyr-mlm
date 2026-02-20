@@ -88,6 +88,23 @@ router.get('/admin/stats', authenticate, isAdmin, asyncHandler(async (req, res) 
   res.json(stats);
 }));
 
+// Manual confirm subscriber (admin)
+router.post('/admin/confirm/:id', authenticate, isAdmin, asyncHandler(async (req, res) => {
+  const { query: dbQuery } = await import('../config/database.js');
+  await dbQuery(
+    "UPDATE newsletter_subscribers SET status = 'active', confirmed_at = NOW(), confirmation_token = NULL WHERE id = $1",
+    [req.params.id]
+  );
+  res.json({ message: 'Subscriber bestaetigt' });
+}));
+
+// Delete subscriber (admin)
+router.delete('/admin/subscribers/:id', authenticate, isAdmin, asyncHandler(async (req, res) => {
+  const { query: dbQuery } = await import('../config/database.js');
+  await dbQuery('DELETE FROM newsletter_subscribers WHERE id = $1', [req.params.id]);
+  res.json({ message: 'Subscriber geloescht' });
+}));
+
 // Create campaign
 router.post('/admin/campaigns', authenticate, isAdmin, asyncHandler(async (req, res) => {
   const campaign = await newsletterService.createCampaign(req.body, req.user.id);

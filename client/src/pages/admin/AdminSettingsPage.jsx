@@ -14,7 +14,7 @@ import {
   Percent,
   Shield
 } from 'lucide-react';
-import { adminAPI } from '../../services/api';
+import api, { adminAPI } from '../../services/api';
 import { useBrand } from '../../context/BrandContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
@@ -735,7 +735,7 @@ const AdminSettingsPage = () => {
                   if (!firstName || !email || !password) { toast.error('Bitte alle Pflichtfelder ausfuellen'); return; }
                   if (password.length < 8) { toast.error('Passwort muss mindestens 8 Zeichen haben'); return; }
                   try {
-                    await adminAPI.post('/create-admin', { firstName, lastName, email, password });
+                    await api.post('/admin/create-admin', { firstName, lastName, email, password });
                     toast.success('Admin-Konto erstellt!');
                     document.getElementById('admin-first-name').value = '';
                     document.getElementById('admin-last-name').value = '';

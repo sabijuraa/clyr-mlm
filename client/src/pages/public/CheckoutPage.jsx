@@ -199,8 +199,12 @@ export default function CheckoutPage() {
   
   // Product-based shipping: Soda = large, others = small, Montage = 0
   // Mixed order: large rate only (not both added)
-  const hasLargeItem = effectiveCartItems.some(item => item.is_large_item || item.isLargeItem);
-  const hasPhysicalItem = effectiveCartItems.some(item => !item.is_service && !item.isService);
+  // Fallback: price > 500 = large item, name contains montage/installation = service
+  const hasLargeItem = effectiveCartItems.some(item => item.is_large_item || item.isLargeItem || parseFloat(item.price) > 500);
+  const hasPhysicalItem = effectiveCartItems.some(item => {
+    const isService = item.is_service || item.isService || /montage|installation|einbau/i.test(item.name);
+    return !isService;
+  });
   const shippingRates = {
     DE: { large: 70, small: 14.90 },
     AT: { large: 55, small: 9.90 },
@@ -318,18 +322,16 @@ export default function CheckoutPage() {
           localStorage.removeItem('clyr_cart');
           window.location.href = piResponse.data.url;
           return;
+        } else {
+          throw new Error('Keine Zahlungs-URL erhalten');
         }
       } catch (stripeErr) {
-        console.log('Stripe not available, redirecting to confirmation:', stripeErr.message);
+        console.error('Stripe payment error:', stripeErr);
+        const stripeMsg = stripeErr.response?.data?.message || stripeErr.message || 'Zahlungsfehler';
+        toast.error(`Zahlung fehlgeschlagen: ${stripeMsg}`);
+        setLoading(false);
+        return; // Don't show confirmation if payment failed
       }
-
-      // Fallback: no Stripe, show confirmation inline
-      if (typeof clearCart === 'function') clearCart();
-      localStorage.removeItem('cart');
-      localStorage.removeItem('clyr_cart');
-      setConfirmedOrderId(orderId);
-      setOrderConfirmed(true);
-      setPaymentStatus('confirmed');
     } catch (error) {
       console.error('Checkout error:', error);
       console.error('Error response:', error.response?.data);

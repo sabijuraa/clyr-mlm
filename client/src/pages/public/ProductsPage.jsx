@@ -205,7 +205,8 @@ export default function ProductsPage() {
               <h4 className="font-heading font-semibold text-secondary-800 text-sm mb-3">
                 {lang === 'de' ? 'Versandinformationen' : 'Shipping Info'}
               </h4>
-              <div className="space-y-2 text-xs text-secondary-600">
+              <p className="text-[10px] text-secondary-400 mb-2 font-medium">{lang === 'de' ? 'Soda-Anlagen' : 'Soda Systems'}</p>
+              <div className="space-y-1.5 text-xs text-secondary-600 mb-3">
                 <div className="flex justify-between">
                   <span>{lang === 'de' ? 'Oesterreich' : 'Austria'}</span>
                   <span className="font-medium">{formatCurrency(55)}</span>
@@ -218,6 +219,25 @@ export default function ProductsPage() {
                   <span>{lang === 'de' ? 'Schweiz' : 'Switzerland'}</span>
                   <span className="font-medium">{formatCurrency(180)}</span>
                 </div>
+              </div>
+              <p className="text-[10px] text-secondary-400 mb-2 font-medium">{lang === 'de' ? 'Kleine Produkte' : 'Small Products'}</p>
+              <div className="space-y-1.5 text-xs text-secondary-600">
+                <div className="flex justify-between">
+                  <span>{lang === 'de' ? 'Oesterreich' : 'Austria'}</span>
+                  <span className="font-medium">{formatCurrency(9.90)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Deutschland</span>
+                  <span className="font-medium">{formatCurrency(14.90)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>{lang === 'de' ? 'Schweiz' : 'Switzerland'}</span>
+                  <span className="font-medium">{formatCurrency(35)}</span>
+                </div>
+              </div>
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <p className="text-[10px] text-secondary-400 mb-1 font-medium">{lang === 'de' ? 'Montage / Service' : 'Installation / Service'}</p>
+                <p className="text-xs text-green-600 font-medium">{lang === 'de' ? 'Kostenlos' : 'Free'}</p>
               </div>
             </div>
           </aside>

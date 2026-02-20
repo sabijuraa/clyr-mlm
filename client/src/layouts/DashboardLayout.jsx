@@ -169,7 +169,7 @@ const DashboardLayout = () => {
             {/* Welcome */}
             <div className="hidden lg:block">
               <h1 className="text-2xl font-heading font-bold text-secondary-700">
-                {t('dashboard.welcome')}, {user?.firstName}!
+                {t('dashboard.welcome')}, {user?.first_name || user?.firstName || ''}!
               </h1>
             </div>
 
@@ -199,12 +199,12 @@ const DashboardLayout = () => {
                   <div className="w-10 h-10 rounded-full bg-secondary-700 
                     flex items-center justify-center shadow-lg shadow-secondary-700/20">
                     <span className="text-white font-semibold text-sm">
-                      {user?.firstName?.[0]}{user?.lastName?.[0]}
+                      {(user?.first_name || user?.firstName || '?')[0]}{(user?.last_name || user?.lastName || '?')[0]}
                     </span>
                   </div>
                   <div className="hidden md:block text-left">
                     <p className="text-sm font-semibold text-secondary-700">
-                      {user?.firstName} {user?.lastName}
+                      {user?.first_name || user?.firstName} {user?.last_name || user?.lastName}
                     </p>
                     <p className="text-xs text-secondary-500">{user?.email}</p>
                   </div>

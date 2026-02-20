@@ -304,9 +304,9 @@ const AdminOrdersPage = () => {
                           </button>
                           <button
                             onClick={async () => {
-                              if (!confirm(`Bestellung ${order.orderNumber} wirklich loeschen?`)) return;
+                              if (!confirm(`Bestellung ${order.order_number || order.id} wirklich loeschen?`)) return;
                               try {
-                                await ordersAPI.delete(order.id);
+                                await ordersAPI.delete(order.rawId || order.id);
                                 toast.success('Bestellung geloescht');
                                 fetchOrders();
                               } catch (e) { toast.error('Fehler beim Loeschen'); }

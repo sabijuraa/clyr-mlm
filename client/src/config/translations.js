@@ -124,6 +124,10 @@ const translations = {
       },
       rankProgress: 'Rang-Fortschritt'
     },
+    // Profile
+    profile: {
+      title: 'Mein Profil'
+    },
     // Admin
     admin: {
       title: 'Administration',
@@ -289,6 +293,9 @@ const translations = {
         copied: 'Copied!'
       },
       rankProgress: 'Rank Progress'
+    },
+    profile: {
+      title: 'My Profile'
     },
     admin: {
       title: 'Administration',

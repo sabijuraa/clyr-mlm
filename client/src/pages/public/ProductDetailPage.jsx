@@ -262,7 +262,7 @@ const ProductDetailPage = () => {
               {/* Trust Badges */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 border-t border-gray-100">
                 {[
-                  { icon: Truck, title: lang === 'de' ? 'Versand' : 'Shipping', sub: product.is_service ? (lang === 'de' ? 'Kostenlos (Service)' : 'Free (Service)') : product.is_large_item ? 'AT €55 / DE €70 / CH €180' : 'AT €9,90 / DE €14,90 / CH €35' },
+                  { icon: Truck, title: lang === 'de' ? 'Versand' : 'Shipping', sub: (product.is_service || /montage|installation|einbau/i.test(product.name)) ? (lang === 'de' ? 'Kostenlos (Service)' : 'Free (Service)') : (product.is_large_item || parseFloat(product.price) > 500) ? 'AT €55 / DE €70 / CH €180' : 'AT €9,90 / DE €14,90 / CH €35' },
                   { icon: Shield, title: lang === 'de' ? '2 Jahre Garantie' : '2 Year Warranty', sub: lang === 'de' ? 'Voller Schutz' : 'Full coverage' },
                   { icon: RefreshCw, title: lang === 'de' ? '14 Tage Rueckgabe' : '14 Day Returns', sub: lang === 'de' ? 'Widerrufsrecht' : 'Right of withdrawal' },
                 ].map((item, i) => (

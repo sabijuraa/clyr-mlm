@@ -136,11 +136,12 @@ export default function AdminNewsletterPage() {
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Quelle</th>
                 <th className="px-4 py-3 font-medium">Datum</th>
+                <th className="px-4 py-3 font-medium">Aktionen</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {subscribers.length === 0 ? (
-                <tr><td colSpan={5} className="px-4 py-12 text-center text-gray-400">Noch keine Abonnenten</td></tr>
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-400">Noch keine Abonnenten</td></tr>
               ) : subscribers.map((sub) => (
                 <tr key={sub.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium text-gray-900">{sub.email}</td>
@@ -152,6 +153,23 @@ export default function AdminNewsletterPage() {
                   </td>
                   <td className="px-4 py-3 text-gray-500">{sub.source || '-'}</td>
                   <td className="px-4 py-3 text-gray-500">{fmt(sub.created_at)}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-1">
+                      {sub.status === 'pending' && (
+                        <button onClick={async () => {
+                          try { await api.post(`/newsletter/admin/confirm/${sub.id}`); toast.success('Bestaetigt'); loadAll(); } catch(e) { toast.error('Fehler'); }
+                        }} className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200">
+                          Bestaetigen
+                        </button>
+                      )}
+                      <button onClick={async () => {
+                        if (!confirm('Abonnent loeschen?')) return;
+                        try { await api.delete(`/newsletter/admin/subscribers/${sub.id}`); toast.success('Geloescht'); loadAll(); } catch(e) { toast.error('Fehler'); }
+                      }} className="px-2 py-1 text-xs bg-red-50 text-red-500 rounded hover:bg-red-100">
+                        Loeschen
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -286,25 +286,57 @@ export const createPaymentIntent = asyncHandler(async (req, res) => {
   console.log('host:', req.headers.host);
 
   try {
-    // Create Stripe Checkout Session
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card', 'klarna', 'eps', 'giropay', 'sofort'],
-      mode: 'payment',
-      line_items: [{
-        price_data: {
-          currency: currency,
-          product_data: {
-            name: `CLYR Bestellung${orderId ? ' #' + orderId : ''}`,
-            description: 'CLYR Solutions GmbH',
+    // Get customer email from order if available
+    let customerEmail = null;
+    if (orderId) {
+      const orderRes = await query('SELECT customer_email FROM orders WHERE id = $1', [orderId]);
+      customerEmail = orderRes.rows[0]?.customer_email;
+    }
+
+    // Try with Klarna + EPS first, fall back to card-only if Stripe rejects
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card', 'klarna', 'eps'],
+        ...(customerEmail ? { customer_email: customerEmail } : {}),
+        line_items: [{
+          price_data: {
+            currency: currency,
+            product_data: {
+              name: `CLYR Bestellung${orderId ? ' #' + orderId : ''}`,
+              description: 'CLYR Solutions GmbH',
+            },
+            unit_amount: Math.round(amount * 100),
           },
-          unit_amount: Math.round(amount * 100),
-        },
-        quantity: 1,
-      }],
-      metadata: { orderId: orderId || '' },
-      success_url: `${baseUrl}/api/orders/payment-success?order=${orderId || 'success'}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/api/orders/payment-success?status=cancelled`,
-    });
+          quantity: 1,
+        }],
+        metadata: { orderId: orderId || '' },
+        success_url: `${baseUrl}/api/orders/payment-success?order=${orderId || 'success'}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/api/orders/payment-success?status=cancelled`,
+      });
+    } catch (pmError) {
+      console.log('Extended payment methods failed, falling back to card-only:', pmError.message);
+      session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        ...(customerEmail ? { customer_email: customerEmail } : {}),
+        line_items: [{
+          price_data: {
+            currency: currency,
+            product_data: {
+              name: `CLYR Bestellung${orderId ? ' #' + orderId : ''}`,
+              description: 'CLYR Solutions GmbH',
+            },
+            unit_amount: Math.round(amount * 100),
+          },
+          quantity: 1,
+        }],
+        metadata: { orderId: orderId || '' },
+        success_url: `${baseUrl}/api/orders/payment-success?order=${orderId || 'success'}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/api/orders/payment-success?status=cancelled`,
+      });
+    }
 
     // Update order with Stripe session ID
     if (orderId) {
@@ -760,7 +792,7 @@ export const createOrder = asyncHandler(async (req, res) => {
         shipping?.city || billing.city, shipping?.country || billing.country,
         subtotal, shippingCost, vatRate, vatAmount, discountAmount, total,
         partnerId, referralCode?.toUpperCase(), appliedDiscountCode?.code,
-        paymentMethod, stripePaymentIntentId, stripePaymentIntentId ? 'paid' : 'pending',
+        paymentMethod, null, 'pending',
         customerNotes, isReverseCharge
       ]
     );
@@ -843,23 +875,29 @@ export const createOrder = asyncHandler(async (req, res) => {
     [order.id]
   );
 
-  // Auto-generate invoice PDF (#1 - Customer invoices)
-  try {
-    const { generateInvoice: genInvoice } = await import('../services/invoice.service.js');
-    await genInvoice(order.id);
-  } catch (invoiceErr) {
-    console.error('Auto-invoice generation failed (non-blocking):', invoiceErr.message);
-  }
+  // Auto-generate invoice PDF and send emails ONLY if payment is already confirmed
+  // For Stripe orders, this happens in paymentSuccessPage handler instead
+  if (order.payment_status === 'paid') {
+    // Auto-generate invoice PDF
+    try {
+      const { generateInvoice: genInvoice } = await import('../services/invoice.service.js');
+      await genInvoice(order.id);
+    } catch (invoiceErr) {
+      console.error('Auto-invoice generation failed (non-blocking):', invoiceErr.message);
+    }
 
-  // Send order confirmation emails (customer + admin + affiliate)
-  try {
-    const { sendOrderConfirmation } = await import('../services/email.service.js');
-    await sendOrderConfirmation(
-      { ...order, partner_email: order.partner_id ? (await query('SELECT email FROM users WHERE id = $1', [order.partner_id])).rows[0]?.email : null },
-      orderItemsResult.rows
-    );
-  } catch (emailErr) {
-    console.error('Order email failed (non-blocking):', emailErr.message);
+    // Send order confirmation emails (customer + admin + affiliate)
+    try {
+      const { sendOrderConfirmation } = await import('../services/email.service.js');
+      await sendOrderConfirmation(
+        { ...order, partner_email: order.partner_id ? (await query('SELECT email FROM users WHERE id = $1', [order.partner_id])).rows[0]?.email : null },
+        orderItemsResult.rows
+      );
+    } catch (emailErr) {
+      console.error('Order email failed (non-blocking):', emailErr.message);
+    }
+  } else {
+    console.log(`Order ${order.order_number} created with payment_status=${order.payment_status}. Emails will be sent after payment.`);
   }
 
   res.status(201).json({
@@ -1272,16 +1310,27 @@ export const generateInvoice = asyncHandler(async (req, res) => {
 export const deleteOrder = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  // Delete order items first
-  await query('DELETE FROM order_items WHERE order_id = $1', [id]);
-  // Delete related commissions
-  await query('DELETE FROM commissions WHERE order_id = $1', [id]);
-  // Delete the order
-  const result = await query('DELETE FROM orders WHERE id = $1 RETURNING id, order_number', [id]);
+  try {
+    // Delete all related records first (in case CASCADE is missing)
+    await query('DELETE FROM order_items WHERE order_id = $1', [id]).catch(() => {});
+    await query('DELETE FROM commissions WHERE order_id = $1', [id]).catch(() => {});
+    await query('DELETE FROM stock_reservations WHERE order_id = $1', [id]).catch(() => {});
+    await query('DELETE FROM invoices WHERE order_id = $1', [id]).catch(() => {});
+    // Delete the order
+    const result = await query('DELETE FROM orders WHERE id = $1 RETURNING id, order_number', [id]);
 
-  if (result.rows.length === 0) {
-    throw new AppError('Bestellung nicht gefunden', 404);
+    if (result.rows.length === 0) {
+      // Try by order_number in case id is actually the order number
+      const result2 = await query('DELETE FROM orders WHERE order_number = $1 RETURNING id, order_number', [id]);
+      if (result2.rows.length === 0) {
+        return res.status(404).json({ message: 'Bestellung nicht gefunden' });
+      }
+      return res.json({ message: 'Bestellung geloescht', orderNumber: result2.rows[0].order_number });
+    }
+
+    res.json({ message: 'Bestellung geloescht', orderNumber: result.rows[0].order_number });
+  } catch (err) {
+    console.error('Delete order error:', err);
+    res.status(500).json({ message: 'Fehler beim Loeschen: ' + err.message });
   }
-
-  res.json({ message: 'Bestellung geloescht', orderNumber: result.rows[0].order_number });
 });
