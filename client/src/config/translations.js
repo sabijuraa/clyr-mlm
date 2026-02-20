@@ -107,7 +107,15 @@ const translations = {
         links: 'Empfehlungslinks',
         commissions: 'Provisionen',
         customers: 'Kunden',
-        profile: 'Profil'
+        profile: 'Profil',
+        orders: 'Bestellungen',
+        vouchers: 'Gutscheine',
+        payouts: 'Auszahlungen',
+        academy: 'Academy',
+        contract: 'Vertrag'
+      },
+      teamTree: {
+        title: 'Team-Hierarchie'
       },
       referral: {
         title: 'Ihre Empfehlungslinks',
@@ -265,7 +273,15 @@ const translations = {
         links: 'Referral Links',
         commissions: 'Commissions',
         customers: 'Customers',
-        profile: 'Profile'
+        profile: 'Profile',
+        orders: 'Orders',
+        vouchers: 'Vouchers',
+        payouts: 'Payouts',
+        academy: 'Academy',
+        contract: 'Contract'
+      },
+      teamTree: {
+        title: 'Team Hierarchy'
       },
       referral: {
         title: 'Your Referral Links',

@@ -399,6 +399,14 @@ app.listen(PORT, '0.0.0.0', async () => {
       );
     }
     console.log('Critical tables verified.');
+
+    // Auto-cancel unpaid orders older than 1 hour
+    const cancelled = await dbQuery(
+      "UPDATE orders SET status = 'cancelled', payment_status = 'cancelled' WHERE payment_status = 'pending' AND created_at < NOW() - INTERVAL '1 hour' RETURNING id"
+    );
+    if (cancelled.rowCount > 0) {
+      console.log(`Auto-cancelled ${cancelled.rowCount} unpaid orders older than 1 hour`);
+    }
   } catch (err) {
     console.error('Auto-migration warning:', err.message);
   }

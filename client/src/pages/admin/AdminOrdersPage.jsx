@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import api, { ordersAPI } from '../../services/api';
+import toast from 'react-hot-toast';
 import {
   ShoppingBag,
   Search,
@@ -15,7 +16,8 @@ import {
   Calendar,
   User,
   MapPin,
-  FileText
+  FileText,
+  Trash2
 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatCurrency } from '../../config/app.config';
@@ -293,12 +295,25 @@ const AdminOrdersPage = () => {
                         </div>
                       </td>
                       <td className="py-4 px-6">
-                        <div className="flex items-center justify-end">
+                        <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => { setSelectedOrder(order); setShowDetailModal(true); }}
                             className="p-2 text-gray-400 hover:text-primary-400 hover:bg-slate-50 rounded-lg transition-colors"
                           >
                             <Eye className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`Bestellung ${order.orderNumber} wirklich loeschen?`)) return;
+                              try {
+                                await ordersAPI.delete(order.id);
+                                toast.success('Bestellung geloescht');
+                                fetchOrders();
+                              } catch (e) { toast.error('Fehler beim Loeschen'); }
+                            }}
+                            className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>

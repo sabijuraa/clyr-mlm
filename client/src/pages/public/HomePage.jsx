@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Phone, Mail, MapPin } from 'lucide-react';
 import {
@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import brandConfig from '../../config/brand.config';
+import toast from 'react-hot-toast';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
@@ -21,6 +22,20 @@ const fadeUp = {
 const HomePage = () => {
   const { lang } = useLanguage();
   const [activeTestimonial, setActiveTestimonial] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    const newsletter = searchParams.get('newsletter');
+    if (newsletter === 'confirmed') {
+      toast.success(lang === 'de' ? 'Newsletter-Anmeldung bestaetigt!' : 'Newsletter subscription confirmed!');
+      searchParams.delete('newsletter');
+      setSearchParams(searchParams, { replace: true });
+    } else if (newsletter === 'error') {
+      toast.error(lang === 'de' ? 'Link ungueltig oder bereits bestaetigt' : 'Link invalid or already confirmed');
+      searchParams.delete('newsletter');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {

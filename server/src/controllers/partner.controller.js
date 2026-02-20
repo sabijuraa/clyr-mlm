@@ -205,10 +205,15 @@ export const getTeamTree = asyncHandler(async (req, res) => {
       .map(member => ({
         id: member.id,
         name: `${member.first_name} ${member.last_name}`,
+        firstName: member.first_name,
+        lastName: member.last_name,
         rank: member.rank_name,
         rankColor: member.rank_color,
         status: member.status,
-        sales: member.own_sales_count,
+        isActive: member.status === 'active',
+        totalSales: member.own_sales_count || 0,
+        directPartners: members.filter(m => m.upline_id === member.id).length,
+        teamSize: 0,
         children: buildTree(members, member.id)
       }));
   };

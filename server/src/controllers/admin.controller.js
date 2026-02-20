@@ -1,5 +1,6 @@
 import { query } from '../config/database.js';
 import { asyncHandler, AppError } from '../middleware/error.middleware.js';
+import bcrypt from 'bcryptjs';
 
 /**
  * Get dashboard statistics
@@ -22,15 +23,16 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     [monthStart, lastMonthStart, lastMonthEnd]
   );
 
-  // Orders count
+  // Orders count (only paid orders count)
   const ordersResult = await query(
     `SELECT 
-       COUNT(*) as total,
-       COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
-       COUNT(CASE WHEN status = 'processing' THEN 1 END) as processing,
-       COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
+       COUNT(CASE WHEN payment_status = 'paid' THEN 1 END) as total,
+       COUNT(CASE WHEN payment_status = 'paid' AND status = 'pending' THEN 1 END) as pending,
+       COUNT(CASE WHEN payment_status = 'paid' AND status = 'processing' THEN 1 END) as processing,
+       COUNT(CASE WHEN payment_status = 'paid' AND status = 'completed' THEN 1 END) as completed,
        COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled,
-       COUNT(CASE WHEN created_at >= $1 THEN 1 END) as this_month
+       COUNT(CASE WHEN payment_status = 'paid' AND created_at >= $1 THEN 1 END) as this_month,
+       COUNT(CASE WHEN payment_status = 'pending' THEN 1 END) as unpaid
      FROM orders`,
     [monthStart]
   );
@@ -902,4 +904,39 @@ export const updateOwnRank = asyncHandler(async (req, res) => {
   );
 
   res.json({ message: 'Rang aktualisiert', rank_id });
+});
+
+/**
+ * Create a second admin account
+ */
+export const createAdmin = asyncHandler(async (req, res) => {
+  const { email, password, firstName, lastName } = req.body;
+
+  if (!email || !password || !firstName) {
+    throw new AppError('E-Mail, Passwort und Vorname sind erforderlich', 400);
+  }
+
+  // Check if email exists
+  const existing = await query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
+  if (existing.rows.length > 0) {
+    throw new AppError('E-Mail ist bereits registriert', 409);
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+
+  // Get highest rank (Direktor)
+  const rankResult = await query('SELECT id FROM ranks ORDER BY level DESC LIMIT 1');
+  const direktorRankId = rankResult.rows[0]?.id;
+
+  const result = await query(
+    `INSERT INTO users (email, password_hash, first_name, last_name, role, status, rank_id)
+     VALUES ($1, $2, $3, $4, 'admin', 'active', $5)
+     RETURNING id, email, first_name, last_name, role`,
+    [email.toLowerCase(), passwordHash, firstName, lastName || '', direktorRankId]
+  );
+
+  res.status(201).json({
+    message: 'Admin-Konto erstellt',
+    user: result.rows[0]
+  });
 });

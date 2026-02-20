@@ -11,7 +11,8 @@ import {
   Eye,
   Truck,
   Award,
-  Percent
+  Percent,
+  Shield
 } from 'lucide-react';
 import { adminAPI } from '../../services/api';
 import { useBrand } from '../../context/BrandContext';
@@ -172,6 +173,7 @@ const AdminSettingsPage = () => {
     { id: 'shipping', label: lang === 'de' ? 'Versand' : 'Shipping', icon: Truck },
     { id: 'commissions', label: lang === 'de' ? 'Provisionen & Ränge' : 'Commissions & Ranks', icon: Percent },
     { id: 'logo', label: lang === 'de' ? 'Logo' : 'Logo', icon: Image },
+    { id: 'admins', label: lang === 'de' ? 'Admin-Konten' : 'Admin Accounts', icon: Shield },
   ];
 
   return (
@@ -697,6 +699,50 @@ const AdminSettingsPage = () => {
                     </div>
                   </div>
                 </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Admin Accounts Tab */}
+          {activeTab === 'admins' && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-2xl border border-gray-100 p-6">
+              <h3 className="text-lg font-semibold text-secondary-700 mb-4">{lang === 'de' ? 'Neues Admin-Konto erstellen' : 'Create New Admin Account'}</h3>
+              <p className="text-sm text-secondary-500 mb-6">{lang === 'de' ? 'Erstellen Sie ein zweites Admin-Konto fuer Ihren Partner.' : 'Create a second admin account for your partner.'}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-xl">
+                <div>
+                  <label className="block text-sm font-medium text-secondary-700 mb-1">Vorname *</label>
+                  <input type="text" id="admin-first-name" className="w-full px-3 py-2 border border-gray-200 rounded-lg" placeholder="Vorname" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-secondary-700 mb-1">Nachname</label>
+                  <input type="text" id="admin-last-name" className="w-full px-3 py-2 border border-gray-200 rounded-lg" placeholder="Nachname" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-secondary-700 mb-1">E-Mail *</label>
+                  <input type="email" id="admin-email" className="w-full px-3 py-2 border border-gray-200 rounded-lg" placeholder="admin@example.com" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-secondary-700 mb-1">Passwort *</label>
+                  <input type="password" id="admin-password" className="w-full px-3 py-2 border border-gray-200 rounded-lg" placeholder="Min. 8 Zeichen" />
+                </div>
+              </div>
+              <div className="mt-6">
+                <Button onClick={async () => {
+                  const firstName = document.getElementById('admin-first-name').value;
+                  const lastName = document.getElementById('admin-last-name').value;
+                  const email = document.getElementById('admin-email').value;
+                  const password = document.getElementById('admin-password').value;
+                  if (!firstName || !email || !password) { toast.error('Bitte alle Pflichtfelder ausfuellen'); return; }
+                  if (password.length < 8) { toast.error('Passwort muss mindestens 8 Zeichen haben'); return; }
+                  try {
+                    await adminAPI.post('/create-admin', { firstName, lastName, email, password });
+                    toast.success('Admin-Konto erstellt!');
+                    document.getElementById('admin-first-name').value = '';
+                    document.getElementById('admin-last-name').value = '';
+                    document.getElementById('admin-email').value = '';
+                    document.getElementById('admin-password').value = '';
+                  } catch (e) { toast.error(e.response?.data?.message || 'Fehler beim Erstellen'); }
+                }} icon={Save}>Admin-Konto erstellen</Button>
               </div>
             </motion.div>
           )}

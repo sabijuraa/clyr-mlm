@@ -85,4 +85,11 @@ router.get(
   orderController.generateInvoice
 );
 
+router.delete(
+  '/:id',
+  authenticate,
+  requireRole('admin'),
+  orderController.deleteOrder
+);
+
 export default router;

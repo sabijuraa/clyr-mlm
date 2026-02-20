@@ -288,7 +288,7 @@ export const createPaymentIntent = asyncHandler(async (req, res) => {
   try {
     // Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
+      payment_method_types: ['card', 'klarna', 'eps', 'giropay', 'sofort'],
       mode: 'payment',
       line_items: [{
         price_data: {
@@ -1265,4 +1265,23 @@ export const generateInvoice = asyncHandler(async (req, res) => {
   res.setHeader('Content-Disposition', `attachment; filename="Rechnung-${order.order_number || order.id}.pdf"`);
   res.setHeader('Content-Length', pdfBuffer.length);
   res.end(pdfBuffer);
+});
+/**
+ * Delete order (admin only)
+ */
+export const deleteOrder = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  // Delete order items first
+  await query('DELETE FROM order_items WHERE order_id = $1', [id]);
+  // Delete related commissions
+  await query('DELETE FROM commissions WHERE order_id = $1', [id]);
+  // Delete the order
+  const result = await query('DELETE FROM orders WHERE id = $1 RETURNING id, order_number', [id]);
+
+  if (result.rows.length === 0) {
+    throw new AppError('Bestellung nicht gefunden', 404);
+  }
+
+  res.json({ message: 'Bestellung geloescht', orderNumber: result.rows[0].order_number });
 });

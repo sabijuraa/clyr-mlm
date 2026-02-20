@@ -36,8 +36,15 @@ router.post('/subscribe', asyncHandler(async (req, res) => {
 
 // Confirm subscription (double opt-in)
 router.get('/confirm/:token', asyncHandler(async (req, res) => {
-  const result = await newsletterService.confirmSubscription(req.params.token);
-  res.json(result);
+  try {
+    await newsletterService.confirmSubscription(req.params.token);
+    // Redirect to homepage with success message
+    const frontendUrl = process.env.FRONTEND_URL || 'https://clyr.shop';
+    res.redirect(`${frontendUrl}/?newsletter=confirmed`);
+  } catch (e) {
+    const frontendUrl = process.env.FRONTEND_URL || 'https://clyr.shop';
+    res.redirect(`${frontendUrl}/?newsletter=error`);
+  }
 }));
 
 // Unsubscribe

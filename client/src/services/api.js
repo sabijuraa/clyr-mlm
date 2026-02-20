@@ -264,7 +264,10 @@ export const ordersAPI = {
     api.get(`/orders/${id}/invoice`, { responseType: 'blob' }),
 
   validateVoucher: (code, subtotal) =>
-    api.post('/vouchers/validate', { code, subtotal })
+    api.post('/vouchers/validate', { code, subtotal }),
+
+  delete: (id) =>
+    api.delete(`/orders/${id}`)
 };
 
 // ============ PARTNER API ============
