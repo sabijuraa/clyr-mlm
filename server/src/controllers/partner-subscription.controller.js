@@ -66,29 +66,57 @@ export const createPartnerFeeCheckout = asyncHandler(async (req, res) => {
   const baseUrl = getPublicUrl(req).replace(/\/+$/, '');
 
   try {
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      mode: 'payment',
-      customer_email: partner.email,
-      line_items: [{
-        price_data: {
-          currency: 'eur',
-          product_data: {
-            name: 'CLYR Vertriebspartner Jahresgebühr',
-            description: `Intranet-Gebühr ${new Date().getFullYear()} (anteilig)`,
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card', 'klarna', 'eps'],
+        mode: 'payment',
+        customer_email: partner.email,
+        line_items: [{
+          price_data: {
+            currency: 'eur',
+            product_data: {
+              name: 'CLYR Vertriebspartner Jahresgebühr',
+              description: `Intranet-Gebühr ${new Date().getFullYear()} (anteilig)`,
+            },
+            unit_amount: Math.round(proratedFee * 100),
           },
-          unit_amount: Math.round(proratedFee * 100),
+          quantity: 1,
+        }],
+        metadata: {
+          type: 'partner_fee',
+          partnerId: String(partner.id),
+          partnerEmail: partner.email,
         },
-        quantity: 1,
-      }],
-      metadata: {
-        type: 'partner_fee',
-        partnerId: String(partner.id),
-        partnerEmail: partner.email,
-      },
-      success_url: `${baseUrl}/api/partners/fee-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/login?fee=cancelled`,
-    });
+        success_url: `${baseUrl}/api/partners/fee-success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/login?fee=cancelled`,
+      });
+    } catch (pmError) {
+      console.log('Extended payment methods failed for partner fee, falling back to card-only:', pmError.message);
+      session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        mode: 'payment',
+        customer_email: partner.email,
+        line_items: [{
+          price_data: {
+            currency: 'eur',
+            product_data: {
+              name: 'CLYR Vertriebspartner Jahresgebühr',
+              description: `Intranet-Gebühr ${new Date().getFullYear()} (anteilig)`,
+            },
+            unit_amount: Math.round(proratedFee * 100),
+          },
+          quantity: 1,
+        }],
+        metadata: {
+          type: 'partner_fee',
+          partnerId: String(partner.id),
+          partnerEmail: partner.email,
+        },
+        success_url: `${baseUrl}/api/partners/fee-success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/login?fee=cancelled`,
+      });
+    }
 
     res.json({
       url: session.url,

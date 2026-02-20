@@ -19,6 +19,7 @@ router.patch('/partners/:id/rank', adminController.updatePartnerRank);
 
 // Invoices
 router.get('/invoices', adminController.getInvoices);
+router.get('/fee-payments', adminController.getFeePayments);
 
 // Settings
 router.get('/settings', adminController.getSettings);

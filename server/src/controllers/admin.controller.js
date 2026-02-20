@@ -838,6 +838,23 @@ export const getInvoices = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get all partner fee payments (subscription/annual fee)
+ */
+export const getFeePayments = asyncHandler(async (req, res) => {
+  const result = await query(
+    `SELECT sp.*,
+            u.email, u.first_name, u.last_name, u.referral_code,
+            r.name as rank_name
+     FROM subscription_payments sp
+     JOIN users u ON sp.user_id = u.id
+     LEFT JOIN ranks r ON u.rank_id = r.id
+     ORDER BY sp.created_at DESC`
+  );
+
+  res.json({ payments: result.rows });
+});
+
+/**
  * Get all ranks with commission rates
  */
 export const getRanks = asyncHandler(async (req, res) => {
