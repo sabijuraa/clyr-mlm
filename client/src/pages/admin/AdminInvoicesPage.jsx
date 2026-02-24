@@ -438,25 +438,26 @@ const AdminInvoicesPage = () => {
               Typ 1: Deutsche Partner
             </h4>
             <p className="text-sm text-blue-800">
-              Netto-Provision + 19% MwSt. separat ausgewiesen.
-              Partner benötigt USt-IdNr.
+              Netto-Provision ohne MwSt. (Reverse Charge).
+              Partner benoetigt USt-IdNr. Steuerschuldnerschaft
+              geht auf Partner ueber.
             </p>
           </div>
           <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
             <h4 className="font-medium text-purple-900 mb-2">
-              Typ 2: Österreich mit USt-IdNr.
+              Typ 2: Oesterreich mit USt-IdNr.
             </h4>
             <p className="text-sm text-purple-800">
-              Netto-Provision, Reverse Charge (0% MwSt.).
-              Steuerschuldnerschaft geht auf Partner über.
+              Netto-Provision + 20% MwSt. separat ausgewiesen.
+              Partner erhaelt Gutschrift mit ausgewiesener MwSt.
             </p>
           </div>
           <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
             <h4 className="font-medium text-orange-900 mb-2">
-              Typ 3: Österreich Kleinunternehmer
+              Typ 3: Oesterreich Kleinunternehmer
             </h4>
             <p className="text-sm text-orange-800">
-              Provision ohne separate MwSt.-Ausweisung.
+              Provision inkl. MwSt., aber ohne separate MwSt.-Ausweisung.
               Steuerbefreit nach §6 Abs.1 Z 27 UStG.
             </p>
           </div>

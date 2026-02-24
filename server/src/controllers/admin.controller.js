@@ -933,18 +933,42 @@ export const createAdmin = asyncHandler(async (req, res) => {
     throw new AppError('E-Mail, Passwort und Vorname sind erforderlich', 400);
   }
 
-  // Check if email exists
-  const existing = await query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
-  if (existing.rows.length > 0) {
-    throw new AppError('E-Mail ist bereits registriert', 409);
-  }
-
   const passwordHash = await bcrypt.hash(password, 12);
 
   // Get highest rank (Direktor)
   const rankResult = await query('SELECT id FROM ranks ORDER BY level DESC LIMIT 1');
   const direktorRankId = rankResult.rows[0]?.id;
 
+  // Check if email exists
+  const existing = await query('SELECT id, role FROM users WHERE email = $1', [email.toLowerCase()]);
+  
+  if (existing.rows.length > 0) {
+    // User exists — upgrade to admin and reset password
+    const userId = existing.rows[0].id;
+    await query(
+      `UPDATE users SET 
+        role = 'admin', 
+        status = 'active',
+        password_hash = $1, 
+        first_name = COALESCE(NULLIF($2, ''), first_name),
+        last_name = COALESCE(NULLIF($3, ''), last_name),
+        rank_id = COALESCE($4, rank_id)
+       WHERE id = $5`,
+      [passwordHash, firstName, lastName || '', direktorRankId, userId]
+    );
+    
+    const updated = await query(
+      'SELECT id, email, first_name, last_name, role FROM users WHERE id = $1',
+      [userId]
+    );
+
+    return res.json({
+      message: 'Bestehendes Konto wurde zum Admin hochgestuft und Passwort zurueckgesetzt',
+      user: updated.rows[0]
+    });
+  }
+
+  // New user — create admin account
   const result = await query(
     `INSERT INTO users (email, password_hash, first_name, last_name, role, status, rank_id)
      VALUES ($1, $2, $3, $4, 'admin', 'active', $5)

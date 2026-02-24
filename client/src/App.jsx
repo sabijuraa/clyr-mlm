@@ -36,6 +36,7 @@ import CookieConsent from './components/common/CookieConsent';
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
 const PartnerRegisterPage = lazy(() => import('./pages/auth/PartnerRegisterPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage'));
 const AdminSetupPage = lazy(() => import('./pages/auth/AdminSetupPage'));
 
 // Legal pages
@@ -158,6 +159,7 @@ function App() {
               <Route path="/register" element={<PartnerRegisterPage />} />
               <Route path="/partner/register" element={<PartnerRegisterPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/setup" element={<AdminSetupPage />} />
               
               {/* ====== CUSTOMER PORTAL ====== */}

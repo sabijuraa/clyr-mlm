@@ -235,10 +235,6 @@ export default function ProductsPage() {
                   <span className="font-medium">{formatCurrency(35)}</span>
                 </div>
               </div>
-              <div className="mt-3 pt-3 border-t border-gray-100">
-                <p className="text-[10px] text-secondary-400 mb-1 font-medium">{lang === 'de' ? 'Montage / Service' : 'Installation / Service'}</p>
-                <p className="text-xs text-green-600 font-medium">{lang === 'de' ? 'Kostenlos' : 'Free'}</p>
-              </div>
             </div>
           </aside>
 
