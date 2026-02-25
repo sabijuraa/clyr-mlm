@@ -457,8 +457,8 @@ const AdminInvoicesPage = () => {
               Typ 3: Oesterreich Kleinunternehmer
             </h4>
             <p className="text-sm text-orange-800">
-              Provision inkl. MwSt., aber ohne separate MwSt.-Ausweisung.
-              Steuerbefreit nach §6 Abs.1 Z 27 UStG.
+              Provision ohne MwSt. (keine Steuer).
+              Steuerbefreit nach §6 Abs.1 Z 27 UStG (Kleinunternehmerregelung).
             </p>
           </div>
         </div>

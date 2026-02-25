@@ -261,6 +261,47 @@ async function migrate() {
       console.log('  Seeded: ' + key + ' (' + page.title + ')');
     }
 
+    // Step: Ensure bank columns exist on users table
+    console.log('\nStep: Ensuring bank columns exist on users...');
+    const bankCols = [
+      'iban VARCHAR(50)',
+      'bic VARCHAR(20)',
+      'bank_name VARCHAR(100)',
+      'bank_card_url VARCHAR(500)',
+      'account_holder VARCHAR(200)',
+      'subscription_status VARCHAR(20)',
+      'subscription_amount DECIMAL(10,2)',
+      'subscription_prorated DECIMAL(10,2)',
+      'annual_fee_paid_at TIMESTAMP',
+      'annual_fee_expires_at TIMESTAMP'
+    ];
+    for (const col of bankCols) {
+      const colName = col.split(' ')[0];
+      try {
+        await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ${col}`);
+        console.log('  Column OK: ' + colName);
+      } catch(e) { /* already exists */ }
+    }
+
+    // Step: Ensure subscription_payments table exists
+    console.log('\nStep: Ensuring subscription_payments table...');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS subscription_payments (
+        id SERIAL PRIMARY KEY,
+        user_id UUID REFERENCES users(id),
+        amount DECIMAL(10,2) NOT NULL,
+        payment_method VARCHAR(50) DEFAULT 'stripe',
+        payment_reference VARCHAR(255),
+        stripe_session_id VARCHAR(255),
+        period_start TIMESTAMP,
+        period_end TIMESTAMP,
+        status VARCHAR(20) DEFAULT 'paid',
+        paid_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('  subscription_payments table OK');
+
     console.log('\nDone!');
 
   } catch (error) {

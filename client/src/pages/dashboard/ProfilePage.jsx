@@ -1,6 +1,6 @@
 // client/src/pages/dashboard/ProfilePage.jsx
 // GROUP 6 #8: Fix partner profile page - add actual form fields for all tabs
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { User, Mail, Phone, MapPin, CreditCard, Lock, Save, Camera, Building, Globe, Copy, Check, Edit3, X } from 'lucide-react';
@@ -19,24 +19,33 @@ const ProfilePage = () => {
   const [editingCode, setEditingCode] = useState(false);
   const [newCode, setNewCode] = useState(user?.referralCode || user?.referral_code || '');
 
-  const { register, handleSubmit, formState: { errors, isDirty } } = useForm({
-    defaultValues: {
-      firstName: user?.firstName || user?.first_name || '',
-      lastName: user?.lastName || user?.last_name || '',
-      email: user?.email || '',
-      phone: user?.phone || '',
-      company: user?.company || '',
-      vatId: user?.vatId || user?.vat_id || '',
-      street: user?.street || '',
-      zip: user?.zip || '',
-      city: user?.city || '',
-      country: user?.country || 'AT',
-      iban: user?.iban || '',
-      bic: user?.bic || '',
-      bankName: user?.bankName || user?.bank_name || '',
-      accountHolder: user?.accountHolder || user?.account_holder || '',
-    }
+  const getDefaults = (u) => ({
+    firstName: u?.firstName || u?.first_name || '',
+    lastName: u?.lastName || u?.last_name || '',
+    email: u?.email || '',
+    phone: u?.phone || '',
+    company: u?.company || '',
+    vatId: u?.vatId || u?.vat_id || '',
+    street: u?.street || '',
+    zip: u?.zip || '',
+    city: u?.city || '',
+    country: u?.country || 'AT',
+    iban: u?.iban || '',
+    bic: u?.bic || '',
+    bankName: u?.bankName || u?.bank_name || '',
+    accountHolder: u?.accountHolder || u?.account_holder || '',
   });
+
+  const { register, handleSubmit, formState: { errors, isDirty }, reset } = useForm({
+    defaultValues: getDefaults(user)
+  });
+
+  // Reset form when user data changes (e.g. after login loads user)
+  useEffect(() => {
+    if (user) {
+      reset(getDefaults(user));
+    }
+  }, [user, reset]);
 
   const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
 
@@ -44,10 +53,12 @@ const ProfilePage = () => {
     setIsLoading(true);
     try {
       const response = await api.put('/auth/update-profile', data);
-      if (updateUser) updateUser(response.data.user || data);
+      const updatedUser = response.data.user || { ...user, ...data };
+      if (updateUser) updateUser(updatedUser);
+      reset(getDefaults(updatedUser));
       toast.success('Profil erfolgreich aktualisiert!');
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Fehler beim Speichern');
+      toast.error(error.response?.data?.message || error.response?.data?.error || 'Fehler beim Speichern');
     } finally {
       setIsLoading(false);
     }

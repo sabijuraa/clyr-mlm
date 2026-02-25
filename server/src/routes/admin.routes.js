@@ -47,5 +47,6 @@ router.get('/ranks', adminController.getRanks);
 router.patch('/ranks/:id', adminController.updateRank);
 router.patch('/my-rank', adminController.updateOwnRank);
 router.post('/create-admin', adminController.createAdmin);
+router.post('/change-sponsor', adminController.changeSponsor);
 
 export default router;

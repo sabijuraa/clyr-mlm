@@ -199,7 +199,8 @@ export const getPartnerById = asyncHandler(async (req, res) => {
 
   const partnerResult = await query(
     `SELECT u.*, r.name as rank_name, r.color as rank_color, r.commission_rate,
-            up.first_name as upline_first_name, up.last_name as upline_last_name, up.email as upline_email
+            up.first_name as upline_first_name, up.last_name as upline_last_name, up.email as upline_email,
+            u.upline_id as referred_by
      FROM users u
      JOIN ranks r ON u.rank_id = r.id
      LEFT JOIN users up ON u.upline_id = up.id
@@ -980,4 +981,50 @@ export const createAdmin = asyncHandler(async (req, res) => {
     message: 'Admin-Konto erstellt',
     user: result.rows[0]
   });
+});
+
+/**
+ * Change partner's sponsor/upline
+ */
+export const changeSponsor = asyncHandler(async (req, res) => {
+  const { partnerId, sponsorId } = req.body;
+
+  if (!partnerId) {
+    throw new AppError('Partner-ID erforderlich', 400);
+  }
+
+  // Verify partner exists
+  const partnerResult = await query('SELECT id, first_name, last_name, upline_id FROM users WHERE id = $1', [partnerId]);
+  if (partnerResult.rows.length === 0) {
+    throw new AppError('Partner nicht gefunden', 404);
+  }
+
+  if (sponsorId) {
+    // Verify sponsor exists and is not the partner themselves
+    if (sponsorId === partnerId) {
+      throw new AppError('Partner kann nicht eigener Sponsor sein', 400);
+    }
+    const sponsorResult = await query('SELECT id, first_name, last_name FROM users WHERE id = $1', [sponsorId]);
+    if (sponsorResult.rows.length === 0) {
+      throw new AppError('Sponsor nicht gefunden', 404);
+    }
+
+    // Prevent circular references
+    let current = sponsorId;
+    for (let i = 0; i < 20; i++) {
+      const check = await query('SELECT upline_id FROM users WHERE id = $1', [current]);
+      if (check.rows.length === 0 || !check.rows[0].upline_id) break;
+      if (check.rows[0].upline_id === partnerId) {
+        throw new AppError('Zirkulaere Referenz: Der gewaehlte Sponsor ist selbst ein Downline dieses Partners', 400);
+      }
+      current = check.rows[0].upline_id;
+    }
+  }
+
+  await query(
+    'UPDATE users SET upline_id = $1 WHERE id = $2',
+    [sponsorId || null, partnerId]
+  );
+
+  res.json({ message: sponsorId ? 'Sponsor zugewiesen' : 'Sponsor entfernt' });
 });

@@ -361,6 +361,8 @@ export const updateProfile = asyncHandler(async (req, res) => {
     country,
     iban,
     bic,
+    bankName,
+    bank_name,
     referralCode
   } = req.body;
 
@@ -382,6 +384,10 @@ export const updateProfile = asyncHandler(async (req, res) => {
     }
   }
 
+  // Helper: treat empty strings as null for COALESCE
+  const nullIfEmpty = (v) => (v === '' || v === undefined) ? null : v;
+  const effectiveBankName = bankName || bank_name;
+
   const result = await query(
     `UPDATE users SET
       first_name = COALESCE($1, first_name),
@@ -395,10 +401,11 @@ export const updateProfile = asyncHandler(async (req, res) => {
       country = COALESCE($9, country),
       iban = COALESCE($10, iban),
       bic = COALESCE($11, bic),
+      bank_name = COALESCE($12, bank_name),
       updated_at = CURRENT_TIMESTAMP
-     WHERE id = $12
+     WHERE id = $13
      RETURNING *`,
-    [firstName, lastName, phone, company, vatId, street, zip, city, country, iban, bic, req.user.id]
+    [nullIfEmpty(firstName), nullIfEmpty(lastName), nullIfEmpty(phone), nullIfEmpty(company), nullIfEmpty(vatId), nullIfEmpty(street), nullIfEmpty(zip), nullIfEmpty(city), nullIfEmpty(country), nullIfEmpty(iban), nullIfEmpty(bic), nullIfEmpty(effectiveBankName), req.user.id]
   );
 
   const user = result.rows[0];

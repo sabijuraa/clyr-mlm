@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Search, ChevronLeft, ChevronRight, UserCheck, UserX, Eye, X, Mail, Phone, MapPin, Calendar, Award, ShoppingBag, Wallet, Link2, Building, Hash, TrendingUp, CreditCard } from 'lucide-react';
+import { Users, Search, ChevronLeft, ChevronRight, UserCheck, UserX, Eye, X, Mail, Phone, MapPin, Calendar, Award, ShoppingBag, Wallet, Link2, Building, Hash, TrendingUp, CreditCard, Edit3 } from 'lucide-react';
 import { adminAPI } from '../../services/api';
+import api from '../../services/api';
 import { formatDate, formatCurrency, formatPartnerStatus } from '../../utils/formatters';
 import Button from '../../components/common/Button';
 import Loading from '../../components/common/Loading';
@@ -18,6 +19,8 @@ const AdminPartnersPage = () => {
   const [partnerDetail, setPartnerDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [ranks, setRanks] = useState([]);
+  const [editingSponsor, setEditingSponsor] = useState(false);
+  const [sponsorSearch, setSponsorSearch] = useState('');
 
   useEffect(() => {
     fetchPartners();
@@ -405,7 +408,6 @@ const AdminPartnersPage = () => {
                         </div>
                         {[
                           { icon: Hash, label: 'Empfehlungscode', value: partnerDetail.partner?.referral_code || '-' },
-                          { icon: Users, label: 'Upline', value: partnerDetail.partner?.upline_first_name ? `${partnerDetail.partner.upline_first_name} ${partnerDetail.partner.upline_last_name} (${partnerDetail.partner.upline_email})` : 'Kein Upline' },
                           { icon: CreditCard, label: 'IBAN', value: partnerDetail.partner?.iban || '-' },
                           { icon: Building, label: 'BIC', value: partnerDetail.partner?.bic || '-' },
                         ].map((item, i) => (
@@ -417,6 +419,61 @@ const AdminPartnersPage = () => {
                             </div>
                           </div>
                         ))}
+                        {/* Editable Sponsor/Upline */}
+                        <div className="flex items-start gap-3">
+                          <Users className="w-4 h-4 text-secondary-400 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1">
+                            <p className="text-xs text-secondary-400 mb-1">Sponsor / Upline</p>
+                            {editingSponsor ? (
+                              <div className="space-y-2">
+                                <select
+                                  value={sponsorSearch}
+                                  onChange={async (e) => {
+                                    const newSponsorId = e.target.value;
+                                    setSponsorSearch(newSponsorId);
+                                    try {
+                                      await api.post('/admin/change-sponsor', {
+                                        partnerId: partnerDetail.partner?.id,
+                                        sponsorId: newSponsorId || null
+                                      });
+                                      toast.success(newSponsorId ? 'Sponsor zugewiesen' : 'Sponsor entfernt');
+                                      setEditingSponsor(false);
+                                      // Reload partner detail
+                                      const res = await adminAPI.getPartnerDetail(partnerDetail.partner?.id);
+                                      setPartnerDetail(res.data);
+                                    } catch (err) {
+                                      toast.error(err.response?.data?.message || 'Fehler');
+                                    }
+                                  }}
+                                  className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg"
+                                >
+                                  <option value="">-- Kein Sponsor --</option>
+                                  {partners
+                                    .filter(p => p.id !== partnerDetail.partner?.id)
+                                    .map(p => (
+                                      <option key={p.id} value={p.id}>
+                                        {p.first_name || p.firstName} {p.last_name || p.lastName} ({p.email})
+                                      </option>
+                                    ))
+                                  }
+                                </select>
+                                <button onClick={() => setEditingSponsor(false)} className="text-xs text-secondary-400 hover:text-secondary-600">Abbrechen</button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm text-secondary-700">
+                                  {partnerDetail.partner?.upline_first_name 
+                                    ? `${partnerDetail.partner.upline_first_name} ${partnerDetail.partner.upline_last_name} (${partnerDetail.partner.upline_email})`
+                                    : 'Kein Sponsor'}
+                                </p>
+                                <button onClick={() => { setEditingSponsor(true); setSponsorSearch(partnerDetail.partner?.referred_by || ''); }}
+                                  className="p-1 text-secondary-400 hover:text-primary-500 transition" title="Sponsor aendern">
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
