@@ -439,7 +439,7 @@ const AdminPartnersPage = () => {
                                       toast.success(newSponsorId ? 'Sponsor zugewiesen' : 'Sponsor entfernt');
                                       setEditingSponsor(false);
                                       // Reload partner detail
-                                      const res = await adminAPI.getPartnerDetail(partnerDetail.partner?.id);
+                                      const res = await adminAPI.getPartnerById(partnerDetail.partner?.id);
                                       setPartnerDetail(res.data);
                                     } catch (err) {
                                       toast.error(err.response?.data?.message || 'Fehler');
