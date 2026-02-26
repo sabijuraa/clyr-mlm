@@ -964,6 +964,11 @@ export const getAllOrders = asyncHandler(async (req, res) => {
   let paramIndex = 1;
   let whereClause = 'WHERE 1=1';
 
+  // By default, hide unpaid orders unless explicitly filtering for them
+  if (!paymentStatus) {
+    whereClause += ` AND o.payment_status != 'pending'`;
+  }
+
   if (status) {
     whereClause += ` AND o.status = $${paramIndex}`;
     params.push(status);

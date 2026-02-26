@@ -307,6 +307,7 @@ const AdminInvoicesPage = () => {
                   <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Zeitraum</th>
                   <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Status</th>
                   <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Datum</th>
+                  <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Rechnung</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -330,6 +331,17 @@ const AdminInvoicesPage = () => {
                       </span>
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-600">{formatDate(p.paid_at || p.created_at)}</td>
+                    <td className="py-3 px-4">
+                      <button onClick={async () => {
+                        try {
+                          const res = await api.get(`/admin/fee-payments/${p.id}/invoice`, { responseType: 'blob' });
+                          const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+                          window.open(url, '_blank');
+                        } catch(e) { toast.error('Fehler beim Erstellen der Rechnung'); }
+                      }} className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition font-medium">
+                        PDF
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

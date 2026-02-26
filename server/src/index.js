@@ -300,6 +300,17 @@ app.use(errorHandler);
 // CRON JOBS
 // ========================================
 
+// Clean up unpaid pending orders every 5 minutes
+cron.schedule('*/5 * * * *', async () => {
+  try {
+    const { query: dbQ } = await import('./config/database.js');
+    await dbQ("DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE payment_status = 'pending' AND created_at < NOW() - INTERVAL '15 minutes')");
+    await dbQ("DELETE FROM commissions WHERE order_id IN (SELECT id FROM orders WHERE payment_status = 'pending' AND created_at < NOW() - INTERVAL '15 minutes')");
+    const r = await dbQ("DELETE FROM orders WHERE payment_status = 'pending' AND created_at < NOW() - INTERVAL '15 minutes' RETURNING id");
+    if (r.rowCount > 0) console.log(`Cron: Deleted ${r.rowCount} abandoned unpaid orders`);
+  } catch(e) {}
+});
+
 // Release held commissions daily at midnight
 cron.schedule('0 0 * * *', async () => {
   try {
@@ -409,13 +420,17 @@ app.listen(PORT, '0.0.0.0', async () => {
     }
     console.log('Critical tables verified.');
 
-    // Auto-cancel unpaid orders older than 1 hour
-    const cancelled = await dbQuery(
-      "UPDATE orders SET status = 'cancelled', payment_status = 'cancelled' WHERE payment_status = 'pending' AND created_at < NOW() - INTERVAL '1 hour' RETURNING id"
-    );
-    if (cancelled.rowCount > 0) {
-      console.log(`Auto-cancelled ${cancelled.rowCount} unpaid orders older than 1 hour`);
-    }
+    // Auto-delete unpaid orders older than 15 minutes (never completed payment)
+    try {
+      await dbQuery("DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE payment_status = 'pending' AND created_at < NOW() - INTERVAL '15 minutes')");
+      await dbQuery("DELETE FROM commissions WHERE order_id IN (SELECT id FROM orders WHERE payment_status = 'pending' AND created_at < NOW() - INTERVAL '15 minutes')");
+      const cancelled = await dbQuery(
+        "DELETE FROM orders WHERE payment_status = 'pending' AND created_at < NOW() - INTERVAL '15 minutes' RETURNING id"
+      );
+      if (cancelled.rowCount > 0) {
+        console.log(`Auto-deleted ${cancelled.rowCount} unpaid orders older than 15 minutes`);
+      }
+    } catch(e) { console.error('Auto-cancel error:', e.message); }
   } catch (err) {
     console.error('Auto-migration warning:', err.message);
   }

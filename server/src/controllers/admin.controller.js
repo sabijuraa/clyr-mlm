@@ -1028,3 +1028,41 @@ export const changeSponsor = asyncHandler(async (req, res) => {
 
   res.json({ message: sponsorId ? 'Sponsor zugewiesen' : 'Sponsor entfernt' });
 });
+/**
+ * Generate/download fee payment invoice PDF
+ */
+export const getFeePaymentInvoice = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  // Get fee payment
+  const paymentResult = await query(
+    `SELECT sp.*, u.* FROM subscription_payments sp
+     JOIN users u ON sp.user_id = u.id
+     WHERE sp.id = $1`,
+    [id]
+  );
+
+  if (paymentResult.rows.length === 0) {
+    throw new AppError('Zahlung nicht gefunden', 404);
+  }
+
+  const payment = paymentResult.rows[0];
+  const partner = {
+    first_name: payment.first_name,
+    last_name: payment.last_name,
+    company: payment.company,
+    street: payment.street,
+    zip: payment.zip,
+    city: payment.city,
+    country: payment.country,
+    vat_id: payment.vat_id,
+    email: payment.email,
+  };
+
+  const { generatePartnerFeeInvoicePDF } = await import('../services/invoice.service.js');
+  const { buffer, invoiceNumber } = await generatePartnerFeeInvoicePDF(partner, parseFloat(payment.amount));
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `inline; filename="${invoiceNumber}.pdf"`);
+  res.send(buffer);
+});

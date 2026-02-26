@@ -65,16 +65,24 @@ class InvoiceService {
 
   getLogoPath() {
     const candidates = [
-      path.join(__dirname, '../../public/images/clyr-logo.jpeg'),
+      path.join(__dirname, '../../uploads/branding/logo.png'),
+      path.join(__dirname, '../../uploads/branding/logo.jpeg'),
+      path.join(__dirname, '../../uploads/branding/logo.jpg'),
       path.join(__dirname, '../../public/images/clyr-logo.png'),
+      path.join(__dirname, '../../public/images/clyr-logo.jpeg'),
       path.join(__dirname, '../../public/images/clyr-logo.jpg'),
-      path.join(__dirname, '../../../client/public/images/clyr-logo.jpeg'),
       path.join(__dirname, '../../../client/public/images/clyr-logo.png'),
+      path.join(__dirname, '../../../client/public/images/clyr-logo.jpeg'),
       path.join(__dirname, '../../../client/public/images/clyr-logo.jpg'),
+      path.join(__dirname, '../../../client/dist/images/clyr-logo.png'),
     ];
     for (const p of candidates) {
-      if (fs.existsSync(p)) return p;
+      if (fs.existsSync(p)) {
+        console.log('Logo found at:', p);
+        return p;
+      }
     }
+    console.log('No logo file found, checked:', candidates.map(c => c.split('/').slice(-3).join('/')));
     return null;
   }
 
