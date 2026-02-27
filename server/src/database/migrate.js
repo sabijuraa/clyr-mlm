@@ -302,6 +302,16 @@ async function migrate() {
     `);
     console.log('  subscription_payments table OK');
 
+    // Step: Add sort_order to products for manual ordering
+    console.log('\nStep: Adding sort_order to products...');
+    try {
+      await client.query('ALTER TABLE products ADD COLUMN IF NOT EXISTS sort_order INTEGER');
+      // Set main products (Soda machine & Shower) to sort first
+      await client.query(`UPDATE products SET sort_order = 1 WHERE LOWER(name) LIKE '%soda%' OR LOWER(name) LIKE '%home soda%' OR LOWER(name) LIKE '%clyr home%'`);
+      await client.query(`UPDATE products SET sort_order = 2 WHERE LOWER(name) LIKE '%dusche%' OR LOWER(name) LIKE '%shower%' OR LOWER(name) LIKE '%aroma%'`);
+      console.log('  sort_order column OK, main products set to top');
+    } catch(e) { console.log('  sort_order already exists or error:', e.message); }
+
     console.log('\nDone!');
 
   } catch (error) {

@@ -34,7 +34,7 @@ export const getAllProducts = async (req, res) => {
       case 'price_asc': queryText += ' ORDER BY p.price ASC'; break;
       case 'price_desc': queryText += ' ORDER BY p.price DESC'; break;
       case 'newest': queryText += ' ORDER BY p.created_at DESC'; break;
-      default: queryText += ' ORDER BY p.is_featured DESC, p.created_at DESC';
+      default: queryText += ' ORDER BY p.sort_order ASC NULLS LAST, p.is_featured DESC, p.created_at DESC';
     }
     
     const result = await pool.query(queryText, params);
@@ -312,7 +312,7 @@ export const updateProduct = async (req, res) => {
       price, original_price, cost_price,
       category_id, stock, sku,
       product_type, is_featured, is_new, is_active,
-      meta_title, meta_description
+      meta_title, meta_description, sort_order
     } = req.body;
 
     const checkResult = await pool.query('SELECT * FROM products WHERE id = $1', [id]);
@@ -383,8 +383,9 @@ export const updateProduct = async (req, res) => {
         images = $16,
         meta_title = COALESCE($17, meta_title),
         meta_description = COALESCE($18, meta_description),
+        sort_order = $19,
         updated_at = NOW()
-      WHERE id = $19
+      WHERE id = $20
       RETURNING *
     `, [
       name || null,
@@ -405,6 +406,7 @@ export const updateProduct = async (req, res) => {
       JSON.stringify(images),
       meta_title || null,
       meta_description || null,
+      parseNum(sort_order),
       id
     ]);
 
