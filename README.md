@@ -1,298 +1,177 @@
 # CLYR MLM Platform
 
-A complete MLM (Multi-Level Marketing) platform built with Node.js, React, and PostgreSQL.
+**A full-stack MLM (Multi-Level Marketing) e-commerce platform** built for [CLYR Solutions GmbH](https://clyr.shop) — an Austrian company selling premium home soda systems and wellness products across the DACH region (Germany, Austria, Switzerland).
 
-## Features
+🔗 **Live Site:** [https://clyr.shop](https://clyr.shop)
 
-- 🛒 **Online Shop** - Product catalog, cart, checkout with Stripe
-- 👥 **MLM System** - Unilevel compensation plan, 6 ranks
-- 💰 **Commission Management** - Automatic calculations, holding period, reversals
-- 📊 **Partner Dashboard** - Team overview, sales tracking, referral links
-- 🔐 **Admin Panel** - Full control over products, orders, partners
-- 📄 **PDF Generation** - Invoices, commission statements, credit notes
-- 🌍 **Multi-Language** - German & English
-- 🇩🇪🇦🇹🇨🇭 **DACH Region** - Proper VAT handling for DE/AT/CH
-- 📧 **Email System** - Order confirmations, notifications
-- 🔒 **GDPR Compliant** - Data export, deletion, cookie consent
+
+
+## Overview
+
+CLYR is a production-grade platform that combines a customer-facing online shop with a complete partner/affiliate management system. Partners earn commissions through a 6-rank unilevel compensation plan, track their teams, and manage referral codes — all through a dedicated dashboard.
+
+The platform handles real Stripe payments, automated PDF invoice generation, EU-compliant VAT calculations (including Reverse Charge for B2B), and multi-language support in German and English.
+
+
 
 ## Tech Stack
 
-- **Backend:** Node.js, Express, PostgreSQL
-- **Frontend:** React, Vite, TailwindCSS
-- **Payments:** Stripe
-- **PDF:** PDFKit
-- **Auth:** JWT
+| Layer | Technology |
+|-------|-----------|
+| **Frontend** | React 18, Vite, TailwindCSS, Framer Motion |
+| **Backend** | Node.js, Express |
+| **Database** | PostgreSQL |
+| **Payments** | Stripe (Checkout, Klarna, EPS) |
+| **PDF Engine** | PDFKit |
+| **Auth** | JWT (access + refresh tokens) |
+| **Email** | Brevo (Sendinblue) SMTP |
+| **Hosting** | DigitalOcean App Platform |
 
----
 
-## 🚀 Quick Deploy to DigitalOcean
 
-### Option 1: DigitalOcean App Platform (Recommended)
+## Key Features
 
-1. **Fork/Push to GitHub**
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/clyr-mlm.git
-   cd clyr-mlm
-   ```
+### Shop & Checkout
+- Product catalog with categories, image galleries, and search
+- Cart with country-based shipping and VAT calculation
+- Stripe Checkout with card, Klarna, and EPS (Austrian bank transfer)
+- Automatic customer invoice PDF generation and email delivery
+- Voucher/discount code system
 
-2. **Go to DigitalOcean App Platform**
-   - Visit: https://cloud.digitalocean.com/apps
-   - Click "Create App"
-   - Select "GitHub" and authorize
-   - Choose your `clyr-mlm` repository
+### Partner System
+- Self-service partner registration with Stripe-powered annual fee (pro-rated)
+- 6-rank compensation plan: Starter → Berater → Fachberater → Teamleiter → Manager → Sales Manager
+- Direct commission + difference commission across the upline chain
+- Activity-based eligibility (inactive uplines are skipped, not paid)
+- Referral code management with custom editable codes
+- Team tree visualization
 
-3. **Configure Services**
-   The app will auto-detect the `app.yaml` spec file, or configure manually:
+### Admin Dashboard
+- Order management with payment status tracking
+- Partner management: rank assignment, sponsor/upline changes, status control
+- Product CRUD with drag-and-drop image uploads and manual sort ordering
+- Commission oversight with hold periods and manual release
+- Invoice browser: customer invoices, commission statements, partner fee receipts
+- Newsletter system with double opt-in confirmation
+- Branding settings (logo, company info reflected on all PDFs)
+- Sales, commission, and partner reports with CSV export
 
-   **API Service:**
-   - Source Directory: `/server`
-   - Build Command: `npm install`
-   - Run Command: `npm start`
-   - HTTP Port: `5000`
-   - Route: `/api`
+### Tax & Compliance
+- Austrian company selling to DE/AT/CH — full VAT logic:
+  - Austria: 20% MwSt.
+  - Germany B2C: 19% MwSt. / B2B with VAT ID: 0% Reverse Charge
+  - Switzerland: 8.1% MwSt.
+- Three commission billing types (DE Reverse Charge, AT with USt-IdNr, AT Kleinunternehmer)
+- GDPR-compliant: data export, account deletion, cookie consent
+- Imprint and privacy policy CMS
 
-   **Static Site (Frontend):**
-   - Source Directory: `/client`
-   - Build Command: `npm install && npm run build`
-   - Output Directory: `dist`
-   - Route: `/`
 
-4. **Add Environment Variables**
-   In the DigitalOcean dashboard, add these secrets:
 
-   | Variable | Description |
-   |----------|-------------|
-   | `DATABASE_URL` | PostgreSQL connection string |
-   | `JWT_SECRET` | Random 32+ char string |
-   | `STRIPE_SECRET_KEY` | Your Stripe secret key |
-   | `STRIPE_WEBHOOK_SECRET` | Stripe webhook secret |
-   | `SMTP_HOST` | Email server host |
-   | `SMTP_USER` | Email username |
-   | `SMTP_PASS` | Email password |
+## Project Structure
 
-5. **Add Database**
-   - In Resources, click "Add Resource"
-   - Select "Database" → PostgreSQL
-   - The `DATABASE_URL` will be auto-injected
 
-6. **Deploy!**
-   Click "Create Resources" and wait for deployment.
-
-### Option 2: DigitalOcean Droplet (Manual)
-
-1. **Create a Droplet**
-   - Ubuntu 22.04
-   - Basic plan ($6/mo minimum)
-   - Add your SSH key
-
-2. **SSH into your droplet**
-   ```bash
-   ssh root@your-droplet-ip
-   ```
-
-3. **Install dependencies**
-   ```bash
-   # Update system
-   apt update && apt upgrade -y
-
-   # Install Node.js 20
-   curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-   apt install -y nodejs
-
-   # Install PostgreSQL
-   apt install -y postgresql postgresql-contrib
-
-   # Install nginx
-   apt install -y nginx
-
-   # Install PM2
-   npm install -g pm2
-
-   # Install certbot for SSL
-   apt install -y certbot python3-certbot-nginx
-   ```
-
-4. **Setup PostgreSQL**
-   ```bash
-   sudo -u postgres psql
-   CREATE DATABASE clyr_mlm;
-   CREATE USER clyr_user WITH ENCRYPTED PASSWORD 'your_password';
-   GRANT ALL PRIVILEGES ON DATABASE clyr_mlm TO clyr_user;
-   \q
-   ```
-
-5. **Clone and setup application**
-   ```bash
-   cd /var/www
-   git clone https://github.com/YOUR_USERNAME/clyr-mlm.git
-   cd clyr-mlm
-
-   # Setup backend
-   cd server
-   cp .env.example .env
-   nano .env  # Edit with your values
-   npm install
-   npm run migrate
-   npm run seed
-
-   # Setup frontend
-   cd ../client
-   cp .env.example .env
-   nano .env  # Set VITE_API_URL
-   npm install
-   npm run build
-   ```
-
-6. **Configure Nginx**
-   ```bash
-   nano /etc/nginx/sites-available/clyr
-   ```
-
-   ```nginx
-   server {
-       listen 80;
-       server_name your-domain.com;
-
-       # Frontend
-       location / {
-           root /var/www/clyr-mlm/client/dist;
-           try_files $uri $uri/ /index.html;
-       }
-
-       # API Proxy
-       location /api {
-           proxy_pass http://localhost:5000;
-           proxy_http_version 1.1;
-           proxy_set_header Upgrade $http_upgrade;
-           proxy_set_header Connection 'upgrade';
-           proxy_set_header Host $host;
-           proxy_cache_bypass $http_upgrade;
-       }
-   }
-   ```
-
-   ```bash
-   ln -s /etc/nginx/sites-available/clyr /etc/nginx/sites-enabled/
-   nginx -t
-   systemctl restart nginx
-   ```
-
-7. **Start with PM2**
-   ```bash
-   cd /var/www/clyr-mlm/server
-   pm2 start src/index.js --name clyr-api
-   pm2 save
-   pm2 startup
-   ```
-
-8. **Setup SSL**
-   ```bash
-   certbot --nginx -d your-domain.com
-   ```
-
----
-
-## 📁 Project Structure
-
-```
 clyr-mlm/
-├── server/                 # Backend API
+├── client/                  # React frontend (Vite)
 │   ├── src/
-│   │   ├── controllers/    # Route handlers
-│   │   ├── services/       # Business logic
-│   │   ├── routes/         # API routes
-│   │   ├── middleware/     # Auth, validation
-│   │   ├── database/       # Schema, migrations
-│   │   └── index.js        # Entry point
-│   ├── uploads/            # File storage
-│   └── package.json
+│   │   ├── components/      # Reusable UI components
+│   │   ├── pages/           # Route-level pages (public, dashboard, admin)
+│   │   ├── context/         # Auth, Language, Cart providers
+│   │   ├── config/          # App config, rank definitions, VAT rules
+│   │   └── services/        # API client (axios)
+│   └── public/              # Static assets, logo, images
 │
-├── client/                 # Frontend React App
+├── server/                  # Express API
 │   ├── src/
-│   │   ├── components/     # Reusable UI
-│   │   ├── pages/          # Page components
-│   │   ├── context/        # React context
-│   │   ├── hooks/          # Custom hooks
-│   │   └── App.jsx         # Main app
-│   └── package.json
+│   │   ├── controllers/     # Route handlers
+│   │   ├── services/        # Business logic (commissions, invoices, email)
+│   │   ├── routes/          # REST API routes
+│   │   ├── middleware/       # Auth, error handling, file uploads
+│   │   ├── config/          # Database connection, app config
+│   │   └── database/        # Schema, migrations, seeds
+│   ├── public/              # Generated PDFs, downloads, brochure
+│   └── uploads/             # User-uploaded files (products, documents)
 │
-├── app.yaml               # DigitalOcean App spec
-├── docker-compose.yml     # Docker deployment
+├── app.yaml                 # DigitalOcean App Platform spec
 └── README.md
 ```
 
----
 
-## 🔧 Environment Variables
 
-### Server (.env)
+## Environment Variables
 
-```env
+### Server
+
+env
 PORT=5000
 NODE_ENV=production
 DATABASE_URL=postgresql://user:pass@host:5432/dbname
-JWT_SECRET=your-secret-key
+JWT_SECRET=your-random-secret
 STRIPE_SECRET_KEY=sk_live_xxx
 STRIPE_WEBHOOK_SECRET=whsec_xxx
-SMTP_HOST=smtp.example.com
+SMTP_HOST=smtp-relay.brevo.com
 SMTP_PORT=587
 SMTP_USER=your@email.com
-SMTP_PASS=password
-SMTP_FROM=noreply@clyr.de
-FRONTEND_URL=https://your-domain.com
-```
+SMTP_PASS=smtp-password
+SMTP_FROM=service@clyr.shop
+FRONTEND_URL=https://clyr.shop
 
-### Client (.env)
 
-```env
-VITE_API_URL=https://your-domain.com/api
-```
+### Client
+
+env
+VITE_API_URL=https://clyr.shop/api
+
+
+
+
+## Local Development
+
+# Clone
+git clone https://github.com/sabijuraa/clyr-mlm.git
+cd clyr-mlm
+
+# Backend
+cd server
+cp .env.example .env       # configure your local DB, Stripe test keys, etc.
+npm install
+node src/database/migrate.js
+npm run dev
+
+# Frontend (new terminal)
+cd client
+npm install
+npm run dev
+
+
+The frontend runs on `http://localhost:5173` and proxies API requests to `http://localhost:5000`.
+
+
+
+## Deployment (DigitalOcean App Platform)
+
+1. Push code to GitHub
+2. Create a new App on [DigitalOcean App Platform](https://cloud.digitalocean.com/apps)
+3. Add a managed PostgreSQL database
+4. Configure environment variables in the dashboard
+5. Set up Stripe webhook → `https://your-domain.com/api/webhooks/stripe`
+6. Run migrations: `cd server && node src/database/migrate.js`
+
+
+
+## Screenshots
+
+> Visit the live site to explore: [https://clyr.shop](https://clyr.shop)
+
+
+
+## Author
+
+Built by **Saba** — full-stack developer.
+
+This project was developed as a freelance engagement for CLYR Solutions GmbH and serves as a portfolio piece demonstrating end-to-end product development: from database schema and payment integration to responsive UI and PDF generation.
 
 ---
 
-## 📝 Initial Setup After Deployment
+## License
 
-1. **Run database migrations**
-   ```bash
-   cd server
-   npm run migrate
-   ```
-
-2. **Seed initial data (ranks, settings)**
-   ```bash
-   npm run seed
-   ```
-
-3. **Create admin account**
-   - Visit: `https://your-domain.com/admin-setup`
-   - Create your first admin user
-
-4. **Configure Stripe Webhook**
-   - Go to Stripe Dashboard → Webhooks
-   - Add endpoint: `https://your-domain.com/api/webhooks/stripe`
-   - Select events: `payment_intent.succeeded`, `charge.refunded`
-   - Copy webhook secret to `STRIPE_WEBHOOK_SECRET`
-
----
-
-## 🛡️ Security Checklist
-
-- [ ] Change default JWT_SECRET
-- [ ] Use strong database password
-- [ ] Enable SSL/HTTPS
-- [ ] Configure CORS for your domain
-- [ ] Set up rate limiting
-- [ ] Enable firewall (ufw)
-- [ ] Regular backups
-
----
-
-## 📞 Support
-
-For issues or questions, please open a GitHub issue.
-
----
-
-## 📄 License
-
-MIT License - feel free to use for your own projects.
+This project is proprietary software built for CLYR Solutions GmbH. 
