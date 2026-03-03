@@ -190,11 +190,11 @@ WHERE email = 'theresa@clyr.at';
 INSERT INTO settings (key, value, description)
 VALUES (
     'affiliate_company',
-    '{"name": "CLYR Solutions GmbH", "street": "Pappelweg 4b", "zip": "9524", "city": "St. Magdalen", "country": "Österreich", "email": "service@clyr.shop", "website": "www.clyr.shop"}',
+    '{"name": "CLYR Solutions GmbH", "street": "Pappelweg 4b", "zip": "9524", "city": "Villach", "country": "Österreich", "email": "service@clyr.shop", "website": "www.clyr.shop"}',
     'Company that pays affiliate commissions'
 )
 ON CONFLICT (key) DO UPDATE SET
-    value = '{"name": "CLYR Solutions GmbH", "street": "Pappelweg 4b", "zip": "9524", "city": "St. Magdalen", "country": "Österreich", "email": "service@clyr.shop", "website": "www.clyr.shop"}';
+    value = '{"name": "CLYR Solutions GmbH", "street": "Pappelweg 4b", "zip": "9524", "city": "Villach", "country": "Österreich", "email": "service@clyr.shop", "website": "www.clyr.shop"}';
 
 INSERT INTO settings (key, value, description)
 VALUES (

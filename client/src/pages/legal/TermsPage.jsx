@@ -10,7 +10,7 @@ const TERMS_HTML = `
 <div class="contact-block">
   <p><strong>CLYR Solutions GmbH</strong></p>
   <p>Pappelweg 4b</p>
-  <p>9524 St. Magdalen</p>
+  <p>9524 Villach</p>
   <p>Österreich</p>
   <p>Geschäftsführerin: Theresa Struger</p>
   <p>– nachfolgend „CLYR Solutions GmbH" –</p>

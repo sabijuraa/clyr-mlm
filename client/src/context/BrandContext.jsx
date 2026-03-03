@@ -27,7 +27,7 @@ const defaultBranding = {
   legal: {
     companyName: brandConfig.legal?.companyName || 'CLYR Solutions GmbH',
     street: brandConfig.legal?.address?.street || 'Pappelweg 4b',
-    city: brandConfig.legal?.address?.city || 'St. Magdalen',
+    city: brandConfig.legal?.address?.city || 'Villach',
     zip: brandConfig.legal?.address?.zip || '9524',
     country: brandConfig.legal?.address?.country || 'Oesterreich',
     vatId: brandConfig.legal?.vatId || '',
@@ -41,7 +41,7 @@ const defaultBranding = {
     legalName: brandConfig.affiliateCompany?.legalName || 'CLYR Solutions GmbH',
     address: brandConfig.affiliateCompany?.address || {
       street: 'Pappelweg 4b',
-      city: 'St. Magdalen',
+      city: 'Villach',
       zip: '9524',
       country: 'Oesterreich',
     },

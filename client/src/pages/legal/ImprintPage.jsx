@@ -5,7 +5,7 @@ const IMPRINT_HTML = `
 
 <div class="contact-block">
   <p><strong>CLYR Solutions GmbH</strong></p>
-  <p>Pappelweg 4b, 9524 St. Magdalen</p>
+  <p>Pappelweg 4b, 9524 Villach</p>
   <p>Geschäftsführerin: Theresa Struger</p>
   <p>ÖSTERREICH</p>
   <br/>
@@ -15,6 +15,8 @@ const IMPRINT_HTML = `
   <br/>
   <p>Registernummer: (in Bearbeitung)</p>
   <p>Registergericht: Handelsregister Villach</p>
+  <p>UID-Nr.: ATU83027635</p>
+  <p>Steuernummer: 61 333/1727</p>
 </div>
 
 <hr/>

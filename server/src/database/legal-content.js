@@ -6,7 +6,7 @@ export const legalContent = {
     content: `
 <div class="contact-block">
   <p><strong>CLYR Solutions GmbH</strong></p>
-  <p>Pappelweg 4b, 9524 St. Magdalen</p>
+  <p>Pappelweg 4b, 9524 Villach</p>
   <p>Geschäftsführerin: Theresa Struger</p>
   <p>ÖSTERREICH</p>
   <p>+43 (0) 664 2520432</p>
@@ -124,7 +124,7 @@ export const legalContent = {
 <div class="contact-block">
   <p><strong>CLYR Solutions GmbH</strong></p>
   <p>Pappelweg 4b</p>
-  <p>9524 St. Magdalen</p>
+  <p>9524 Villach</p>
   <p>Österreich</p>
   <p>Geschäftsführerin: Theresa Struger</p>
   <p>– nachfolgend „CLYR Solutions GmbH" –</p>
@@ -212,7 +212,7 @@ export const legalContent = {
 
 <div class="contact-block">
   <p><strong>CLYR Solutions GmbH</strong></p>
-  <p>Pappelweg 4b, 9524 St. Magdalen, Österreich</p>
+  <p>Pappelweg 4b, 9524 Villach, Österreich</p>
   <p>Geschäftsführerin: Theresa Struger</p>
   <p>– nachfolgend „Unternehmen" –</p>
 </div>
@@ -309,7 +309,7 @@ export const legalContent = {
 
 <div class="contact-block">
   <p><strong>CLYR Solutions GmbH</strong></p>
-  <p>Pappelweg 4b, 9524 St. Magdalen, Österreich</p>
+  <p>Pappelweg 4b, 9524 Villach, Österreich</p>
   <p>Geschäftsführerin: Theresa Struger</p>
   <p>E-Mail: <a href="mailto:admin@clyr.shop">admin@clyr.shop</a></p>
   <p>Tel: +43 (0) 664 2520432</p>
@@ -326,7 +326,7 @@ export const legalContent = {
 <p>Um Ihr Widerrufsrecht auszuüben, müssen Sie uns</p>
 <div class="contact-block">
   <p><strong>CLYR Solutions GmbH</strong></p>
-  <p>Pappelweg 4b, 9524 St. Magdalen, Österreich</p>
+  <p>Pappelweg 4b, 9524 Villach, Österreich</p>
   <p>E-Mail: <a href="mailto:admin@clyr.shop">admin@clyr.shop</a></p>
   <p>Tel: +43 (0) 664 2520432</p>
 </div>

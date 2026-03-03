@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS legal_pages (
 -- Seed default legal pages
 INSERT INTO legal_pages (page_key, title, content) VALUES
   ('privacy', 'Datenschutzerklaerung', 'Bitte bearbeiten Sie diese Seite im Admin-Bereich.'),
-  ('imprint', 'Impressum', 'CLYR Solutions GmbH\nPappelweg 4b\n9524 St. Magdalen\nOesterreich\n\nE-Mail: service@clyr.shop\nGerichtsstand: Villach, Oesterreich'),
+  ('imprint', 'Impressum', 'CLYR Solutions GmbH\nPappelweg 4b\n9524 Villach\nOesterreich\n\nE-Mail: service@clyr.shop\nGerichtsstand: Villach, Oesterreich'),
   ('terms', 'Allgemeine Geschaeftsbedingungen', 'Bitte bearbeiten Sie diese Seite im Admin-Bereich.'),
   ('withdrawal', 'Widerrufsbelehrung', 'Sie haben das Recht, binnen 14 Tagen ohne Angabe von Gruenden diesen Vertrag zu widerrufen.'),
   ('vp_vertrag', 'VP-Vertrag', 'Bitte bearbeiten Sie diese Seite im Admin-Bereich.')

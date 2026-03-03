@@ -10,7 +10,7 @@ const WITHDRAWAL_HTML = `
 
 <div class="contact-block">
   <p><strong>CLYR Solutions GmbH</strong></p>
-  <p>Pappelweg 4b, 9524 St. Magdalen</p>
+  <p>Pappelweg 4b, 9524 Villach</p>
   <p>Geschäftsführerin: Theresa Struger</p>
   <p>Tel: +43 (0) 664 2520432</p>
   <p>E-Mail: <a href="mailto:admin@clyr.shop">admin@clyr.shop</a></p>
@@ -39,7 +39,7 @@ const WITHDRAWAL_HTML = `
 <h2>Muster-Widerrufsformular</h2>
 <p><em>(Wenn Sie den Vertrag widerrufen wollen, dann füllen Sie bitte dieses Formular aus und senden Sie es zurück.)</em></p>
 <div class="contact-block">
-  <p>An: CLYR Solutions GmbH, Pappelweg 4b, 9524 St. Magdalen, admin@clyr.shop</p>
+  <p>An: CLYR Solutions GmbH, Pappelweg 4b, 9524 Villach, admin@clyr.shop</p>
   <br/>
   <p>Hiermit widerrufe(n) ich/wir (*) den von mir/uns (*) abgeschlossenen Vertrag über den Kauf der folgenden Waren (*):</p>
   <br/>

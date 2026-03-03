@@ -15,7 +15,7 @@ const brandConfig = {
     // #47: Correct company address
     address: {
       street: 'Pappelweg 4b',
-      city: 'St. Magdalen',
+      city: 'Villach',
       zip: '9524',
       country: 'Oesterreich',
       countryCode: 'AT',
@@ -48,7 +48,7 @@ const brandConfig = {
     legalName: 'CLYR Solutions GmbH',
     address: {
       street: 'Pappelweg 4b',
-      city: 'St. Magdalen',
+      city: 'Villach',
       zip: '9524',
       country: 'Oesterreich',
     },
@@ -73,7 +73,7 @@ const brandConfig = {
     companyName: 'CLYR Solutions GmbH',
     address: {
       street: 'Pappelweg 4b',
-      city: 'St. Magdalen',
+      city: 'Villach',
       zip: '9524',
       country: 'Oesterreich',
     },

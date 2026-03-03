@@ -4,7 +4,7 @@
  * Business logic settings for CLYR MLM Platform
  * 
  * COMPANY: CLYR Solutions GmbH
- * Pappelweg 4b, 9524 St. Magdalen, Oesterreich
+ * Pappelweg 4b, 9524 Villach, Oesterreich
  * service@clyr.shop | www.clyr.shop
  * 
  * DISTRIBUTION ADDRESS: Holz 33, 5211 Lengau, Oesterreich
@@ -219,7 +219,7 @@ const appConfig = {
   billingCompany: {
     name: 'CLYR Solutions GmbH',
     country: 'AT',
-    address: 'Pappelweg 4b, 9524 St. Magdalen'
+    address: 'Pappelweg 4b, 9524 Villach'
   },
 
   // Commission Payment Company - CLYR Solutions GmbH

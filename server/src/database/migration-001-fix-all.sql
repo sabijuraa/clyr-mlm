@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS company_settings (
     address_line1 VARCHAR(255) DEFAULT 'Pappelweg 4b',
     address_line2 VARCHAR(255),
     postal_code VARCHAR(20) DEFAULT '9524',
-    city VARCHAR(100) DEFAULT 'St. Magdalen',
+    city VARCHAR(100) DEFAULT 'Villach',
     state VARCHAR(100) DEFAULT 'Kärnten',
     country VARCHAR(2) DEFAULT 'AT',
     -- Distribution address

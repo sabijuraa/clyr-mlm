@@ -37,7 +37,17 @@ export const getAllProducts = async (req, res) => {
       default: queryText += ' ORDER BY p.sort_order ASC NULLS LAST, p.is_featured DESC, p.created_at DESC';
     }
     
-    const result = await pool.query(queryText, params);
+    let result;
+    try {
+      result = await pool.query(queryText, params);
+    } catch (sortErr) {
+      if (sortErr.message && sortErr.message.includes('sort_order')) {
+        queryText = queryText.replace('p.sort_order ASC NULLS LAST, ', '');
+        result = await pool.query(queryText, params);
+      } else {
+        throw sortErr;
+      }
+    }
     res.json(result.rows);
   } catch (error) {
     console.error('Get products error:', error);

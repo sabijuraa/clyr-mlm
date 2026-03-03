@@ -74,6 +74,6 @@ UPDATE company_settings SET
   website = COALESCE(NULLIF(website, ''), 'www.clyr.shop'),
   address_line1 = COALESCE(NULLIF(address_line1, ''), 'Pappelweg 4b'),
   postal_code = COALESCE(NULLIF(postal_code, ''), '9524'),
-  city = COALESCE(NULLIF(city, ''), 'St. Magdalen'),
+  city = COALESCE(NULLIF(city, ''), 'Villach'),
   country = COALESCE(NULLIF(country, ''), 'AT')
 WHERE id = 1;
