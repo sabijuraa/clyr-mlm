@@ -1405,32 +1405,12 @@ export const getPartnerReferredOrders = asyncHandler(async (req, res) => {
   const { page = 1, limit = 20 } = req.query;
   const offset = (page - 1) * limit;
   const referralCode = req.user.referral_code || null;
-  let hasCustomersTable = false;
-  try {
-    const tableCheck = await query(
-      "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema='public' AND table_name='customers') as exists"
-    );
-    hasCustomersTable = tableCheck.rows[0]?.exists === true;
-  } catch (e) { hasCustomersTable = false; }
-
-  const whereClause = hasCustomersTable
-    ? `
-      WHERE (
-        o.partner_id = $1
-        OR ($2 IS NOT NULL AND UPPER(o.referral_code) = UPPER($2))
-        OR LOWER(o.customer_email) IN (
-          SELECT LOWER(c.email)
-          FROM customers c
-          WHERE c.referred_by = $1
-        )
-      )
-    `
-    : `
-      WHERE (
-        o.partner_id = $1
-        OR ($2 IS NOT NULL AND UPPER(o.referral_code) = UPPER($2))
-      )
-    `;
+  const whereClause = `
+    WHERE (
+      o.partner_id = $1
+      OR ($2 IS NOT NULL AND UPPER(o.referral_code) = UPPER($2))
+    )
+  `;
 
   const countResult = await query(
     `SELECT COUNT(*) FROM orders o ${whereClause}`,

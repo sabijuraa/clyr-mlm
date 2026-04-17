@@ -539,29 +539,10 @@ export const getCustomers = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const referralCode = req.user.referral_code || null;
 
-  // Check if customers table exists (graceful fallback if not)
-  let hasCustomersTable = false;
-  try {
-    const checkTable = await query(
-      "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema='public' AND table_name='customers') as exists"
-    );
-    hasCustomersTable = checkTable.rows[0]?.exists === true;
-  } catch (e) { hasCustomersTable = false; }
-
-  // Customers are derived from orders (customer data lives on the order record itself)
-  // Include legacy orders via customers.referred_by when available
-  let whereClause = hasCustomersTable
-    ? `WHERE (
-        o.partner_id = $1
-        OR ($2 IS NOT NULL AND UPPER(o.referral_code) = UPPER($2))
-        OR LOWER(o.customer_email) IN (
-          SELECT LOWER(c.email) FROM customers c WHERE c.referred_by = $1
-        )
-      ) AND o.customer_email IS NOT NULL`
-    : `WHERE (
-        o.partner_id = $1
-        OR ($2 IS NOT NULL AND UPPER(o.referral_code) = UPPER($2))
-      ) AND o.customer_email IS NOT NULL`;
+  let whereClause = `WHERE (
+      o.partner_id = $1
+      OR ($2 IS NOT NULL AND UPPER(o.referral_code) = UPPER($2))
+    ) AND o.customer_email IS NOT NULL`;
   const params = [userId, referralCode];
 
   if (search) {
@@ -574,17 +555,6 @@ export const getCustomers = asyncHandler(async (req, res) => {
     params
   );
 
-  // Build query with or without customers-table subqueries
-  const companyField = hasCustomersTable 
-    ? "(SELECT c.company FROM customers c WHERE LOWER(c.email) = LOWER(o.customer_email) LIMIT 1)"
-    : "NULL";
-  const vatField = hasCustomersTable
-    ? "(SELECT c.vat_id FROM customers c WHERE LOWER(c.email) = LOWER(o.customer_email) LIMIT 1)"
-    : "NULL";
-  const birthField = hasCustomersTable
-    ? "(SELECT c.birth_date FROM customers c WHERE LOWER(c.email) = LOWER(o.customer_email) LIMIT 1)"
-    : "NULL";
-
   const customersResult = await query(
     `SELECT 
        o.customer_email as email,
@@ -595,9 +565,9 @@ export const getCustomers = asyncHandler(async (req, res) => {
        o.billing_city as city,
        o.billing_country as country,
        o.customer_phone as phone,
-       ${companyField} as company,
-       ${vatField} as vat_id,
-       ${birthField} as birth_date,
+       MAX(o.customer_company) as company,
+       MAX(o.customer_vat_id) as vat_id,
+       NULL::date as birth_date,
        COUNT(o.id) as order_count,
        COALESCE(SUM(o.total), 0) as total_spent,
        MIN(o.created_at) as first_order_at,
@@ -618,7 +588,6 @@ export const getCustomers = asyncHandler(async (req, res) => {
           AND (
             o2.partner_id = $1
             OR ($2 IS NOT NULL AND UPPER(o2.referral_code) = UPPER($2))
-            ${hasCustomersTable ? "OR LOWER(o2.customer_email) IN (SELECT LOWER(c.email) FROM customers c WHERE c.referred_by = $1)" : ""}
           )) as orders
      FROM orders o
      ${whereClause}
