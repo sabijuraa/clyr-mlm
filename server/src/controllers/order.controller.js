@@ -1,0 +1,1531 @@
+import Stripe from 'stripe';
+import { query, transaction } from '../config/database.js';
+import { asyncHandler, AppError } from '../middleware/error.middleware.js';
+import { calculateCommissions } from '../services/commission.service.js';
+import { generateInvoicePDF } from '../services/invoice.service.js';
+
+const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
+
+/**
+ * Generate unique order number
+ */
+const generateOrderNumber = async () => {
+  const date = new Date();
+  const prefix = `FL${date.getFullYear().toString().slice(-2)}${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+  
+  const result = await query(
+    `SELECT order_number FROM orders 
+     WHERE order_number LIKE $1 
+     ORDER BY created_at DESC LIMIT 1`,
+    [`${prefix}%`]
+  );
+
+  let sequence = 1;
+  if (result.rows.length > 0) {
+    const lastNumber = result.rows[0].order_number;
+    sequence = parseInt(lastNumber.slice(-4)) + 1;
+  }
+
+  return `${prefix}${sequence.toString().padStart(4, '0')}`;
+};
+
+/**
+ * Get shipping cost based on country and items
+ * CLYR shipping rules (per Theresa 2026-02-17):
+ * - Soda System (is_large_item): AT: 55€, DE: 70€, CH: 180€
+ * - Small products (Dusche, Zubehoer): AT: 9.90€, DE: 14.90€, CH: 35€
+ * - Montage/Installation (is_service): 0€ shipping
+ * - Mixed orders: highest rate applies (large overrides small, NOT added)
+ */
+const getShippingCost = async (country, items, products) => {
+  const settingsResult = await query("SELECT value FROM settings WHERE key = 'shipping_costs'");
+  const shippingCosts = settingsResult.rows[0]?.value || {
+    DE: { large: 70.00, small: 14.90 },
+    AT: { large: 55.00, small: 9.90 },
+    CH: { large: 180.00, small: 35.00 }
+  };
+
+  const countryConfig = shippingCosts[country];
+  if (!countryConfig) {
+    throw new AppError(`Versand nach ${country} nicht verfuegbar`, 400);
+  }
+
+  // Check what types of items are in the order
+  const hasLargeItem = items.some(item => {
+    const product = products.find(p => p.id === item.productId);
+    return product?.is_large_item;
+  });
+
+  // Check if order is ONLY services (Montage etc.) — no shipping
+  const hasPhysicalItem = items.some(item => {
+    const product = products.find(p => p.id === item.productId);
+    return !product?.is_service;
+  });
+
+  if (!hasPhysicalItem) return 0;
+
+  // Legacy flat rate support
+  if (countryConfig.flat !== undefined && countryConfig.large === undefined) {
+    return countryConfig.flat;
+  }
+
+  // Large item = large shipping (covers small items too)
+  if (hasLargeItem) {
+    return countryConfig.large || 70.00;
+  }
+
+  return countryConfig.small || 14.90;
+};
+
+/**
+ * Get VAT rate based on country and customer type
+ * CLYR Tax Rules (Austrian company selling):
+ * - DE customer without VAT ID → 19% German MwSt
+ * - DE customer with VAT ID → 0% Reverse Charge (B2B)
+ * - AT customer → 20% Austrian MwSt (always, home country)
+ * - CH customer → 8.1% Swiss MwSt (non-EU export)
+ * - AT customer with VAT ID → still 20% (domestic B2B)
+ */
+const getVatRate = async (country, hasVatId = false) => {
+  // Load configurable rates from settings
+  const settingsResult = await query("SELECT value FROM settings WHERE key = 'vat_rates'");
+  const vatRates = settingsResult.rows[0]?.value || { DE: 19, AT: 20, CH: 8.1 };
+
+  switch (country) {
+    case 'DE':
+      // Germany: B2B with valid VAT ID = Reverse Charge (0%)
+      // Germany: B2C or no VAT ID = 19%
+      return hasVatId ? 0 : (vatRates.DE || 19);
+    
+    case 'AT':
+      // Austria (home country): Always 20%, even B2B
+      return vatRates.AT || 20;
+    
+    case 'CH':
+      // Switzerland: 8.1% (non-EU, Swiss VAT applies on import)
+      return vatRates.CH || 8.1;
+    
+    default:
+      return 0;
+  }
+};
+
+/**
+ * Validate a discount code
+ */
+export const validateDiscountCode = asyncHandler(async (req, res) => {
+  const { code, subtotal = 0 } = req.body;
+  if (!code) return res.json({ valid: false, error: 'Kein Code angegeben' });
+
+  const result = await query(
+    `SELECT * FROM discount_codes 
+     WHERE code = $1 
+     AND is_active = true 
+     AND (starts_at IS NULL OR starts_at <= CURRENT_TIMESTAMP)
+     AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+     AND (max_uses IS NULL OR current_uses < max_uses)`,
+    [code.toUpperCase()]
+  );
+
+  if (result.rows.length === 0) {
+    return res.json({ valid: false, error: 'Code nicht gefunden oder abgelaufen' });
+  }
+
+  const discount = result.rows[0];
+  if (subtotal < discount.min_order_amount) {
+    return res.json({ valid: false, error: `Mindestbestellwert: €${discount.min_order_amount}` });
+  }
+
+  const amount = discount.type === 'percentage'
+    ? Math.round(subtotal * (discount.value / 100) * 100) / 100
+    : Math.min(parseFloat(discount.value), subtotal);
+
+  res.json({
+    valid: true,
+    type: discount.type,
+    value: parseFloat(discount.value),
+    amount,
+    code: discount.code
+  });
+});
+
+/**
+ * Calculate order totals
+ */
+export const calculateOrderTotals = asyncHandler(async (req, res) => {
+  const { items, country, hasVatId = false } = req.body;
+
+  if (!items || items.length === 0) {
+    throw new AppError('Keine Artikel angegeben', 400);
+  }
+
+  // Territory restriction: only DE/AT/CH allowed (#49)
+  const allowedCountries = ['DE', 'AT', 'CH'];
+  if (!allowedCountries.includes(country)) {
+    throw new AppError('Versand ist nur nach Deutschland, Oesterreich und in die Schweiz moeglich.', 400);
+  }
+
+  // Get products
+  const productIds = items.map(item => item.productId);
+  const productsResult = await query(
+    'SELECT * FROM products WHERE id = ANY($1) AND is_active = true',
+    [productIds]
+  );
+
+  if (productsResult.rows.length !== productIds.length) {
+    throw new AppError('Ein oder mehrere Produkte nicht gefunden', 404);
+  }
+
+  const products = productsResult.rows;
+
+  // Calculate subtotal
+  const subtotal = items.reduce((sum, item) => {
+    const product = products.find(p => p.id === item.productId);
+    return sum + product.price * item.quantity;
+  }, 0);
+
+  // Get shipping cost
+  const shippingCost = await getShippingCost(country, items, products);
+
+  // Get VAT rate
+  const vatRate = await getVatRate(country, hasVatId);
+
+  // Calculate VAT (on subtotal + shipping)
+  const taxableAmount = subtotal + shippingCost;
+  const vatAmount = Math.round(taxableAmount * (vatRate / 100) * 100) / 100;
+
+  // Calculate total
+  const total = Math.round((taxableAmount + vatAmount) * 100) / 100;
+
+  // Determine reverse charge status and VAT note
+  const isReverseCharge = (country === 'DE' && hasVatId);
+  let vatNote = '';
+  if (isReverseCharge) {
+    vatNote = 'Steuerschuldnerschaft des Leistungsempfaengers (Reverse Charge)';
+  } else if (country === 'CH') {
+    vatNote = 'Schweizer MwSt. 8.1%';
+  }
+
+  res.json({
+    subtotal: Math.round(subtotal * 100) / 100,
+    shippingCost,
+    vatRate,
+    vatAmount,
+    total,
+    isReverseCharge,
+    vatNote,
+    items: items.map(item => {
+      const product = products.find(p => p.id === item.productId);
+      return {
+        productId: product.id,
+        name: product.name,
+        price: product.price,
+        quantity: item.quantity,
+        total: product.price * item.quantity,
+        image: product.images?.[0] || null
+      };
+    })
+  });
+});
+
+/**
+ * Create Stripe Checkout Session (redirect to Stripe payment page)
+ */
+export const createPaymentIntent = asyncHandler(async (req, res) => {
+  const { amount, currency = 'eur', metadata = {} } = req.body;
+
+  if (!amount || amount < 0.50) {
+    throw new AppError('Betrag muss mindestens 0,50 EUR sein', 400);
+  }
+
+  if (!process.env.STRIPE_SECRET_KEY || !stripe) {
+    throw new AppError('Stripe ist nicht konfiguriert. Bitte STRIPE_SECRET_KEY in den Umgebungsvariablen setzen.', 500);
+  }
+
+  // Determine the public-facing URL for Stripe redirects
+  // Priority: env vars > request origin/referer > hardcoded fallback
+  const getPublicUrl = (req) => {
+    // 1. Explicit env vars
+    if (process.env.FRONTEND_URL && process.env.FRONTEND_URL !== '${APP_URL}') return process.env.FRONTEND_URL;
+    if (process.env.CLIENT_URL) return process.env.CLIENT_URL;
+    
+    // 2. From request origin or referer (most reliable behind load balancer)
+    const origin = req.headers.origin || '';
+    if (origin && origin.startsWith('http')) return origin;
+    const referer = req.headers.referer || '';
+    if (referer && referer.startsWith('http')) {
+      try { return new URL(referer).origin; } catch (e) {}
+    }
+    
+    // 3. X-Forwarded headers (set by load balancer)
+    const proto = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.headers['x-forwarded-host'] || req.headers.host || req.get('host');
+    if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+      return `${proto}://${host}`;
+    }
+    
+    // 4. APP_URL env var
+    if (process.env.APP_URL) return process.env.APP_URL;
+    
+    // 5. Hardcoded fallback
+    return 'https://clyr.shop';
+  };
+
+  const baseUrl = getPublicUrl(req).replace(/\/+$/, '');
+  const orderId = metadata.orderId;
+
+  console.log('=== STRIPE CHECKOUT SESSION ===');
+  console.log('baseUrl:', baseUrl);
+  console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
+  console.log('CLIENT_URL:', process.env.CLIENT_URL);
+  console.log('APP_URL:', process.env.APP_URL);
+  console.log('origin:', req.headers.origin);
+  console.log('referer:', req.headers.referer);
+  console.log('x-forwarded-proto:', req.headers['x-forwarded-proto']);
+  console.log('x-forwarded-host:', req.headers['x-forwarded-host']);
+  console.log('host:', req.headers.host);
+
+  try {
+    // Get customer email from order if available
+    let customerEmail = null;
+    if (orderId) {
+      const orderRes = await query('SELECT customer_email FROM orders WHERE id = $1', [orderId]);
+      customerEmail = orderRes.rows[0]?.customer_email;
+    }
+
+    // Try with Klarna + EPS first, fall back to card-only if Stripe rejects
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card', 'klarna', 'eps'],
+        ...(customerEmail ? { customer_email: customerEmail } : {}),
+        line_items: [{
+          price_data: {
+            currency: currency,
+            product_data: {
+              name: `CLYR Bestellung${orderId ? ' #' + orderId : ''}`,
+              description: 'CLYR Solutions GmbH',
+            },
+            unit_amount: Math.round(amount * 100),
+          },
+          quantity: 1,
+        }],
+        metadata: { orderId: orderId || '' },
+        success_url: `${baseUrl}/api/orders/payment-success?order=${orderId || 'success'}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/api/orders/payment-success?status=cancelled`,
+      });
+    } catch (pmError) {
+      console.log('Extended payment methods failed, falling back to card-only:', pmError.message);
+      session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        ...(customerEmail ? { customer_email: customerEmail } : {}),
+        line_items: [{
+          price_data: {
+            currency: currency,
+            product_data: {
+              name: `CLYR Bestellung${orderId ? ' #' + orderId : ''}`,
+              description: 'CLYR Solutions GmbH',
+            },
+            unit_amount: Math.round(amount * 100),
+          },
+          quantity: 1,
+        }],
+        metadata: { orderId: orderId || '' },
+        success_url: `${baseUrl}/api/orders/payment-success?order=${orderId || 'success'}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/api/orders/payment-success?status=cancelled`,
+      });
+    }
+
+    // Update order with Stripe session ID
+    if (orderId) {
+      await query(
+        'UPDATE orders SET stripe_payment_intent_id = $1, payment_method = $2 WHERE id = $3',
+        [session.id, 'stripe', orderId]
+      ).catch(() => {});
+    }
+
+    res.json({
+      url: session.url,
+      sessionId: session.id,
+      clientSecret: null,
+      paymentIntentId: session.id
+    });
+  } catch (stripeError) {
+    console.error('Stripe session creation failed:', stripeError.message);
+    throw new AppError('Zahlungsservice nicht verfuegbar: ' + stripeError.message, 500);
+  }
+});
+
+/**
+ * Public invoice download (no auth required, for order confirmation page)
+ */
+export const getPublicInvoice = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const orderResult = await query(
+    `SELECT o.* FROM orders o WHERE o.id = $1`,
+    [id]
+  );
+
+  if (orderResult.rows.length === 0) {
+    throw new AppError('Bestellung nicht gefunden', 404);
+  }
+
+  const order = orderResult.rows[0];
+
+  // Get order items
+  const itemsResult = await query(
+    'SELECT * FROM order_items WHERE order_id = $1',
+    [order.id]
+  );
+  order.items = itemsResult.rows;
+
+  // Generate PDF on the fly
+  const { generateInvoicePDF } = await import('../services/invoice.service.js');
+  const pdfBuffer = await generateInvoicePDF(order, order.invoice_number);
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="Rechnung-${order.order_number || order.id}.pdf"`);
+  res.setHeader('Content-Length', pdfBuffer.length);
+  res.end(pdfBuffer);
+});
+
+/**
+ * Verify payment after Stripe redirect - marks order as paid if Stripe confirms
+ * This is a fallback in case the webhook hasn't fired yet
+ */
+export const verifyPayment = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { sessionId } = req.body;
+
+  const orderResult = await query('SELECT * FROM orders WHERE id = $1', [id]);
+  if (orderResult.rows.length === 0) {
+    throw new AppError('Bestellung nicht gefunden', 404);
+  }
+
+  const order = orderResult.rows[0];
+
+  // Already paid - return success
+  if (order.payment_status === 'paid') {
+    return res.json({ status: 'paid', order_number: order.order_number });
+  }
+
+  // Try to verify with Stripe
+  if (stripe && sessionId) {
+    try {
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      if (session.payment_status === 'paid') {
+        // Mark order as paid
+        await query(
+          `UPDATE orders SET payment_status = 'paid', payment_method = 'stripe', 
+           stripe_payment_intent_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+          [session.payment_intent || sessionId, id]
+        );
+
+        // Calculate commissions
+        if (order.partner_id) {
+          try {
+            await transaction(async (client) => {
+              await calculateCommissions(client, order.id, order.partner_id, parseFloat(order.subtotal));
+            });
+          } catch (e) {
+            console.error('Commission calculation failed:', e.message);
+          }
+        }
+
+        // Generate invoice
+        try {
+          const { generateInvoice } = await import('../services/invoice.service.js');
+          await generateInvoice(order.id);
+        } catch (e) {
+          console.error('Invoice generation failed:', e.message);
+        }
+
+        // Send confirmation email
+        try {
+          const { sendOrderConfirmation } = await import('../services/email.service.js');
+          const itemsResult = await query('SELECT * FROM order_items WHERE order_id = $1', [order.id]);
+          const partnerEmail = order.partner_id ? (await query('SELECT email FROM users WHERE id = $1', [order.partner_id])).rows[0]?.email : null;
+          await sendOrderConfirmation({ ...order, payment_status: 'paid', partner_email: partnerEmail }, itemsResult.rows);
+        } catch (e) {
+          console.error('Email failed:', e.message);
+        }
+
+        return res.json({ status: 'paid', order_number: order.order_number });
+      }
+    } catch (e) {
+      console.error('Stripe verification failed:', e.message);
+    }
+  }
+
+  // Mark as paid anyway if coming from Stripe success redirect (Stripe only redirects on success)
+  if (sessionId && order.payment_status === 'pending') {
+    await query(
+      `UPDATE orders SET payment_status = 'paid', payment_method = 'stripe', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+      [id]
+    );
+
+    // Calculate commissions
+    if (order.partner_id) {
+      try {
+        await transaction(async (client) => {
+          await calculateCommissions(client, order.id, order.partner_id, parseFloat(order.subtotal));
+        });
+      } catch (e) {
+        console.error('Commission calculation failed:', e.message);
+      }
+    }
+
+    return res.json({ status: 'paid', order_number: order.order_number });
+  }
+
+  res.json({ status: order.payment_status, order_number: order.order_number });
+});
+
+/**
+ * Payment Success Page - Stripe redirects here
+ * Serves a full HTML page so no SPA routing is needed
+ */
+export const paymentSuccessPage = asyncHandler(async (req, res) => {
+  const orderId = req.query.order;
+  const sessionId = req.query.session_id;
+  const cancelled = req.query.status === 'cancelled';
+
+  if (cancelled) {
+    return res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>CLYR - Zahlung abgebrochen</title>
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      <style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f8fafc}
+      .card{text-align:center;max-width:500px;padding:40px;background:white;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
+      .icon{width:80px;height:80px;margin:0 auto 20px;border-radius:50%;background:#fef2f2;display:flex;align-items:center;justify-content:center}
+      .btn{display:inline-block;padding:12px 32px;background:#1e293b;color:white;text-decoration:none;border-radius:12px;font-weight:600;margin-top:20px}</style></head>
+      <body><div class="card">
+        <div class="icon"><svg width="40" height="40" fill="none" stroke="#ef4444" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></div>
+        <h1 style="color:#1e293b">Zahlung abgebrochen</h1>
+        <p style="color:#64748b">Die Zahlung wurde nicht abgeschlossen. Ihr Warenkorb bleibt erhalten.</p>
+        <a href="/checkout" class="btn">Zurück zur Kasse</a>
+      </div></body></html>`);
+  }
+
+  // Mark order as paid if we have an orderId
+  let orderNumber = orderId;
+  if (orderId) {
+    try {
+      const orderResult = await query('SELECT * FROM orders WHERE id = $1', [orderId]);
+      if (orderResult.rows.length > 0) {
+        const order = orderResult.rows[0];
+        orderNumber = order.order_number || orderId;
+        
+        if (order.payment_status !== 'paid') {
+          // Mark as paid and store sessionId so webhook cross-reference works
+          await query(
+            `UPDATE orders SET 
+               payment_status = 'paid',
+               payment_method = 'stripe',
+               stripe_payment_intent_id = COALESCE(NULLIF(stripe_payment_intent_id, ''), $2),
+               updated_at = CURRENT_TIMESTAMP
+             WHERE id = $1`,
+            [orderId, sessionId || null]
+          );
+
+          // Calculate commissions
+          if (order.partner_id) {
+            try {
+              await transaction(async (client) => {
+                await calculateCommissions(client, order.id, order.partner_id, parseFloat(order.subtotal));
+              });
+              console.log('Commissions calculated for order', orderId);
+            } catch (e) { console.error('Commission error:', e.message); }
+          }
+
+          // Generate invoice
+          try {
+            const { generateInvoice } = await import('../services/invoice.service.js');
+            await generateInvoice(orderId);
+          } catch (e) { console.error('Invoice error:', e.message); }
+
+          // Send emails
+          try {
+            const { sendOrderConfirmation } = await import('../services/email.service.js');
+            const itemsResult = await query('SELECT * FROM order_items WHERE order_id = $1', [orderId]);
+            const updatedOrder = (await query('SELECT * FROM orders WHERE id = $1', [orderId])).rows[0];
+            const partnerEmail = updatedOrder.partner_id ? (await query('SELECT email FROM users WHERE id = $1', [updatedOrder.partner_id])).rows[0]?.email : null;
+            await sendOrderConfirmation({ ...updatedOrder, partner_email: partnerEmail }, itemsResult.rows);
+          } catch (e) { console.error('Email error:', e.message); }
+        }
+      }
+    } catch (e) {
+      console.error('Payment verification error:', e.message);
+    }
+  }
+
+  // Serve success HTML page directly
+  const invoiceUrl = orderId ? '/api/orders/' + orderId + '/public-invoice' : '#';
+  const displayOrderNumber = orderNumber || 'Wird verarbeitet...';
+  
+  const invoiceSection = orderId ? '<div class="invoice-section">' +
+    '<h3>Rechnung herunterladen</h3>' +
+    '<p>Laden Sie Ihre Rechnung als PDF herunter.</p>' +
+    '<a href="' + invoiceUrl + '" class="btn btn-primary" target="_blank">' +
+    '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> ' +
+    'Rechnung PDF</a></div>' : '';
+
+  res.send('<!DOCTYPE html><html><head><meta charset="utf-8"><title>CLYR - Bestellung bestaetigt</title>' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<style>' +
+    'body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:linear-gradient(135deg,#f8fafc,#fff);min-height:100vh;display:flex;align-items:center;justify-content:center}' +
+    '.card{text-align:center;max-width:600px;padding:48px 32px;background:white;border-radius:24px;box-shadow:0 8px 32px rgba(0,0,0,.08);margin:20px}' +
+    '.icon{width:96px;height:96px;margin:0 auto 24px;border-radius:50%;background:#ecfdf5;display:flex;align-items:center;justify-content:center}' +
+    'h1{color:#1e293b;font-size:28px;margin:0 0 8px}' +
+    '.subtitle{color:#64748b;font-size:18px;margin:0 0 24px}' +
+    '.order-box{display:inline-block;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px 32px;margin:0 0 32px}' +
+    '.order-label{font-size:13px;color:#94a3b8;margin:0}' +
+    '.order-id{font-size:18px;font-weight:700;color:#1e293b;font-family:monospace;margin:4px 0 0}' +
+    '.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;text-align:left;margin:0 0 32px}' +
+    '.info-card{background:#f8fafc;border-radius:12px;padding:20px;border:1px solid #f1f5f9}' +
+    '.info-card h3{font-size:14px;font-weight:600;color:#1e293b;margin:0 0 4px}' +
+    '.info-card p{font-size:13px;color:#64748b;margin:0}' +
+    '.btn-group{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}' +
+    '.btn{padding:12px 28px;border-radius:12px;font-weight:600;text-decoration:none;font-size:14px;display:inline-flex;align-items:center;gap:8px;transition:all .2s}' +
+    '.btn-primary{background:#2563eb;color:white}.btn-primary:hover{background:#1d4ed8}' +
+    '.btn-outline{background:#f1f5f9;color:#475569}.btn-outline:hover{background:#e2e8f0}' +
+    '.invoice-section{background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:20px;margin:0 0 28px;text-align:left}' +
+    '.invoice-section h3{font-size:14px;font-weight:600;color:#0c4a6e;margin:0 0 8px}' +
+    '.invoice-section p{font-size:13px;color:#0369a1;margin:0 0 12px}' +
+    '@media(max-width:640px){.info-grid{grid-template-columns:1fr}.card{padding:32px 20px}}' +
+    '</style></head>' +
+    '<body><div class="card">' +
+    '<div class="icon"><svg width="48" height="48" fill="none" stroke="#16a34a" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></div>' +
+    '<h1>Vielen Dank fuer Ihre Bestellung!</h1>' +
+    '<p class="subtitle">Ihre Zahlung war erfolgreich.</p>' +
+    '<div class="order-box"><p class="order-label">Bestellnummer</p><p class="order-id">' + displayOrderNumber + '</p></div>' +
+    '<div class="info-grid">' +
+    '<div class="info-card"><h3>E-Mail Bestaetigung</h3><p>Sie erhalten in Kuerze eine Bestaetigung per E-Mail mit Ihrer Rechnung.</p></div>' +
+    '<div class="info-card"><h3>Versand</h3><p>Ihre Bestellung wird in 2-4 Werktagen geliefert.</p></div>' +
+    '</div>' +
+    invoiceSection +
+    '<div class="btn-group">' +
+    '<a href="/shop" class="btn btn-primary">Weiter einkaufen</a>' +
+    '<a href="/" class="btn btn-outline">Zur Startseite</a>' +
+    '</div></div></body></html>');
+});
+
+/**
+ * Create order
+ */
+export const createOrder = asyncHandler(async (req, res) => {
+  console.log('=== CREATE ORDER REQUEST ===');
+  console.log('Body keys:', Object.keys(req.body));
+  console.log('Items:', JSON.stringify(req.body.items));
+  console.log('Customer email:', req.body.customer?.email);
+  console.log('Billing country:', req.body.billing?.country);
+  
+  const {
+    customer,
+    billing,
+    shipping,
+    items,
+    referralCode,
+    discountCode,
+    paymentMethod,
+    stripePaymentIntentId,
+    customerNotes
+  } = req.body;
+
+  // Validate items and get products
+  const productIds = items.map(item => item.productId);
+  const productsResult = await query(
+    'SELECT * FROM products WHERE id = ANY($1) AND is_active = true',
+    [productIds]
+  );
+
+  if (productsResult.rows.length !== productIds.length) {
+    throw new AppError('Ein oder mehrere Produkte nicht verfügbar', 400);
+  }
+
+  const products = productsResult.rows;
+
+  // Build a price map for selected variant options (if present)
+  const selectedOptionIds = [
+    ...new Set(
+      items
+        .flatMap((item) => Object.values(item.selectedVariants || {}))
+        .map((variant) => parseInt(variant?.id, 10))
+        .filter((id) => Number.isInteger(id) && id > 0)
+    )
+  ];
+
+  let variantPriceMap = new Map();
+  if (selectedOptionIds.length > 0) {
+    const variantResult = await query(
+      `SELECT pv.product_id, pv.option_id, COALESCE(pv.price_modifier, vo.price_modifier, 0) as modifier
+       FROM product_variants pv
+       JOIN variant_options vo ON vo.id = pv.option_id
+       WHERE pv.product_id = ANY($1) AND pv.option_id = ANY($2) AND pv.is_active = true`,
+      [productIds, selectedOptionIds]
+    );
+    variantPriceMap = new Map(
+      variantResult.rows.map((row) => [`${row.product_id}:${row.option_id}`, parseFloat(row.modifier || 0)])
+    );
+  }
+
+  const resolveItemUnitPrice = (item, product) => {
+    const selectedVariants = Object.values(item.selectedVariants || {});
+    const variantModifier = selectedVariants.reduce((sum, variant) => {
+      const optionId = parseInt(variant?.id, 10);
+      if (Number.isInteger(optionId) && optionId > 0) {
+        const dbModifier = variantPriceMap.get(`${product.id}:${optionId}`);
+        if (dbModifier !== undefined) return sum + dbModifier;
+      }
+      return sum + parseFloat(variant?.priceModifier || 0);
+    }, 0);
+    return Math.round((parseFloat(product.price || 0) + variantModifier) * 100) / 100;
+  };
+
+  // Check stock
+  for (const item of items) {
+    const product = products.find(p => p.id === item.productId);
+    if (product.track_stock && product.stock < item.quantity) {
+      throw new AppError(`${product.name} ist nicht in ausreichender Menge verfügbar`, 400);
+    }
+  }
+
+  // Find partner by referral code
+  let partnerId = null;
+  if (referralCode) {
+    const partnerResult = await query(
+      'SELECT id FROM users WHERE referral_code = $1 AND status = $2',
+      [referralCode.toUpperCase(), 'active']
+    );
+    if (partnerResult.rows.length > 0) {
+      const foundPartnerId = partnerResult.rows[0].id;
+      // Block self-referral: partner cannot use their own referral code
+      const isSelfReferral = customer?.userId === foundPartnerId || customer?.id === foundPartnerId;
+      if (isSelfReferral) {
+        return res.status(400).json({ 
+          error: 'Sie können nicht Ihren eigenen Empfehlungscode verwenden.',
+          code: 'SELF_REFERRAL'
+        });
+      }
+      partnerId = foundPartnerId;
+    }
+  }
+
+  // #54: Check prospect protection - if no referral code, check if customer email is protected
+  if (!partnerId && customer.email) {
+    try {
+      const { checkProspectProtection } = await import('../controllers/partner-subscription.controller.js');
+      const protector = await checkProspectProtection(customer.email);
+      if (protector) {
+        partnerId = protector.partner_id;
+      }
+    } catch (e) { /* non-blocking */ }
+  }
+
+  // Calculate totals
+  const country = billing.country;
+  const hasVatId = !!customer.vatId;
+
+  // Territory restriction: only DE/AT/CH allowed (#49)
+  const allowedCountries = ['DE', 'AT', 'CH'];
+  if (!allowedCountries.includes(country)) {
+    throw new AppError('Versand ist nur nach Deutschland, Oesterreich und in die Schweiz moeglich.', 400);
+  }
+  
+  const subtotal = items.reduce((sum, item) => {
+    const product = products.find(p => p.id === item.productId);
+    if (!product) return sum;
+    const unitPrice = resolveItemUnitPrice(item, product);
+    return sum + unitPrice * item.quantity;
+  }, 0);
+
+  const shippingCost = await getShippingCost(country, items, products);
+  const vatRate = await getVatRate(country, hasVatId);
+  const taxableAmount = subtotal + shippingCost;
+  const vatAmount = Math.round(taxableAmount * (vatRate / 100) * 100) / 100;
+
+  // Handle discount code
+  let discountAmount = 0;
+  let appliedDiscountCode = null;
+  if (discountCode) {
+    const discountResult = await query(
+      `SELECT * FROM discount_codes 
+       WHERE code = $1 
+       AND is_active = true 
+       AND (starts_at IS NULL OR starts_at <= CURRENT_TIMESTAMP)
+       AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+       AND (max_uses IS NULL OR current_uses < max_uses)`,
+      [discountCode.toUpperCase()]
+    );
+
+    if (discountResult.rows.length > 0) {
+      const discount = discountResult.rows[0];
+      if (subtotal >= discount.min_order_amount) {
+        if (discount.type === 'percentage') {
+          discountAmount = Math.round(subtotal * (discount.value / 100) * 100) / 100;
+        } else {
+          discountAmount = Math.min(discount.value, subtotal);
+        }
+        appliedDiscountCode = discount;
+      }
+    }
+  }
+
+  const total = Math.round((taxableAmount + vatAmount - discountAmount) * 100) / 100;
+
+  // Create order in transaction
+  const order = await transaction(async (client) => {
+    // Generate order number
+    const orderNumber = await generateOrderNumber();
+
+    // Find or create customer
+    let customerId = null;
+    const existingCustomer = await client.query(
+      'SELECT id FROM customers WHERE email = $1',
+      [customer.email.toLowerCase()]
+    );
+
+    if (existingCustomer.rows.length > 0) {
+      customerId = existingCustomer.rows[0].id;
+      // Update customer info
+      await client.query(
+        `UPDATE customers SET
+          first_name = $1, last_name = $2, phone = $3,
+          street = $4, zip = $5, city = $6, country = $7,
+          company = $8, vat_id = $9, referred_by = COALESCE(referred_by, $10)
+         WHERE id = $11`,
+        [
+          customer.firstName, customer.lastName, customer.phone,
+          billing.street, billing.zip, billing.city, billing.country,
+          customer.company, customer.vatId, partnerId,
+          customerId
+        ]
+      );
+    } else {
+      const newCustomer = await client.query(
+        `INSERT INTO customers (email, first_name, last_name, phone, street, zip, city, country, company, vat_id, referred_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+         RETURNING id`,
+        [
+          customer.email.toLowerCase(), customer.firstName, customer.lastName, customer.phone,
+          billing.street, billing.zip, billing.city, billing.country,
+          customer.company, customer.vatId, partnerId
+        ]
+      );
+      customerId = newCustomer.rows[0].id;
+    }
+
+    // Determine reverse charge
+    const isReverseCharge = (country === 'DE' && hasVatId);
+    const vatNote = isReverseCharge 
+      ? 'Steuerschuldnerschaft des Leistungsempfaengers (Reverse Charge)' 
+      : (country === 'CH' ? 'Schweizer MwSt. 8.1%' : '');
+
+    // Create order
+    const orderResult = await client.query(
+      `INSERT INTO orders (
+        order_number, customer_id, customer_email, customer_first_name, customer_last_name, customer_phone,
+        customer_company, customer_vat_id,
+        billing_street, billing_zip, billing_city, billing_country,
+        shipping_street, shipping_zip, shipping_city, shipping_country,
+        subtotal, shipping_cost, vat_rate, vat_amount, discount_amount, total,
+        partner_id, referral_code, discount_code,
+        payment_method, stripe_payment_intent_id, payment_status,
+        customer_notes, is_reverse_charge
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+        $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30
+      ) RETURNING *`,
+      [
+        orderNumber, customerId, customer.email.toLowerCase(), customer.firstName, customer.lastName, customer.phone,
+        customer.company, customer.vatId,
+        billing.street, billing.zip, billing.city, billing.country,
+        shipping?.street || billing.street, shipping?.zip || billing.zip,
+        shipping?.city || billing.city, shipping?.country || billing.country,
+        subtotal, shippingCost, vatRate, vatAmount, discountAmount, total,
+        partnerId, referralCode?.toUpperCase(), appliedDiscountCode?.code,
+        paymentMethod, null, 'pending',
+        customerNotes, isReverseCharge
+      ]
+    );
+
+    const newOrder = orderResult.rows[0];
+
+    // Create order items
+    // Check if order_items has variant columns (compatible with older DBs)
+    const orderItemsColumnsResult = await client.query(
+      `SELECT column_name
+       FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'order_items'
+       AND column_name IN ('variant_description', 'variant_data')`
+    );
+    const hasVariantDescription = orderItemsColumnsResult.rows.some(r => r.column_name === 'variant_description');
+    const hasVariantData = orderItemsColumnsResult.rows.some(r => r.column_name === 'variant_data');
+
+    for (const item of items) {
+      const product = products.find(p => p.id === item.productId);
+      const itemUnitPrice = resolveItemUnitPrice(item, product);
+      const itemTotal = Math.round(itemUnitPrice * item.quantity * 100) / 100;
+      const variantDescription = item.variantDescription
+        || Object.values(item.selectedVariants || {}).map(v => v?.name).filter(Boolean).join(', ')
+        || null;
+      const variantData = item.selectedVariants || null;
+
+      const insertColumns = [
+        'order_id',
+        'product_id',
+        'product_name',
+        'product_price',
+        'product_image',
+        'quantity',
+        'total'
+      ];
+      const insertValues = [
+        newOrder.id,
+        product.id,
+        product.name,
+        itemUnitPrice,
+        product.images?.[0] || null,
+        item.quantity,
+        itemTotal
+      ];
+
+      if (hasVariantDescription) {
+        insertColumns.push('variant_description');
+        insertValues.push(variantDescription);
+      }
+      if (hasVariantData) {
+        insertColumns.push('variant_data');
+        insertValues.push(variantData ? JSON.stringify(variantData) : null);
+      }
+
+      const placeholders = insertValues.map((_, idx) => `$${idx + 1}`).join(', ');
+      await client.query(
+        `INSERT INTO order_items (${insertColumns.join(', ')})
+         VALUES (${placeholders})`,
+        insertValues
+      );
+
+      // Reduce stock
+      if (product.track_stock) {
+        await client.query(
+          'UPDATE products SET stock = stock - $1 WHERE id = $2',
+          [item.quantity, product.id]
+        );
+      }
+    }
+
+    // Update discount code usage
+    if (appliedDiscountCode) {
+      await client.query(
+        'UPDATE discount_codes SET current_uses = current_uses + 1 WHERE id = $1',
+        [appliedDiscountCode.id]
+      );
+
+      // Deduct discount from the voucher-creating partner's commission
+      // The discount amount comes FROM the partner's commission, not the company
+      if (appliedDiscountCode.partner_id && discountAmount > 0) {
+        const voucherPartnerId = appliedDiscountCode.partner_id;
+        
+        // Record negative commission (deduction) for the voucher partner
+        await client.query(
+          `INSERT INTO commissions (user_id, order_id, type, amount, rate, base_amount, status, released_at, description)
+           VALUES ($1, $2, 'difference', $3, 0, $4, 'released', CURRENT_TIMESTAMP, $5)`,
+          [
+            voucherPartnerId,
+            newOrder.id,
+            -discountAmount,
+            discountAmount,
+            `Gutschein ${appliedDiscountCode.code}: Rabatt-Abzug €${discountAmount.toFixed(2)}`
+          ]
+        );
+
+        // Reduce partner's wallet balance
+        await client.query(
+          'UPDATE users SET wallet_balance = COALESCE(wallet_balance, 0) - $1 WHERE id = $2',
+          [discountAmount, voucherPartnerId]
+        );
+      }
+    }
+
+    // Calculate and create commissions if partner exists and payment is confirmed
+    // Commission is calculated on FULL subtotal (before discount)
+    // The discount is separately deducted from the voucher partner above
+    if (partnerId && newOrder.payment_status === 'paid') {
+      await calculateCommissions(client, newOrder.id, partnerId, subtotal);
+    }
+
+    // Log activity
+    await client.query(
+      `INSERT INTO activity_log (action, entity_type, entity_id, details)
+       VALUES ($1, $2, $3, $4)`,
+      ['order_created', 'order', newOrder.id, JSON.stringify({ orderNumber, total, partnerId })]
+    );
+
+    return newOrder;
+  });
+
+  // Get order items
+  const orderItemsResult = await query(
+    'SELECT * FROM order_items WHERE order_id = $1',
+    [order.id]
+  );
+
+  // Auto-generate invoice PDF and send emails ONLY if payment is already confirmed
+  // For Stripe orders, this happens in paymentSuccessPage handler instead
+  if (order.payment_status === 'paid') {
+    // Auto-generate invoice PDF
+    try {
+      const { generateInvoice: genInvoice } = await import('../services/invoice.service.js');
+      await genInvoice(order.id);
+    } catch (invoiceErr) {
+      console.error('Auto-invoice generation failed (non-blocking):', invoiceErr.message);
+    }
+
+    // Send order confirmation emails (customer + admin + affiliate)
+    try {
+      const { sendOrderConfirmation } = await import('../services/email.service.js');
+      await sendOrderConfirmation(
+        { ...order, partner_email: order.partner_id ? (await query('SELECT email FROM users WHERE id = $1', [order.partner_id])).rows[0]?.email : null },
+        orderItemsResult.rows
+      );
+    } catch (emailErr) {
+      console.error('Order email failed (non-blocking):', emailErr.message);
+    }
+  } else {
+    console.log(`Order ${order.order_number} created with payment_status=${order.payment_status}. Emails will be sent after payment.`);
+  }
+
+  res.status(201).json({
+    message: 'Bestellung erfolgreich',
+    order: {
+      ...order,
+      items: orderItemsResult.rows
+    }
+  });
+});
+
+/**
+ * Get order confirmation
+ */
+export const getOrderConfirmation = asyncHandler(async (req, res) => {
+  const { orderNumber } = req.params;
+
+  const orderResult = await query(
+    `SELECT o.*, 
+            p.first_name as partner_first_name, p.last_name as partner_last_name
+     FROM orders o
+     LEFT JOIN users p ON o.partner_id = p.id
+     WHERE o.order_number = $1`,
+    [orderNumber]
+  );
+
+  if (orderResult.rows.length === 0) {
+    throw new AppError('Bestellung nicht gefunden', 404);
+  }
+
+  const order = orderResult.rows[0];
+
+  // Get order items
+  const itemsResult = await query(
+    'SELECT * FROM order_items WHERE order_id = $1',
+    [order.id]
+  );
+
+  res.json({
+    order: {
+      ...order,
+      items: itemsResult.rows
+    }
+  });
+});
+
+/**
+ * Get all orders (Admin)
+ */
+export const getAllOrders = asyncHandler(async (req, res) => {
+  const {
+    page = 1,
+    limit = 20,
+    status,
+    paymentStatus,
+    partnerId,
+    search,
+    customer_email,
+    startDate,
+    endDate
+  } = req.query;
+
+  const offset = (page - 1) * limit;
+  const params = [];
+  let paramIndex = 1;
+  let whereClause = 'WHERE 1=1';
+
+  if (status) {
+    whereClause += ` AND o.status = $${paramIndex}`;
+    params.push(status);
+    paramIndex++;
+  }
+
+  if (paymentStatus) {
+    whereClause += ` AND o.payment_status = $${paramIndex}`;
+    params.push(paymentStatus);
+    paramIndex++;
+  }
+
+  if (partnerId) {
+    whereClause += ` AND o.partner_id = $${paramIndex}`;
+    params.push(partnerId);
+    paramIndex++;
+  }
+
+  if (search) {
+    whereClause += ` AND (o.order_number ILIKE $${paramIndex} OR o.customer_email ILIKE $${paramIndex} OR o.customer_last_name ILIKE $${paramIndex})`;
+    params.push(`%${search}%`);
+    paramIndex++;
+  }
+
+  if (customer_email) {
+    whereClause += ` AND LOWER(o.customer_email) = $${paramIndex}`;
+    params.push(customer_email.toLowerCase());
+    paramIndex++;
+  }
+
+  if (startDate) {
+    whereClause += ` AND o.created_at >= $${paramIndex}`;
+    params.push(startDate);
+    paramIndex++;
+  }
+
+  if (endDate) {
+    whereClause += ` AND o.created_at <= $${paramIndex}`;
+    params.push(endDate);
+    paramIndex++;
+  }
+
+  const countResult = await query(
+    `SELECT COUNT(*) FROM orders o ${whereClause}`,
+    params
+  );
+  const total = parseInt(countResult.rows[0].count);
+
+  const ordersResult = await query(
+    `SELECT o.*, 
+            p.first_name as partner_first_name, p.last_name as partner_last_name, p.referral_code as partner_code,
+            (
+              SELECT json_agg(row_to_json(oi) ORDER BY oi.id)
+              FROM order_items oi
+              WHERE oi.order_id = o.id
+            ) as items
+     FROM orders o
+     LEFT JOIN users p ON o.partner_id = p.id
+     ${whereClause}
+     ORDER BY o.created_at DESC
+     LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+    [...params, parseInt(limit), offset]
+  );
+
+  res.json({
+    orders: ordersResult.rows,
+    pagination: {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total,
+      totalPages: Math.ceil(total / limit)
+    }
+  });
+});
+
+/**
+ * Get order by ID (Admin)
+ */
+export const getOrderById = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const orderResult = await query(
+    `SELECT o.*, 
+            p.first_name as partner_first_name, p.last_name as partner_last_name, 
+            p.email as partner_email, p.referral_code as partner_code
+     FROM orders o
+     LEFT JOIN users p ON o.partner_id = p.id
+     WHERE o.id = $1`,
+    [id]
+  );
+
+  if (orderResult.rows.length === 0) {
+    throw new AppError('Bestellung nicht gefunden', 404);
+  }
+
+  const order = orderResult.rows[0];
+
+  // Get order items
+  const itemsResult = await query(
+    'SELECT * FROM order_items WHERE order_id = $1',
+    [order.id]
+  );
+
+  // Get commissions for this order
+  const commissionsResult = await query(
+    `SELECT c.*, u.first_name, u.last_name, u.email
+     FROM commissions c
+     JOIN users u ON c.user_id = u.id
+     WHERE c.order_id = $1`,
+    [order.id]
+  );
+
+  res.json({
+    order: {
+      ...order,
+      items: itemsResult.rows,
+      commissions: commissionsResult.rows
+    }
+  });
+});
+
+/**
+ * Update order status
+ */
+export const updateOrderStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { status, trackingNumber, adminNotes } = req.body;
+
+  const orderResult = await query('SELECT * FROM orders WHERE id = $1', [id]);
+  if (orderResult.rows.length === 0) {
+    throw new AppError('Bestellung nicht gefunden', 404);
+  }
+
+  const order = orderResult.rows[0];
+
+  const updates = [];
+  const params = [];
+  let paramIndex = 1;
+
+  if (status) {
+    updates.push(`status = $${paramIndex}`);
+    params.push(status);
+    paramIndex++;
+
+    if (status === 'shipped') {
+      updates.push(`shipped_at = CURRENT_TIMESTAMP`);
+    } else if (status === 'delivered' || status === 'completed') {
+      updates.push(`delivered_at = CURRENT_TIMESTAMP`);
+    }
+  }
+
+  if (trackingNumber) {
+    updates.push(`tracking_number = $${paramIndex}`);
+    params.push(trackingNumber);
+    paramIndex++;
+  }
+
+  if (adminNotes) {
+    updates.push(`admin_notes = $${paramIndex}`);
+    params.push(adminNotes);
+    paramIndex++;
+  }
+
+  updates.push('updated_at = CURRENT_TIMESTAMP');
+
+  params.push(id);
+
+  const result = await query(
+    `UPDATE orders SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+    params
+  );
+
+  // Log activity
+  await query(
+    `INSERT INTO activity_log (user_id, action, entity_type, entity_id, details)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [req.user.id, 'order_status_updated', 'order', id, JSON.stringify({ oldStatus: order.status, newStatus: status })]
+  );
+
+  res.json({
+    message: 'Bestellstatus aktualisiert',
+    order: result.rows[0]
+  });
+});
+
+/**
+ * Mark order as paid manually (Admin only)
+ * Used to recover stuck pending orders where Stripe confirmed payment but webhook/redirect failed
+ */
+export const markOrderPaid = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { note } = req.body;
+
+  const orderResult = await query('SELECT * FROM orders WHERE id = $1', [id]);
+  if (orderResult.rows.length === 0) {
+    throw new AppError('Bestellung nicht gefunden', 404);
+  }
+
+  const order = orderResult.rows[0];
+
+  if (order.payment_status === 'paid') {
+    return res.json({ message: 'Bestellung ist bereits als bezahlt markiert', order });
+  }
+
+  await transaction(async (client) => {
+    // Mark as paid
+    await client.query(
+      `UPDATE orders SET 
+         payment_status = 'paid',
+         payment_method = COALESCE(NULLIF(payment_method, ''), 'manual'),
+         admin_notes = COALESCE(admin_notes || E'\n', '') || $2,
+         updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [id, `[Manuell als bezahlt markiert von Admin am ${new Date().toLocaleDateString('de-DE')}${note ? ': ' + note : ''}]`]
+    );
+
+    // Calculate commissions if not yet done
+    if (order.partner_id) {
+      const existingCommissions = await client.query(
+        'SELECT id FROM commissions WHERE order_id = $1 AND type = $2',
+        [id, 'direct']
+      );
+      if (existingCommissions.rows.length === 0) {
+        await calculateCommissions(client, order.id, order.partner_id, parseFloat(order.subtotal));
+      }
+    }
+
+    // Log activity
+    await client.query(
+      `INSERT INTO activity_log (user_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [req.user.id, 'order_marked_paid_manually', 'order', id,
+        JSON.stringify({ adminId: req.user.id, note: note || '', orderNumber: order.order_number })]
+    );
+  });
+
+  // Generate invoice if not yet done
+  try {
+    const { generateInvoice } = await import('../services/invoice.service.js');
+    await generateInvoice(id);
+  } catch (e) {
+    console.error('Invoice generation after manual paid mark failed:', e.message);
+  }
+
+  const updatedOrder = await query('SELECT * FROM orders WHERE id = $1', [id]);
+  res.json({ message: 'Bestellung erfolgreich als bezahlt markiert', order: updatedOrder.rows[0] });
+});
+
+/**
+ * Refund order
+ */
+export const refundOrder = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { reason, amount } = req.body;
+
+  const orderResult = await query('SELECT * FROM orders WHERE id = $1', [id]);
+  if (orderResult.rows.length === 0) {
+    throw new AppError('Bestellung nicht gefunden', 404);
+  }
+
+  const order = orderResult.rows[0];
+
+  if (order.payment_status === 'refunded') {
+    throw new AppError('Bestellung wurde bereits erstattet', 400);
+  }
+
+  const refundAmount = amount || order.total;
+
+  await transaction(async (client) => {
+    // Process Stripe refund if applicable
+    if (order.stripe_payment_intent_id && stripe) {
+      await stripe.refunds.create({
+        payment_intent: order.stripe_payment_intent_id,
+        amount: Math.round(refundAmount * 100),
+        reason: 'requested_by_customer'
+      });
+    }
+
+    // Update order status
+    const isFullRefund = refundAmount >= order.total;
+    await client.query(
+      `UPDATE orders SET 
+        status = $1,
+        payment_status = $2,
+        admin_notes = COALESCE(admin_notes, '') || $3
+       WHERE id = $4`,
+      [
+        isFullRefund ? 'refunded' : order.status,
+        isFullRefund ? 'refunded' : 'partially_refunded',
+        `\nErstattung: ${refundAmount}€ - Grund: ${reason || 'Keine Angabe'}`,
+        id
+      ]
+    );
+
+    // Reverse commissions
+    await client.query(
+      `UPDATE commissions SET 
+        status = 'reversed',
+        cancelled_at = CURRENT_TIMESTAMP
+       WHERE order_id = $1 AND status IN ('pending', 'held', 'released')`,
+      [id]
+    );
+
+    // Restore stock
+    const itemsResult = await client.query(
+      'SELECT product_id, quantity FROM order_items WHERE order_id = $1',
+      [id]
+    );
+
+    for (const item of itemsResult.rows) {
+      await client.query(
+        'UPDATE products SET stock = stock + $1 WHERE id = $2 AND track_stock = true',
+        [item.quantity, item.product_id]
+      );
+    }
+
+    // Update partner sales count
+    if (order.partner_id) {
+      await client.query(
+        'UPDATE users SET own_sales_count = GREATEST(own_sales_count - 1, 0) WHERE id = $1',
+        [order.partner_id]
+      );
+    }
+
+    // Log activity
+    await client.query(
+      `INSERT INTO activity_log (user_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [req.user.id, 'order_refunded', 'order', id, JSON.stringify({ amount: refundAmount, reason })]
+    );
+  });
+
+  res.json({ message: 'Erstattung erfolgreich' });
+});
+
+/**
+ * Get partner referred orders
+ * Returns full order list including payment and shipping status
+ */
+export const getPartnerReferredOrders = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 20 } = req.query;
+  const offset = (page - 1) * limit;
+  let hasCustomersTable = false;
+  try {
+    const tableCheck = await query(
+      "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema='public' AND table_name='customers') as exists"
+    );
+    hasCustomersTable = tableCheck.rows[0]?.exists === true;
+  } catch (e) { hasCustomersTable = false; }
+
+  const whereClause = hasCustomersTable
+    ? `
+      WHERE (
+        o.partner_id = $1
+        OR LOWER(o.customer_email) IN (
+          SELECT LOWER(c.email)
+          FROM customers c
+          WHERE c.referred_by = $1
+        )
+      )
+    `
+    : `WHERE o.partner_id = $1`;
+
+  const countResult = await query(
+    `SELECT COUNT(*) FROM orders o ${whereClause}`,
+    [req.user.id]
+  );
+  const total = parseInt(countResult.rows[0].count);
+
+  const ordersResult = await query(
+    `SELECT o.id, o.order_number, o.customer_first_name, o.customer_last_name,
+            o.total, o.subtotal, o.status, o.payment_status, o.tracking_number, o.shipped_at, o.created_at,
+            (SELECT COALESCE(SUM(amount), 0) FROM commissions WHERE order_id = o.id AND user_id = $1 AND status != 'reversed') as commission_earned,
+            (SELECT json_agg(row_to_json(oi) ORDER BY oi.id) FROM order_items oi WHERE oi.order_id = o.id) as items
+     FROM orders o
+     ${whereClause}
+     ORDER BY o.created_at DESC
+     LIMIT $2 OFFSET $3`,
+    [req.user.id, parseInt(limit), offset]
+  );
+
+  res.json({
+    orders: ordersResult.rows,
+    pagination: {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total,
+      totalPages: Math.ceil(total / limit)
+    }
+  });
+});
+
+
+/**
+ * Generate invoice PDF
+ */
+export const generateInvoice = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const orderResult = await query(
+    `SELECT o.*, c.email as customer_email_db
+     FROM orders o
+     LEFT JOIN customers c ON o.customer_id = c.id
+     WHERE o.id = $1`,
+    [id]
+  );
+
+  if (orderResult.rows.length === 0) {
+    throw new AppError('Bestellung nicht gefunden', 404);
+  }
+
+  const order = orderResult.rows[0];
+
+  // Check authorization
+  if (req.user.role !== 'admin' && req.user.role !== 'support') {
+    if (order.partner_id !== req.user.id) {
+      throw new AppError('Keine Berechtigung', 403);
+    }
+  }
+
+  // Get order items
+  const itemsResult = await query(
+    'SELECT * FROM order_items WHERE order_id = $1',
+    [order.id]
+  );
+
+  order.items = itemsResult.rows;
+
+  // Generate PDF buffer (returns Buffer now)
+  const pdfBuffer = await generateInvoicePDF(order, order.invoice_number);
+
+  // Set headers for PDF download
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="Rechnung-${order.order_number || order.id}.pdf"`);
+  res.setHeader('Content-Length', pdfBuffer.length);
+  res.end(pdfBuffer);
+});
+/**
+ * Delete order (admin only)
+ */
+export const deleteOrder = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Delete all related records first (in case CASCADE is missing)
+    await query('DELETE FROM order_items WHERE order_id = $1', [id]).catch(() => {});
+    await query('DELETE FROM commissions WHERE order_id = $1', [id]).catch(() => {});
+    await query('DELETE FROM stock_reservations WHERE order_id = $1', [id]).catch(() => {});
+    await query('DELETE FROM invoices WHERE order_id = $1', [id]).catch(() => {});
+    // Delete the order
+    const result = await query('DELETE FROM orders WHERE id = $1 RETURNING id, order_number', [id]);
+
+    if (result.rows.length === 0) {
+      // Try by order_number in case id is actually the order number
+      const result2 = await query('DELETE FROM orders WHERE order_number = $1 RETURNING id, order_number', [id]);
+      if (result2.rows.length === 0) {
+        return res.status(404).json({ message: 'Bestellung nicht gefunden' });
+      }
+      return res.json({ message: 'Bestellung geloescht', orderNumber: result2.rows[0].order_number });
+    }
+
+    res.json({ message: 'Bestellung geloescht', orderNumber: result.rows[0].order_number });
+  } catch (err) {
+    console.error('Delete order error:', err);
+    res.status(500).json({ message: 'Fehler beim Loeschen: ' + err.message });
+  }
+});
