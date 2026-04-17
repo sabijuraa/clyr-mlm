@@ -38,6 +38,7 @@ import complianceRoutes from './routes/compliance.routes.js';
 
 // Import error middleware
 import { errorHandler } from './middleware/error.middleware.js';
+import { getPublicAppUrl } from './utils/public-url.js';
 
 // Import commission service for cron jobs
 import { releaseHeldCommissions, checkRankDecay, resetQuarterlySales } from './services/commission.service.js';
@@ -347,7 +348,7 @@ app.get('*', (req, res, next) => {
   }
   
   // If client dist not available (separate containers), redirect to frontend URL
-  const frontendUrl = process.env.FRONTEND_URL;
+  const frontendUrl = getPublicAppUrl();
   if (frontendUrl && req.path !== '/') {
     return res.redirect(frontendUrl + req.originalUrl);
   }
@@ -381,7 +382,7 @@ app.use((req, res) => {
     });
   }
   // For non-API routes that somehow got here, redirect to frontend
-  const frontendUrl = process.env.FRONTEND_URL || '';
+  const frontendUrl = getPublicAppUrl();
   if (frontendUrl) {
     return res.redirect(frontendUrl + req.originalUrl);
   }

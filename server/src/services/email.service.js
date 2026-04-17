@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { getPublicAppUrl } from '../utils/public-url.js';
 
 let transporterPromise;
 
@@ -367,7 +368,7 @@ export const sendPayoutNotification = async (user, payout) => {
  * Password reset email
  */
 export const sendPasswordReset = async (user, resetToken) => {
-  const resetUrl = `${process.env.FRONTEND_URL || 'https://clyr.shop'}/reset-password?token=${resetToken}`;
+  const resetUrl = `${getPublicAppUrl()}/reset-password?token=${resetToken}`;
   
   const html = `
     <!DOCTYPE html>

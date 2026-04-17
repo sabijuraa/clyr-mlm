@@ -8,6 +8,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import path from 'path';
 import fs from 'fs';
+import { getPublicAppUrl } from '../utils/public-url.js';
 
 // ========================================
 // #9: AUTHENTICATION (FIXED)
@@ -162,7 +163,7 @@ export const customerForgotPassword = async (req, res) => {
     // Send email
     try {
       const { sendEmail } = await import('../services/email.service.js');
-      const resetUrl = `${process.env.FRONTEND_URL || 'https://clyr.shop'}/customer/reset-password?token=${resetToken}`;
+      const resetUrl = `${getPublicAppUrl()}/customer/reset-password?token=${resetToken}`;
       
       await sendEmail({
         to: customer.email,
