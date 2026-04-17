@@ -537,6 +537,7 @@ export const getCustomers = asyncHandler(async (req, res) => {
   const { page = 1, limit = 20, search } = req.query;
   const offset = (page - 1) * limit;
   const userId = req.user.id;
+  const referralCode = req.user.referral_code || null;
 
   // Check if customers table exists (graceful fallback if not)
   let hasCustomersTable = false;
@@ -552,15 +553,19 @@ export const getCustomers = asyncHandler(async (req, res) => {
   let whereClause = hasCustomersTable
     ? `WHERE (
         o.partner_id = $1
+        OR ($2 IS NOT NULL AND UPPER(o.referral_code) = UPPER($2))
         OR LOWER(o.customer_email) IN (
           SELECT LOWER(c.email) FROM customers c WHERE c.referred_by = $1
         )
       ) AND o.customer_email IS NOT NULL`
-    : `WHERE o.partner_id = $1 AND o.customer_email IS NOT NULL`;
-  const params = [userId];
+    : `WHERE (
+        o.partner_id = $1
+        OR ($2 IS NOT NULL AND UPPER(o.referral_code) = UPPER($2))
+      ) AND o.customer_email IS NOT NULL`;
+  const params = [userId, referralCode];
 
   if (search) {
-    whereClause += ` AND (o.customer_first_name ILIKE $2 OR o.customer_last_name ILIKE $2 OR o.customer_email ILIKE $2 OR o.billing_city ILIKE $2)`;
+    whereClause += ` AND (o.customer_first_name ILIKE $3 OR o.customer_last_name ILIKE $3 OR o.customer_email ILIKE $3 OR o.billing_city ILIKE $3)`;
     params.push(`%${search}%`);
   }
 
@@ -612,6 +617,7 @@ export const getCustomers = asyncHandler(async (req, res) => {
         WHERE o2.customer_email = o.customer_email
           AND (
             o2.partner_id = $1
+            OR ($2 IS NOT NULL AND UPPER(o2.referral_code) = UPPER($2))
             ${hasCustomersTable ? "OR LOWER(o2.customer_email) IN (SELECT LOWER(c.email) FROM customers c WHERE c.referred_by = $1)" : ""}
           )) as orders
      FROM orders o

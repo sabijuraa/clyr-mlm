@@ -1404,6 +1404,7 @@ export const refundOrder = asyncHandler(async (req, res) => {
 export const getPartnerReferredOrders = asyncHandler(async (req, res) => {
   const { page = 1, limit = 20 } = req.query;
   const offset = (page - 1) * limit;
+  const referralCode = req.user.referral_code || null;
   let hasCustomersTable = false;
   try {
     const tableCheck = await query(
@@ -1416,6 +1417,7 @@ export const getPartnerReferredOrders = asyncHandler(async (req, res) => {
     ? `
       WHERE (
         o.partner_id = $1
+        OR ($2 IS NOT NULL AND UPPER(o.referral_code) = UPPER($2))
         OR LOWER(o.customer_email) IN (
           SELECT LOWER(c.email)
           FROM customers c
@@ -1423,11 +1425,16 @@ export const getPartnerReferredOrders = asyncHandler(async (req, res) => {
         )
       )
     `
-    : `WHERE o.partner_id = $1`;
+    : `
+      WHERE (
+        o.partner_id = $1
+        OR ($2 IS NOT NULL AND UPPER(o.referral_code) = UPPER($2))
+      )
+    `;
 
   const countResult = await query(
     `SELECT COUNT(*) FROM orders o ${whereClause}`,
-    [req.user.id]
+    [req.user.id, referralCode]
   );
   const total = parseInt(countResult.rows[0].count);
 
@@ -1439,8 +1446,8 @@ export const getPartnerReferredOrders = asyncHandler(async (req, res) => {
      FROM orders o
      ${whereClause}
      ORDER BY o.created_at DESC
-     LIMIT $2 OFFSET $3`,
-    [req.user.id, parseInt(limit), offset]
+     LIMIT $3 OFFSET $4`,
+    [req.user.id, referralCode, parseInt(limit), offset]
   );
 
   res.json({
