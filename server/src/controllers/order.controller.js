@@ -1408,7 +1408,7 @@ export const getPartnerReferredOrders = asyncHandler(async (req, res) => {
   const whereClause = `
     WHERE (
       o.partner_id = $1
-      OR ($2 IS NOT NULL AND UPPER(o.referral_code) = UPPER($2))
+      OR ($2::text IS NOT NULL AND UPPER(o.referral_code) = UPPER($2::text))
     )
   `;
 

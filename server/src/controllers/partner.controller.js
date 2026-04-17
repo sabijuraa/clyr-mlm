@@ -541,7 +541,7 @@ export const getCustomers = asyncHandler(async (req, res) => {
 
   let whereClause = `WHERE (
       o.partner_id = $1
-      OR ($2 IS NOT NULL AND UPPER(o.referral_code) = UPPER($2))
+      OR ($2::text IS NOT NULL AND UPPER(o.referral_code) = UPPER($2::text))
     ) AND o.customer_email IS NOT NULL`;
   const params = [userId, referralCode];
 
@@ -587,7 +587,7 @@ export const getCustomers = asyncHandler(async (req, res) => {
         WHERE o2.customer_email = o.customer_email
           AND (
             o2.partner_id = $1
-            OR ($2 IS NOT NULL AND UPPER(o2.referral_code) = UPPER($2))
+            OR ($2::text IS NOT NULL AND UPPER(o2.referral_code) = UPPER($2::text))
           )) as orders
      FROM orders o
      ${whereClause}
