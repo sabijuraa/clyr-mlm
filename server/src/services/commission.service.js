@@ -680,14 +680,19 @@ export const distributeBonusPool = async (triggeredByUserId) => {
        JOIN ranks r ON u.rank_id = r.id
        WHERE r.level >= 4
        AND u.status = 'active'
-       AND u.role = 'partner'
        AND (
-         SELECT COUNT(*) FROM orders o
-         WHERE o.partner_id = u.id
-         AND o.created_at >= $1
-         AND o.payment_status = 'paid'
-         AND o.status NOT IN ('cancelled', 'refunded')
-       ) >= 2`,
+         (
+           u.role = 'partner'
+           AND (
+             SELECT COUNT(*) FROM orders o
+             WHERE o.partner_id = u.id
+             AND o.created_at >= $1
+             AND o.payment_status = 'paid'
+             AND o.status NOT IN ('cancelled', 'refunded')
+           ) >= 2
+         )
+         OR u.role = 'admin'
+       )`,
       [quarterStart]
     );
 
