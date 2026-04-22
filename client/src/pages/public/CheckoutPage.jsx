@@ -174,6 +174,7 @@ export default function CheckoutPage() {
     postalCode: '',
     country: 'AT'
   });
+  const [acceptTerms, setAcceptTerms] = useState(false);
 
   // Referral code state - auto-fill from CartContext, URL, or cookie
   const urlRef = searchParams.get('ref') || '';
@@ -302,6 +303,12 @@ export default function CheckoutPage() {
         return;
       }
 
+      if (!acceptTerms) {
+        alert('Bitte akzeptieren Sie die AGB und Datenschutzbestimmungen, um die Bestellung fortzusetzen.');
+        setLoading(false);
+        return;
+      }
+
       const orderData = {
         customer: {
           firstName: formData.firstName.trim(),
@@ -320,6 +327,7 @@ export default function CheckoutPage() {
         items: orderItems,
         referralCode: referralValid ? referralCode : null,
         discountCode: discountApplied ? discountApplied.code : null,
+        acceptTerms,
         paymentMethod: 'stripe'
       };
 
@@ -602,11 +610,45 @@ export default function CheckoutPage() {
                 )}
               </div>
 
+              {/* Terms & Conditions */}
+              <div className="bg-white p-6 rounded-lg shadow">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={acceptTerms}
+                    onChange={(e) => setAcceptTerms(e.target.checked)}
+                    required
+                    className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700">
+                    Ich akzeptiere die{' '}
+                    <Link
+                      to="/terms"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                    >
+                      AGB
+                    </Link>
+                    {' '}und die{' '}
+                    <Link
+                      to="/privacy"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                    >
+                      Datenschutzbestimmungen
+                    </Link>
+                    .
+                  </span>
+                </label>
+              </div>
+
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full py-4 bg-blue-600 text-white text-lg font-semibold rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition"
+                disabled={loading || !acceptTerms}
+                className="w-full py-4 bg-blue-600 text-white text-lg font-semibold rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
               >
                 {loading ? 'Bestellung wird erstellt...' : 'Bestellung abschließen'}
               </button>

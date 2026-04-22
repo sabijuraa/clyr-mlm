@@ -633,6 +633,13 @@ export const createOrder = asyncHandler(async (req, res) => {
     customerNotes
   } = req.body;
 
+  if (paymentMethod === 'stripe' && (!process.env.STRIPE_SECRET_KEY || !stripe)) {
+    throw new AppError(
+      'Stripe ist nicht konfiguriert. Bitte STRIPE_SECRET_KEY in den Umgebungsvariablen setzen.',
+      500
+    );
+  }
+
   // Validate items and get products
   const productIds = items.map(item => item.productId);
   const productsResult = await query(

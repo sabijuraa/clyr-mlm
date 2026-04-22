@@ -36,6 +36,8 @@ const PartnerRegisterPage = () => {
       country: 'DE'
     }
   });
+  const acceptTerms = watch('acceptTerms');
+  const acceptPrivacy = watch('acceptPrivacy');
 
   const steps = [
     { id: 1, label: lang === 'de' ? 'Persönliche Daten' : 'Personal Info', icon: User },
@@ -595,42 +597,52 @@ const PartnerRegisterPage = () => {
 
                       {/* Terms (#40: VP_Vertrag agreement) */}
                       <div className="space-y-4">
-                        <label className="flex items-start gap-3 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            {...register('acceptTerms', { required: true })}
-                            className="w-5 h-5 mt-0.5 rounded border-gray-300 text-secondary-700 focus:ring-primary-400"
-                          />
-                          <span className="text-sm text-secondary-500">
-                            {lang === 'de' ? 'Ich akzeptiere den' : 'I accept the'}{' '}
-                            <Link to="/partner-terms" target="_blank" className="text-secondary-700 hover:text-primary-500 font-medium">
-                              {lang === 'de' ? 'Vertriebspartner-Vertrag (VP-Vertrag)' : 'Distribution Partner Agreement'}
-                            </Link>{' '}
-                            {lang === 'de' ? 'und die' : 'and the'}{' '}
-                            <Link to="/terms" target="_blank" className="text-secondary-700 hover:text-primary-500 font-medium">
-                              {lang === 'de' ? 'Allgemeinen Geschäftsbedingungen' : 'General Terms'}
+                        <div className="rounded-xl border border-gray-200 p-4">
+                          <div className="flex items-start gap-3">
+                            <input
+                              id="acceptTerms"
+                              type="checkbox"
+                              {...register('acceptTerms', { required: true })}
+                              className="mt-0.5 h-5 w-5 rounded border-gray-300 text-secondary-700 focus:ring-primary-400"
+                            />
+                            <label htmlFor="acceptTerms" className="cursor-pointer text-sm text-secondary-500">
+                              {lang === 'de' ? 'Ich akzeptiere den Vertriebspartner-Vertrag (VP-Vertrag) und die Allgemeinen Geschäftsbedingungen.' : 'I accept the Distribution Partner Agreement and the General Terms.'}
+                            </label>
+                          </div>
+                          <div className="mt-2 ml-8 text-sm">
+                            <Link to="/partner-terms" target="_blank" rel="noopener noreferrer" className="text-secondary-700 hover:text-primary-500 font-medium">
+                              {lang === 'de' ? 'VP-Vertrag öffnen' : 'Open partner agreement'}
                             </Link>
-                          </span>
-                        </label>
+                            {' · '}
+                            <Link to="/terms" target="_blank" rel="noopener noreferrer" className="text-secondary-700 hover:text-primary-500 font-medium">
+                              {lang === 'de' ? 'AGB öffnen' : 'Open terms'}
+                            </Link>
+                          </div>
+                        </div>
                         {errors.acceptTerms && (
                           <p className="text-sm text-red-500">
                             {lang === 'de' ? 'Bitte akzeptieren Sie den VP-Vertrag' : 'Please accept the partner agreement'}
                           </p>
                         )}
 
-                        <label className="flex items-start gap-3 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            {...register('acceptPrivacy', { required: true })}
-                            className="w-5 h-5 mt-0.5 rounded border-gray-300 text-secondary-700 focus:ring-primary-400"
-                          />
-                          <span className="text-sm text-secondary-500">
-                            {lang === 'de' ? 'Ich akzeptiere die' : 'I accept the'}{' '}
-                            <Link to="/privacy" target="_blank" className="text-secondary-700 hover:text-primary-500 font-medium">
-                              {lang === 'de' ? 'Datenschutzerklaerung' : 'Privacy Policy'}
+                        <div className="rounded-xl border border-gray-200 p-4">
+                          <div className="flex items-start gap-3">
+                            <input
+                              id="acceptPrivacy"
+                              type="checkbox"
+                              {...register('acceptPrivacy', { required: true })}
+                              className="mt-0.5 h-5 w-5 rounded border-gray-300 text-secondary-700 focus:ring-primary-400"
+                            />
+                            <label htmlFor="acceptPrivacy" className="cursor-pointer text-sm text-secondary-500">
+                              {lang === 'de' ? 'Ich akzeptiere die Datenschutzerklaerung.' : 'I accept the Privacy Policy.'}
+                            </label>
+                          </div>
+                          <div className="mt-2 ml-8 text-sm">
+                            <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="text-secondary-700 hover:text-primary-500 font-medium">
+                              {lang === 'de' ? 'Datenschutzerklaerung öffnen' : 'Open privacy policy'}
                             </Link>
-                          </span>
-                        </label>
+                          </div>
+                        </div>
                         {errors.acceptPrivacy && (
                           <p className="text-sm text-red-500">
                             {lang === 'de' ? 'Bitte akzeptieren Sie die Datenschutzerklaerung' : 'Please accept the privacy policy'}
@@ -639,6 +651,7 @@ const PartnerRegisterPage = () => {
 
                         <label className="flex items-start gap-3 cursor-pointer">
                           <input
+                            id="acceptFee"
                             type="checkbox"
                             {...register('acceptFee')}
                             className="w-5 h-5 mt-0.5 rounded border-gray-300 text-secondary-700 focus:ring-primary-400"
@@ -652,6 +665,7 @@ const PartnerRegisterPage = () => {
 
                         <label className="flex items-start gap-3 cursor-pointer">
                           <input
+                            id="acceptWithdrawal"
                             type="checkbox"
                             {...register('acceptWithdrawal')}
                             className="w-5 h-5 mt-0.5 rounded border-gray-300 text-secondary-700 focus:ring-primary-400"
@@ -717,7 +731,7 @@ const PartnerRegisterPage = () => {
                   ) : (
                     <button 
                       type="submit"
-                      disabled={isLoading}
+                      disabled={isLoading || !acceptTerms || !acceptPrivacy}
                       className="flex items-center gap-2 px-8 py-3 bg-secondary-700 text-white font-semibold rounded-xl hover:bg-secondary-800 transition-all disabled:opacity-50"
                     >
                       {isLoading ? (

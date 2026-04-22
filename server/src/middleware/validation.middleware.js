@@ -76,7 +76,8 @@ export const validationRules = {
       .customSanitizer(value => value ? value.replace(/\s/g, '').toUpperCase() : value)
       .matches(/^[A-Z]{2}[0-9]{2}[A-Z0-9]{4,}$/).withMessage('Ungültige IBAN'),
     body('termsAccepted')
-      .equals('true').withMessage('AGB müssen akzeptiert werden')
+      .custom(value => value === true || value === 'true' || value === 'on')
+      .withMessage('AGB müssen akzeptiert werden')
   ],
 
   // Orders
@@ -105,7 +106,9 @@ export const validationRules = {
     body('items.*.productId')
       .isInt({ min: 1 }).withMessage('Ungültige Produkt-ID'),
     body('items.*.quantity')
-      .isInt({ min: 1, max: 99 }).withMessage('Ungültige Menge')
+      .isInt({ min: 1, max: 99 }).withMessage('Ungültige Menge'),
+    body('acceptTerms')
+      .custom(value => value === true).withMessage('AGB müssen akzeptiert werden')
   ],
 
   // Products
