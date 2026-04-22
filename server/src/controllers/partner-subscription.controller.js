@@ -105,11 +105,6 @@ export const createPartnerFeeCheckout = asyncHandler(async (req, res) => {
 
   const partner = partnerResult.rows[0];
   const { amount: annualFee } = getAffiliateFeePeriod();
-<<<<<<< HEAD
-  const baseUrl = getPublicUrl(req).replace(/\/+$/, '');
-=======
-  const baseUrl = getPublicApiUrl(req);
->>>>>>> 09aa363 (payment and Coupons)
 
   try {
     let session;
