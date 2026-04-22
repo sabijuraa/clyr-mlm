@@ -3,6 +3,7 @@ import { query, transaction } from '../config/database.js';
 import { asyncHandler, AppError } from '../middleware/error.middleware.js';
 import { calculateCommissions } from '../services/commission.service.js';
 import { generateInvoicePDF } from '../services/invoice.service.js';
+import { getPublicAppUrl, getPublicApiUrl } from '../utils/public-url.js';
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
@@ -114,7 +115,7 @@ const getVatRate = async (country, hasVatId = false) => {
  * Validate a discount code
  */
 export const validateDiscountCode = asyncHandler(async (req, res) => {
-  const { code, subtotal = 0 } = req.body;
+  const { code, subtotal = 0, items = [] } = req.body;
   if (!code) return res.json({ valid: false, error: 'Kein Code angegeben' });
 
   const result = await query(
@@ -132,20 +133,38 @@ export const validateDiscountCode = asyncHandler(async (req, res) => {
   }
 
   const discount = result.rows[0];
-  if (subtotal < discount.min_order_amount) {
+  const applicableProducts = Array.isArray(discount.applicable_products)
+    ? discount.applicable_products.map((value) => Number.parseInt(value, 10)).filter((value) => Number.isInteger(value) && value > 0)
+    : [];
+  const applicableSubtotal = applicableProducts.length > 0
+    ? Math.round(items.reduce((sum, item) => {
+        const productId = Number.parseInt(item.productId ?? item.id, 10);
+        if (!applicableProducts.includes(productId)) return sum;
+        const quantity = Number.parseInt(item.quantity, 10) || 0;
+        const unitPrice = Number.parseFloat(item.price ?? item.unitPrice ?? 0) || 0;
+        return sum + unitPrice * quantity;
+      }, 0) * 100) / 100
+    : subtotal;
+
+  if (applicableProducts.length > 0 && applicableSubtotal <= 0) {
+    return res.json({ valid: false, error: 'Gutschein gilt nicht fuer die Produkte in Ihrem Warenkorb' });
+  }
+
+  if (applicableSubtotal < discount.min_order_amount) {
     return res.json({ valid: false, error: `Mindestbestellwert: €${discount.min_order_amount}` });
   }
 
   const amount = discount.type === 'percentage'
-    ? Math.round(subtotal * (discount.value / 100) * 100) / 100
-    : Math.min(parseFloat(discount.value), subtotal);
+    ? Math.round(applicableSubtotal * (discount.value / 100) * 100) / 100
+    : Math.min(parseFloat(discount.value), applicableSubtotal);
 
   res.json({
     valid: true,
     type: discount.type,
     value: parseFloat(discount.value),
     amount,
-    code: discount.code
+    code: discount.code,
+    applicableProducts
   });
 });
 
@@ -242,45 +261,17 @@ export const createPaymentIntent = asyncHandler(async (req, res) => {
     throw new AppError('Stripe ist nicht konfiguriert. Bitte STRIPE_SECRET_KEY in den Umgebungsvariablen setzen.', 500);
   }
 
-  // Determine the public-facing URL for Stripe redirects
-  // Priority: env vars > request origin/referer > hardcoded fallback
-  const getPublicUrl = (req) => {
-    // 1. Explicit env vars
-    if (process.env.FRONTEND_URL && process.env.FRONTEND_URL !== '${APP_URL}') return process.env.FRONTEND_URL;
-    if (process.env.CLIENT_URL) return process.env.CLIENT_URL;
-    
-    // 2. From request origin or referer (most reliable behind load balancer)
-    const origin = req.headers.origin || '';
-    if (origin && origin.startsWith('http')) return origin;
-    const referer = req.headers.referer || '';
-    if (referer && referer.startsWith('http')) {
-      try { return new URL(referer).origin; } catch (e) {}
-    }
-    
-    // 3. X-Forwarded headers (set by load balancer)
-    const proto = req.headers['x-forwarded-proto'] || req.protocol;
-    const host = req.headers['x-forwarded-host'] || req.headers.host || req.get('host');
-    if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
-      return `${proto}://${host}`;
-    }
-    
-    // 4. APP_URL env var
-    if (process.env.APP_URL) return process.env.APP_URL;
-    
-    // 5. Hardcoded fallback
-    return 'https://clyr.shop';
-  };
-
-  const baseUrl = getPublicUrl(req).replace(/\/+$/, '');
+  const apiBaseUrl = getPublicApiUrl(req);
   const orderId = metadata.orderId;
 
   console.log('=== STRIPE CHECKOUT SESSION ===');
-  console.log('baseUrl:', baseUrl);
+  console.log('apiBaseUrl:', apiBaseUrl);
+  console.log('appBaseUrl:', getPublicAppUrl());
+  console.log('BACKEND_URL:', process.env.BACKEND_URL);
+  console.log('SERVER_URL:', process.env.SERVER_URL);
   console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
   console.log('CLIENT_URL:', process.env.CLIENT_URL);
   console.log('APP_URL:', process.env.APP_URL);
-  console.log('origin:', req.headers.origin);
-  console.log('referer:', req.headers.referer);
   console.log('x-forwarded-proto:', req.headers['x-forwarded-proto']);
   console.log('x-forwarded-host:', req.headers['x-forwarded-host']);
   console.log('host:', req.headers.host);
@@ -312,8 +303,8 @@ export const createPaymentIntent = asyncHandler(async (req, res) => {
           quantity: 1,
         }],
         metadata: { orderId: orderId || '' },
-        success_url: `${baseUrl}/api/orders/payment-success?order=${orderId || 'success'}&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${baseUrl}/api/orders/payment-success?status=cancelled`,
+        success_url: `${apiBaseUrl}/api/orders/payment-success?order=${orderId || 'success'}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${apiBaseUrl}/api/orders/payment-success?status=cancelled`,
       });
     } catch (pmError) {
       console.log('Extended payment methods failed, falling back to card-only:', pmError.message);
@@ -333,8 +324,8 @@ export const createPaymentIntent = asyncHandler(async (req, res) => {
           quantity: 1,
         }],
         metadata: { orderId: orderId || '' },
-        success_url: `${baseUrl}/api/orders/payment-success?order=${orderId || 'success'}&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${baseUrl}/api/orders/payment-success?status=cancelled`,
+        success_url: `${apiBaseUrl}/api/orders/payment-success?order=${orderId || 'success'}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${apiBaseUrl}/api/orders/payment-success?status=cancelled`,
       });
     }
 
@@ -611,6 +602,79 @@ export const paymentSuccessPage = asyncHandler(async (req, res) => {
     '</div></div></body></html>');
 });
 
+export const paymentSuccessRedirect = asyncHandler(async (req, res) => {
+  const orderId = req.query.order;
+  const sessionId = req.query.session_id;
+  const cancelled = req.query.status === 'cancelled';
+  const appBaseUrl = getPublicAppUrl();
+
+  if (cancelled) {
+    return res.redirect(`${appBaseUrl}/checkout?status=cancelled`);
+  }
+
+  let orderNumber = orderId;
+  if (orderId) {
+    try {
+      const orderResult = await query('SELECT * FROM orders WHERE id = $1', [orderId]);
+      if (orderResult.rows.length > 0) {
+        const order = orderResult.rows[0];
+        orderNumber = order.order_number || orderId;
+
+        if (order.payment_status !== 'paid') {
+          await query(
+            `UPDATE orders SET
+               payment_status = 'paid',
+               payment_method = 'stripe',
+               stripe_payment_intent_id = COALESCE(NULLIF(stripe_payment_intent_id, ''), $2),
+               updated_at = CURRENT_TIMESTAMP
+             WHERE id = $1`,
+            [orderId, sessionId || null]
+          );
+
+          if (order.partner_id) {
+            try {
+              await transaction(async (client) => {
+                await calculateCommissions(client, order.id, order.partner_id, parseFloat(order.subtotal));
+              });
+            } catch (e) {
+              console.error('Commission error:', e.message);
+            }
+          }
+
+          try {
+            const { generateInvoice } = await import('../services/invoice.service.js');
+            await generateInvoice(orderId);
+          } catch (e) {
+            console.error('Invoice error:', e.message);
+          }
+
+          try {
+            const { sendOrderConfirmation } = await import('../services/email.service.js');
+            const itemsResult = await query('SELECT * FROM order_items WHERE order_id = $1', [orderId]);
+            const updatedOrder = (await query('SELECT * FROM orders WHERE id = $1', [orderId])).rows[0];
+            const partnerEmail = updatedOrder.partner_id
+              ? (await query('SELECT email FROM users WHERE id = $1', [updatedOrder.partner_id])).rows[0]?.email
+              : null;
+            await sendOrderConfirmation({ ...updatedOrder, partner_email: partnerEmail }, itemsResult.rows);
+          } catch (e) {
+            console.error('Email error:', e.message);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Payment verification error:', e.message);
+    }
+  }
+
+  const params = new URLSearchParams();
+  params.set('status', 'success');
+  if (orderId) params.set('order', orderId);
+  if (sessionId) params.set('session_id', sessionId);
+  if (orderNumber) params.set('order_number', orderNumber);
+
+  return res.redirect(`${appBaseUrl}/checkout?${params.toString()}`);
+});
+
 /**
  * Create order
  */
@@ -768,11 +832,24 @@ export const createOrder = asyncHandler(async (req, res) => {
 
     if (discountResult.rows.length > 0) {
       const discount = discountResult.rows[0];
-      if (subtotal >= discount.min_order_amount) {
+      const applicableProducts = Array.isArray(discount.applicable_products)
+        ? discount.applicable_products.map((value) => Number.parseInt(value, 10)).filter((value) => Number.isInteger(value) && value > 0)
+        : [];
+      const applicableSubtotal = applicableProducts.length > 0
+        ? Math.round(items.reduce((sum, item) => {
+            if (!applicableProducts.includes(item.productId)) return sum;
+            const product = products.find((p) => p.id === item.productId);
+            if (!product) return sum;
+            const unitPrice = resolveItemUnitPrice(item, product);
+            return sum + unitPrice * item.quantity;
+          }, 0) * 100) / 100
+        : subtotal;
+
+      if (applicableSubtotal > 0 && applicableSubtotal >= discount.min_order_amount) {
         if (discount.type === 'percentage') {
-          discountAmount = Math.round(subtotal * (discount.value / 100) * 100) / 100;
+          discountAmount = Math.round(applicableSubtotal * (discount.value / 100) * 100) / 100;
         } else {
-          discountAmount = Math.min(discount.value, subtotal);
+          discountAmount = Math.min(discount.value, applicableSubtotal);
         }
         appliedDiscountCode = discount;
       }

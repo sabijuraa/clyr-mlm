@@ -9,8 +9,8 @@ const router = Router();
 // STATIC ROUTES FIRST (before any :id wildcard routes)
 // ============================================
 
-// Stripe redirects here after payment - serves confirmation HTML directly from server
-router.get('/payment-success', orderController.paymentSuccessPage);
+// Stripe redirects here after payment - backend verifies, then returns user to frontend
+router.get('/payment-success', orderController.paymentSuccessRedirect);
 
 // Calculate order totals
 router.post('/calculate-totals', orderController.calculateOrderTotals);

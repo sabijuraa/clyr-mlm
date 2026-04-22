@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 const VouchersPage = () => {
   const { user } = useAuth();
   const [vouchers, setVouchers] = useState([]);
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -19,11 +20,13 @@ const VouchersPage = () => {
     type: 'fixed',
     value: '',
     maxUses: '',
-    expiresAt: ''
+    expiresAt: '',
+    applicableProducts: []
   });
 
   useEffect(() => {
     loadVouchers();
+    loadProducts();
   }, []);
 
   const loadVouchers = async () => {
@@ -37,10 +40,32 @@ const VouchersPage = () => {
     }
   };
 
+  const loadProducts = async () => {
+    try {
+      const res = await api.get('/products');
+      setProducts(res.data.products || res.data || []);
+    } catch (e) {
+      console.error('Failed to load products:', e);
+    }
+  };
+
   const generateCode = () => {
     const prefix = (user?.referralCode || user?.referral_code || 'CLYR').slice(0, 5);
     const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
     setForm({ ...form, code: `${prefix}-${rand}` });
+  };
+
+  const toggleApplicableProduct = (productId) => {
+    setForm((prev) => {
+      const id = Number(productId);
+      const exists = prev.applicableProducts.includes(id);
+      return {
+        ...prev,
+        applicableProducts: exists
+          ? prev.applicableProducts.filter((value) => value !== id)
+          : [...prev.applicableProducts, id]
+      };
+    });
   };
 
   const handleCreate = async () => {
@@ -58,11 +83,12 @@ const VouchersPage = () => {
         type: form.type,
         value: parseFloat(form.value),
         maxUses: form.maxUses ? parseInt(form.maxUses) : null,
-        expiresAt: form.expiresAt || null
+        expiresAt: form.expiresAt || null,
+        applicableProducts: form.applicableProducts
       });
       toast.success('Gutschein erstellt!');
       setShowCreate(false);
-      setForm({ code: '', type: 'fixed', value: '', maxUses: '', expiresAt: '' });
+      setForm({ code: '', type: 'fixed', value: '', maxUses: '', expiresAt: '', applicableProducts: [] });
       loadVouchers();
     } catch (err) {
       toast.error(err.response?.data?.message || err.response?.data?.error || 'Fehler beim Erstellen');
@@ -162,6 +188,35 @@ const VouchersPage = () => {
                 onChange={(e) => setForm({ ...form, expiresAt: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
             </div>
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-secondary-600 mb-2">
+                Gueltige Produkte
+              </label>
+              <p className="text-xs text-secondary-400 mb-3">
+                Wenn Sie keine Produkte auswaehlen, gilt der Gutschein fuer alle Produkte.
+              </p>
+              <div className="max-h-56 overflow-y-auto border border-gray-200 rounded-lg p-3 space-y-2">
+                {products.length === 0 ? (
+                  <p className="text-sm text-secondary-400">Produkte werden geladen...</p>
+                ) : (
+                  products.map((product) => {
+                    const productId = Number(product.id);
+                    const checked = form.applicableProducts.includes(productId);
+                    return (
+                      <label key={product.id} className="flex items-center gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleApplicableProduct(productId)}
+                          className="w-4 h-4 rounded border-gray-300 text-secondary-700 focus:ring-primary-400"
+                        />
+                        <span className="text-sm text-secondary-700">{product.name}</span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center gap-3 mt-4 pt-4 border-t border-gray-100">
@@ -192,6 +247,14 @@ const VouchersPage = () => {
             const isExpired = v.expires_at && new Date(v.expires_at) < new Date();
             const isMaxed = v.max_uses && v.current_uses >= v.max_uses;
             const isActive = v.is_active && !isExpired && !isMaxed;
+            const applicableProducts = Array.isArray(v.applicable_products)
+              ? v.applicable_products
+                  .map((value) => Number.parseInt(value, 10))
+                  .filter((value) => Number.isInteger(value))
+              : [];
+            const applicableProductNames = applicableProducts
+              .map((productId) => products.find((product) => Number(product.id) === productId)?.name)
+              .filter(Boolean);
 
             return (
               <motion.div key={v.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
@@ -224,6 +287,12 @@ const VouchersPage = () => {
                 <div className="text-xs text-secondary-500 space-y-1">
                   <p>Verwendet: {v.current_uses || 0}{v.max_uses ? ` / ${v.max_uses}` : ''}</p>
                   {v.expires_at && <p>Gueltig bis: {new Date(v.expires_at).toLocaleDateString('de-DE')}</p>}
+                  <p>
+                    Produkte:{' '}
+                    {applicableProductNames.length > 0
+                      ? applicableProductNames.join(', ')
+                      : 'Alle Produkte'}
+                  </p>
                 </div>
               </motion.div>
             );

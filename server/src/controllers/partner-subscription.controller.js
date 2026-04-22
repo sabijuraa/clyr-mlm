@@ -3,26 +3,9 @@
 import Stripe from 'stripe';
 import { query, transaction } from '../config/database.js';
 import { asyncHandler, AppError } from '../middleware/error.middleware.js';
+import { getPublicApiUrl, getPublicAppUrl } from '../utils/public-url.js';
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
-
-// Helper: get public URL for Stripe redirects
-const getPublicUrl = (req) => {
-  if (process.env.FRONTEND_URL && process.env.FRONTEND_URL !== '${APP_URL}') return process.env.FRONTEND_URL;
-  if (process.env.CLIENT_URL) return process.env.CLIENT_URL;
-  const origin = req.headers.origin || '';
-  if (origin && origin.startsWith('http')) return origin;
-  const referer = req.headers.referer || '';
-  if (referer && referer.startsWith('http')) {
-    try { return new URL(referer).origin; } catch (e) {}
-  }
-  const proto = req.headers['x-forwarded-proto'] || req.protocol;
-  const host = req.headers['x-forwarded-host'] || req.headers.host || req.get('host');
-  if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
-    return `${proto}://${host}`;
-  }
-  return 'https://clyr.shop';
-};
 
 // Helper: annual affiliate fee is prorated to the remaining days of the current year
 const AFFILIATE_ANNUAL_FEE = 100.00;
@@ -122,7 +105,11 @@ export const createPartnerFeeCheckout = asyncHandler(async (req, res) => {
 
   const partner = partnerResult.rows[0];
   const { amount: annualFee } = getAffiliateFeePeriod();
+<<<<<<< HEAD
   const baseUrl = getPublicUrl(req).replace(/\/+$/, '');
+=======
+  const baseUrl = getPublicApiUrl(req);
+>>>>>>> 09aa363 (payment and Coupons)
 
   try {
     let session;
@@ -194,7 +181,7 @@ export const createPartnerFeeCheckout = asyncHandler(async (req, res) => {
  */
 export const partnerFeeCancelled = async (req, res) => {
   const { partnerId } = req.query;
-  const baseUrl = (process.env.FRONTEND_URL || 'https://clyr.shop').replace(/\/+$/, '');
+  const baseUrl = getPublicAppUrl();
 
   if (!partnerId) {
     return res.redirect(`${baseUrl}/login?fee=cancelled`);
@@ -270,7 +257,7 @@ export const partnerFeeCancelled = async (req, res) => {
  */
 export const partnerFeeSuccess = async (req, res) => {
   const { session_id } = req.query;
-  const baseUrl = (process.env.FRONTEND_URL || 'https://clyr.shop').replace(/\/+$/, '');
+  const baseUrl = getPublicAppUrl();
 
   if (!session_id) {
     return res.redirect(`${baseUrl}/login?fee=missing`);

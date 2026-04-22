@@ -237,8 +237,8 @@ export const ordersAPI = {
   create: (orderData) => 
     api.post('/orders', orderData),
 
-  validateDiscount: (code, subtotal) =>
-    api.post('/vouchers/validate', { code, subtotal }),
+  validateDiscount: (code, subtotal, items = []) =>
+    api.post('/vouchers/validate', { code, subtotal, items }),
 
   getConfirmation: (orderNumber) => 
     api.get(`/orders/confirmation/${orderNumber}`),

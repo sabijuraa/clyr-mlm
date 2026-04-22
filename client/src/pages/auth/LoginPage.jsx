@@ -134,7 +134,7 @@ const LoginPage = () => {
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
+                  onClick={() => setShowPassword((prev) => !prev)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-secondary-700"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -166,16 +166,25 @@ const LoginPage = () => {
             <button
               type="submit"
               disabled={isLoading}
+              translate="no"
               className="w-full px-6 py-4 bg-secondary-700 text-white font-semibold rounded-xl hover:bg-secondary-800 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              {isLoading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <>
-                  {lang === 'de' ? 'Anmelden' : 'Sign in'}
-                  <ArrowRight className="w-5 h-5" />
-                </>
-              )}
+              <span className="inline-flex items-center justify-center gap-2">
+                {isLoading ? (
+                  <>
+                    <span
+                      className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"
+                      aria-hidden="true"
+                    />
+                    <span>{lang === 'de' ? 'Anmelden...' : 'Signing in...'}</span>
+                  </>
+                ) : (
+                  <>
+                    <span>{lang === 'de' ? 'Anmelden' : 'Sign in'}</span>
+                    <ArrowRight className="w-5 h-5" aria-hidden="true" />
+                  </>
+                )}
+              </span>
             </button>
           </form>
 

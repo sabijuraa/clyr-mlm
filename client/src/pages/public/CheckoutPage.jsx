@@ -694,13 +694,29 @@ export default function CheckoutPage() {
                     <button onClick={async () => {
                       if (!discountCode) return;
                       try {
-                        const res = await ordersAPI.validateDiscount(discountCode, effectiveSubtotal);
+                        const res = await ordersAPI.validateDiscount(
+                          discountCode,
+                          effectiveSubtotal,
+                          effectiveCartItems.map((item) => ({
+                            productId: parseInt(item.id || item.productId, 10),
+                            quantity: parseInt(item.quantity, 10) || 1,
+                            price: parseFloat(item.price) || 0,
+                          }))
+                        );
                         if (res.data?.valid) {
                           const d = res.data;
-                          const amt = d.type === 'percentage'
-                            ? Math.round(effectiveSubtotal * (d.value / 100) * 100) / 100
-                            : Math.min(d.value, effectiveSubtotal);
-                          setDiscountApplied({ type: d.type, value: d.value, amount: amt, code: discountCode });
+                          const amt = typeof d.discountAmount === 'number'
+                            ? d.discountAmount
+                            : d.type === 'percentage'
+                              ? Math.round(effectiveSubtotal * (d.value / 100) * 100) / 100
+                              : Math.min(d.value, effectiveSubtotal);
+                          setDiscountApplied({
+                            type: d.type,
+                            value: d.value,
+                            amount: amt,
+                            code: discountCode,
+                            applicableProducts: d.applicableProducts || [],
+                          });
                         } else {
                           alert(res.data?.error || 'Ungueltiger Code');
                         }

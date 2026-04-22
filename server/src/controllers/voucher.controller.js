@@ -4,6 +4,18 @@
 import { query } from '../config/database.js';
 import { asyncHandler, AppError } from '../middleware/error.middleware.js';
 
+const normalizeApplicableProducts = (input) => {
+  if (!Array.isArray(input)) return null;
+
+  const ids = [...new Set(
+    input
+      .map((value) => Number.parseInt(value, 10))
+      .filter((value) => Number.isInteger(value) && value > 0)
+  )];
+
+  return ids.length > 0 ? ids : null;
+};
+
 // ==========================================
 // PARTNER: Manage own vouchers
 // ==========================================
@@ -37,7 +49,7 @@ export const createVoucher = asyncHandler(async (req, res) => {
   if (req.body.type === 'percentage' && rawValue > 100) {
     return res.status(400).json({ message: 'Maximaler Rabatt ist 100%' });
   }
-  const { code, type, value, maxUses, minOrderAmount, expiresAt } = req.body;
+  const { code, type, value, maxUses, minOrderAmount, expiresAt, applicableProducts } = req.body;
 
   if (!code || !value) {
     throw new AppError('Code und Wert sind erforderlich', 400);
@@ -63,9 +75,11 @@ export const createVoucher = asyncHandler(async (req, res) => {
     throw new AppError('Fester Rabatt muss zwischen 1€ und 500€ sein', 400);
   }
 
+  const normalizedApplicableProducts = normalizeApplicableProducts(applicableProducts);
+
   const result = await query(
-    `INSERT INTO discount_codes (code, type, value, partner_id, max_uses, min_order_amount, expires_at, is_active)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+    `INSERT INTO discount_codes (code, type, value, partner_id, max_uses, min_order_amount, expires_at, applicable_products, is_active)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)
      RETURNING *`,
     [
       cleanCode,
@@ -74,7 +88,8 @@ export const createVoucher = asyncHandler(async (req, res) => {
       req.user.id,
       maxUses || null,
       minOrderAmount || 0,
-      expiresAt || null
+      expiresAt || null,
+      normalizedApplicableProducts ? JSON.stringify(normalizedApplicableProducts) : null
     ]
   );
 
@@ -133,7 +148,7 @@ export const deleteVoucher = asyncHandler(async (req, res) => {
  * Validate a discount code at checkout
  */
 export const validateVoucher = asyncHandler(async (req, res) => {
-  const { code, subtotal } = req.body;
+  const { code, subtotal, items = [] } = req.body;
 
   if (!code) {
     throw new AppError('Code erforderlich', 400);
@@ -152,6 +167,28 @@ export const validateVoucher = asyncHandler(async (req, res) => {
   }
 
   const voucher = result.rows[0];
+  const applicableProducts = Array.isArray(voucher.applicable_products)
+    ? voucher.applicable_products.map((value) => Number.parseInt(value, 10)).filter((value) => Number.isInteger(value) && value > 0)
+    : [];
+  const hasProductRestriction = applicableProducts.length > 0;
+
+  let applicableSubtotal = subtotal || 0;
+  if (hasProductRestriction) {
+    applicableSubtotal = items.reduce((sum, item) => {
+      const productId = Number.parseInt(item.productId ?? item.id, 10);
+      if (!applicableProducts.includes(productId)) return sum;
+
+      const quantity = Number.parseInt(item.quantity, 10) || 0;
+      const unitPrice = Number.parseFloat(item.price ?? item.unitPrice ?? 0) || 0;
+      return sum + (unitPrice * quantity);
+    }, 0);
+
+    applicableSubtotal = Math.round(applicableSubtotal * 100) / 100;
+
+    if (applicableSubtotal <= 0) {
+      throw new AppError('Dieser Gutschein gilt nicht fuer die Produkte in Ihrem Warenkorb', 400);
+    }
+  }
 
   // Check if active
   if (!voucher.is_active) {
@@ -169,7 +206,7 @@ export const validateVoucher = asyncHandler(async (req, res) => {
   }
 
   // Check minimum order
-  if (subtotal && voucher.min_order_amount > 0 && subtotal < voucher.min_order_amount) {
+  if (applicableSubtotal && voucher.min_order_amount > 0 && applicableSubtotal < voucher.min_order_amount) {
     throw new AppError(`Mindestbestellwert: EUR ${voucher.min_order_amount.toFixed(2)}`, 400);
   }
 
@@ -178,12 +215,12 @@ export const validateVoucher = asyncHandler(async (req, res) => {
   if (voucher.type === 'fixed') {
     discountAmount = voucher.value;
   } else if (voucher.type === 'percentage') {
-    discountAmount = subtotal ? Math.round(subtotal * (voucher.value / 100) * 100) / 100 : 0;
+    discountAmount = applicableSubtotal ? Math.round(applicableSubtotal * (voucher.value / 100) * 100) / 100 : 0;
   }
 
   // Cap discount at subtotal
-  if (subtotal && discountAmount > subtotal) {
-    discountAmount = subtotal;
+  if (applicableSubtotal && discountAmount > applicableSubtotal) {
+    discountAmount = applicableSubtotal;
   }
 
   res.json({
@@ -192,6 +229,8 @@ export const validateVoucher = asyncHandler(async (req, res) => {
     type: voucher.type,
     value: parseFloat(voucher.value),
     discountAmount,
+    applicableSubtotal,
+    applicableProducts,
     partnerId: voucher.partner_id,
     partnerReferralCode: voucher.referral_code,
     message: voucher.type === 'fixed'
