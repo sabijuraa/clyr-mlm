@@ -160,6 +160,7 @@ export const runStripePayouts = async () => {
         let method = 'sepa';
         let status = 'pending';
         let stripeTransferId = null;
+        let payoutSucceeded = false;
 
         if (stripe && p.stripe_account_id) {
           L(`  Checking Stripe account ${p.stripe_account_id}...`);
@@ -249,6 +250,7 @@ export const runStripePayouts = async () => {
                 method = 'stripe';
                 status = 'processing';
                 stripeTransferId = transferId;
+                payoutSucceeded = true;
                 summary.processed++;
                 summary.totalGross += grossAmount;
 
@@ -302,21 +304,25 @@ export const runStripePayouts = async () => {
           } catch (_) { L(`  (stripe_transfer_id column not present - ok)`); }
         }
 
-        // Mark commissions as paid
-        const updateResult = await client.query(`
-          UPDATE commissions
-          SET status = 'paid', paid_at = CURRENT_TIMESTAMP
-              ${payoutId ? `, payout_id = '${payoutId}'` : ''}
-          WHERE user_id = $1 AND status = 'released'
-          RETURNING id
-        `, [p.id]);
-        L(`  Marked ${updateResult.rowCount} commissions as paid`);
+        if (payoutSucceeded) {
+          // Mark commissions as paid only after a successful Stripe payout flow
+          const updateResult = await client.query(`
+            UPDATE commissions
+            SET status = 'paid', paid_at = CURRENT_TIMESTAMP
+                ${payoutId ? `, payout_id = '${payoutId}'` : ''}
+            WHERE user_id = $1 AND status = 'released'
+            RETURNING id
+          `, [p.id]);
+          L(`  Marked ${updateResult.rowCount} commissions as paid`);
 
-        // Deduct from wallet
-        await client.query(
-          `UPDATE users SET wallet_balance = GREATEST(0, wallet_balance - $1) WHERE id = $2`,
-          [netAmount, p.id]
-        );
+          // Deduct from wallet after payout succeeds
+          await client.query(
+            `UPDATE users SET wallet_balance = GREATEST(0, wallet_balance - $1) WHERE id = $2`,
+            [netAmount, p.id]
+          );
+        } else {
+          L(`  Commissions left in released state for retry/manual payout`);
+        }
         L(`  ✅ Done: ${name} — ${status}`);
         summary.details.push({ name, email: p.email, netAmount, vatAmount, grossAmount, status });
       });
