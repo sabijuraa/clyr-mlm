@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import {
   User, Building, Upload, Check, ArrowRight, ArrowLeft,
@@ -186,11 +185,7 @@ const PartnerRegisterPage = () => {
           
           {/* Left Sidebar - NO COMMISSION RATES */}
           <div className="hidden lg:block">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="sticky top-8"
-            >
+            <div className="sticky top-8">
               <h1 className="text-3xl font-bold text-secondary-700 mb-4">
                 {lang === 'de' ? 'Partner werden' : 'Become a Partner'}
               </h1>
@@ -203,18 +198,15 @@ const PartnerRegisterPage = () => {
               {/* Benefits - Charcoal cards */}
               <div className="space-y-4 mb-8">
                 {benefits.map((benefit, i) => (
-                  <motion.div
+                  <div
                     key={i}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.1 }}
                     className="flex items-center gap-3 p-4 bg-secondary-700 rounded-xl"
                   >
                     <div className="w-10 h-10 rounded-lg bg-secondary-600 flex items-center justify-center">
                       <benefit.icon className="w-5 h-5 text-primary-400" />
                     </div>
                     <span className="font-medium text-white">{benefit.text}</span>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
 
@@ -242,16 +234,12 @@ const PartnerRegisterPage = () => {
                   ))}
                 </div>
               </div>
-            </motion.div>
+            </div>
           </div>
 
           {/* Main Form Area */}
           <div className="lg:col-span-2">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8"
-            >
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
               {/* Step Indicator - Charcoal active */}
               <div className="flex items-center justify-between mb-8">
                 {steps.map((s, i) => (
@@ -269,17 +257,11 @@ const PartnerRegisterPage = () => {
               </div>
 
               <form onSubmit={handleSubmit(onSubmit)}>
-                <AnimatePresence mode="wait">
+                <>
                   
                   {/* Step 1: Personal Info */}
                   {step === 1 && (
-                    <motion.div
-                      key="step1"
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      className="space-y-6"
-                    >
+                    <div className="space-y-6">
                       <h2 className="text-2xl font-bold text-secondary-700 mb-6">
                         {lang === 'de' ? 'Persönliche Daten' : 'Personal Information'}
                       </h2>
@@ -399,18 +381,12 @@ const PartnerRegisterPage = () => {
                             : 'Min. 8 chars, uppercase, lowercase, one number'}
                         </p>
                       </div>
-                    </motion.div>
+                    </div>
                   )}
 
                   {/* Step 2: Business Info */}
                   {step === 2 && (
-                    <motion.div
-                      key="step2"
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      className="space-y-6"
-                    >
+                    <div className="space-y-6">
                       <h2 className="text-2xl font-bold text-secondary-700 mb-6">
                         {lang === 'de' ? 'Geschäftsdaten' : 'Business Information'}
                       </h2>
@@ -496,18 +472,12 @@ const PartnerRegisterPage = () => {
                         </div>
                         {errors.iban && <p className="mt-1 text-sm text-red-500">{errors.iban.message}</p>}
                       </div>
-                    </motion.div>
+                    </div>
                   )}
 
                   {/* Step 3: Documents */}
                   {step === 3 && (
-                    <motion.div
-                      key="step3"
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      className="space-y-6"
-                    >
+                    <div className="space-y-6">
                       <h2 className="text-2xl font-bold text-secondary-700 mb-6">
                         {lang === 'de' ? 'Dokumente' : 'Documents'}
                       </h2>
@@ -558,18 +528,12 @@ const PartnerRegisterPage = () => {
                           </div>
                         </div>
                       ))}
-                    </motion.div>
+                    </div>
                   )}
 
                   {/* Step 4: Confirmation - NO COMMISSION RATES */}
                   {step === 4 && (
-                    <motion.div
-                      key="step4"
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      className="space-y-6"
-                    >
+                    <div className="space-y-6">
                       <h2 className="text-2xl font-bold text-secondary-700 mb-6">
                         {lang === 'de' ? 'Bestätigung' : 'Confirmation'}
                       </h2>
@@ -697,9 +661,9 @@ const PartnerRegisterPage = () => {
                             : 'After submission, you will be redirected to the secure payment page.'}
                         </p>
                       </div>
-                    </motion.div>
+                    </div>
                   )}
-                </AnimatePresence>
+                </>
 
                 {/* Navigation Buttons - Charcoal */}
                 <div className="flex justify-between mt-10 pt-6 border-t border-gray-100">
@@ -754,7 +718,7 @@ const PartnerRegisterPage = () => {
                   {lang === 'de' ? 'Jetzt anmelden' : 'Sign in now'}
                 </Link>
               </p>
-            </motion.div>
+            </div>
           </div>
         </div>
       </div>
