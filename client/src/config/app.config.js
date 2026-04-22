@@ -55,7 +55,7 @@ const appConfig = {
   // Partner/Affiliate Configuration
   partner: {
     annualFee: 100.00,        // Annual partner registration fee
-    proRatedFee: true,        // Fee is pro-rated based on month of registration
+    proRatedFee: true,         // Fee is pro-rated to the remaining days in the current year
     minPayoutThreshold: 50.00, // Minimum balance for payout request
     commissionHoldDays: 14,    // Days before commission is released
     payoutDay: 1               // Day of month for automatic payouts
@@ -317,15 +317,22 @@ export const formatCurrency = (amount) => {
 };
 
 /**
- * Calculate prorated partner fee based on registration month
- * @param {number} month - Month of registration (1-12)
+ * Calculate prorated partner fee based on the remaining days of the current year
+ * @param {Date} [date=new Date()] - Registration date
  * @returns {number} - Prorated fee
  */
-export const calculatePartnerFee = (month) => {
+export const calculatePartnerFee = (date = new Date()) => {
   const { annualFee, proRatedFee } = appConfig.partner;
   if (!proRatedFee) return annualFee;
-  const monthsRemaining = 12 - month + 1;
-  return Math.round((annualFee / 12) * monthsRemaining * 100) / 100;
+
+  const year = date.getFullYear();
+  const startOfDay = new Date(Date.UTC(year, date.getMonth(), date.getDate()));
+  const startOfNextYear = new Date(Date.UTC(year + 1, 0, 1));
+  const startOfYear = new Date(Date.UTC(year, 0, 1));
+
+  const daysRemaining = Math.max(1, Math.round((startOfNextYear - startOfDay) / 86400000));
+  const daysInYear = Math.max(365, Math.round((startOfNextYear - startOfYear) / 86400000));
+  return Math.round((annualFee * daysRemaining / daysInYear) * 100) / 100;
 };
 
 /**

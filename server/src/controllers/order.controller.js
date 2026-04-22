@@ -929,36 +929,11 @@ export const createOrder = asyncHandler(async (req, res) => {
         'UPDATE discount_codes SET current_uses = current_uses + 1 WHERE id = $1',
         [appliedDiscountCode.id]
       );
-
-      // Deduct discount from the voucher-creating partner's commission
-      // The discount amount comes FROM the partner's commission, not the company
-      if (appliedDiscountCode.partner_id && discountAmount > 0) {
-        const voucherPartnerId = appliedDiscountCode.partner_id;
-        
-        // Record negative commission (deduction) for the voucher partner
-        await client.query(
-          `INSERT INTO commissions (user_id, order_id, type, amount, rate, base_amount, status, released_at, description)
-           VALUES ($1, $2, 'difference', $3, 0, $4, 'released', CURRENT_TIMESTAMP, $5)`,
-          [
-            voucherPartnerId,
-            newOrder.id,
-            -discountAmount,
-            discountAmount,
-            `Gutschein ${appliedDiscountCode.code}: Rabatt-Abzug €${discountAmount.toFixed(2)}`
-          ]
-        );
-
-        // Reduce partner's wallet balance
-        await client.query(
-          'UPDATE users SET wallet_balance = COALESCE(wallet_balance, 0) - $1 WHERE id = $2',
-          [discountAmount, voucherPartnerId]
-        );
-      }
     }
 
     // Calculate and create commissions if partner exists and payment is confirmed
     // Commission is calculated on FULL subtotal (before discount)
-    // The discount is separately deducted from the voucher partner above
+    // Any voucher deduction is handled centrally inside calculateCommissions()
     if (partnerId && newOrder.payment_status === 'paid') {
       await calculateCommissions(client, newOrder.id, partnerId, subtotal);
     }

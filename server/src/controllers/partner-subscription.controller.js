@@ -24,12 +24,28 @@ const getPublicUrl = (req) => {
   return 'https://clyr.shop';
 };
 
-// Helper: calculate prorated fee
-const calculateProratedFee = () => {
-  const now = new Date();
-  const monthsRemaining = 12 - now.getMonth();
-  const annualFee = 100.00;
-  return Math.round((annualFee / 12) * monthsRemaining * 100) / 100;
+// Helper: annual affiliate fee is prorated to the remaining days of the current year
+const AFFILIATE_ANNUAL_FEE = 100.00;
+
+const getAffiliateFeePeriod = (startDate = new Date()) => {
+  const now = new Date(startDate);
+  const year = now.getFullYear();
+
+  const startOfDay = new Date(Date.UTC(year, now.getMonth(), now.getDate()));
+  const startOfNextYear = new Date(Date.UTC(year + 1, 0, 1));
+  const startOfYear = new Date(Date.UTC(year, 0, 1));
+
+  const daysRemaining = Math.max(1, Math.round((startOfNextYear - startOfDay) / 86400000));
+  const daysInYear = Math.max(365, Math.round((startOfNextYear - startOfYear) / 86400000));
+  const amount = Math.round((AFFILIATE_ANNUAL_FEE * daysRemaining / daysInYear) * 100) / 100;
+  const periodStart = new Date(startDate);
+  const periodEnd = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
+
+  return {
+    periodStart,
+    periodEnd,
+    amount
+  };
 };
 
 const notifyNewDownlineActivation = async (partnerId) => {
@@ -105,7 +121,7 @@ export const createPartnerFeeCheckout = asyncHandler(async (req, res) => {
   }
 
   const partner = partnerResult.rows[0];
-  const proratedFee = calculateProratedFee();
+  const { amount: annualFee } = getAffiliateFeePeriod();
   const baseUrl = getPublicUrl(req).replace(/\/+$/, '');
 
   try {
@@ -120,9 +136,9 @@ export const createPartnerFeeCheckout = asyncHandler(async (req, res) => {
             currency: 'eur',
             product_data: {
               name: 'CLYR Vertriebspartner Jahresgebühr',
-              description: `Intranet-Gebühr ${new Date().getFullYear()} (anteilig)`,
+              description: 'Intranet-Gebühr anteilig bis Jahresende',
             },
-            unit_amount: Math.round(proratedFee * 100),
+            unit_amount: Math.round(annualFee * 100),
           },
           quantity: 1,
         }],
@@ -145,9 +161,9 @@ export const createPartnerFeeCheckout = asyncHandler(async (req, res) => {
             currency: 'eur',
             product_data: {
               name: 'CLYR Vertriebspartner Jahresgebühr',
-              description: `Intranet-Gebühr ${new Date().getFullYear()} (anteilig)`,
+              description: 'Intranet-Gebühr anteilig bis Jahresende',
             },
-            unit_amount: Math.round(proratedFee * 100),
+            unit_amount: Math.round(annualFee * 100),
           },
           quantity: 1,
         }],
@@ -164,7 +180,7 @@ export const createPartnerFeeCheckout = asyncHandler(async (req, res) => {
     res.json({
       url: session.url,
       sessionId: session.id,
-      amount: proratedFee,
+      amount: annualFee,
     });
   } catch (err) {
     console.error('Stripe partner fee checkout failed:', err.message);
@@ -279,9 +295,7 @@ export const partnerFeeSuccess = async (req, res) => {
       return res.redirect(`${baseUrl}/login?fee=error&reason=no_partner`);
     }
 
-    const now = new Date();
-    const periodEnd = new Date(now.getFullYear() + 1, 0, 1);
-    const amount = session.amount_total / 100;
+    const { periodStart, periodEnd, amount } = getAffiliateFeePeriod(new Date());
 
     // Ensure tables and columns exist
     try {
@@ -314,7 +328,7 @@ export const partnerFeeSuccess = async (req, res) => {
       await query(
         `INSERT INTO subscription_payments (user_id, amount, payment_method, payment_reference, stripe_session_id, period_start, period_end, status, paid_at)
          VALUES ($1, $2, 'stripe', $3, $4, $5, $6, 'paid', CURRENT_TIMESTAMP)`,
-        [partnerId, amount, session.payment_intent || session.id, session.id, now, periodEnd]
+        [partnerId, amount, session.payment_intent || session.id, session.id, periodStart, periodEnd]
       );
     }
 
@@ -323,11 +337,12 @@ export const partnerFeeSuccess = async (req, res) => {
       `UPDATE users SET 
         subscription_status = 'active',
         subscription_amount = $2,
+        subscription_prorated = $2,
         annual_fee_paid_at = CURRENT_TIMESTAMP,
         annual_fee_expires_at = $3,
         status = 'active'
        WHERE id = $1`,
-      [partnerId, amount, periodEnd]
+        [partnerId, amount, periodEnd]
     );
 
     await notifyNewDownlineActivation(partnerId);
@@ -414,16 +429,14 @@ export const getSubscriptionStatus = asyncHandler(async (req, res) => {
     [userId]
   );
 
-  // Calculate prorated fee for current year
-  const now = new Date();
-  const monthsRemaining = 12 - now.getMonth(); // Jan=0, so 12-0=12 for Jan
-  const annualFee = 100.00;
-  const proratedFee = Math.round((annualFee / 12) * monthsRemaining * 100) / 100;
+  // The annual fee is shown prorated to the remaining days in the current year
+  const { amount: annualFee } = getAffiliateFeePeriod();
 
   res.json({
     status: user.subscription_status || 'unpaid',
     annualFee,
-    proratedFee: user.subscription_prorated || proratedFee,
+    proratedFee: user.subscription_prorated || annualFee,
+    billingPeriod: 'anteilig bis Jahresende',
     paidAt: user.annual_fee_paid_at,
     expiresAt: user.annual_fee_expires_at,
     partnerStatus: user.status,
@@ -441,15 +454,14 @@ export const recordSubscriptionPayment = asyncHandler(async (req, res) => {
   if (!partnerId) throw new AppError('Partner-ID erforderlich', 400);
 
   const now = new Date();
-  const periodStart = now;
-  const periodEnd = new Date(now.getFullYear() + 1, 0, 1); // Jan 1 next year
+  const { periodStart, periodEnd, amount: proratedAmount } = getAffiliateFeePeriod(now);
 
   await transaction(async (client) => {
     // Record payment
     await client.query(
       `INSERT INTO subscription_payments (user_id, amount, payment_method, payment_reference, period_start, period_end, status, paid_at)
        VALUES ($1, $2, $3, $4, $5, $6, 'paid', CURRENT_TIMESTAMP)`,
-      [partnerId, amount || 100.00, paymentMethod || 'transfer', paymentReference || '', periodStart, periodEnd]
+      [partnerId, amount || proratedAmount, paymentMethod || 'transfer', paymentReference || '', periodStart, periodEnd]
     );
 
     // Update user subscription status

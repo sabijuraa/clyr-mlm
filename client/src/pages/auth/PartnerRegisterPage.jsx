@@ -26,8 +26,7 @@ const PartnerRegisterPage = () => {
   });
 
   const referralCode = searchParams.get('ref') || '';
-  const currentMonth = new Date().getMonth() + 1;
-  const partnerFee = calculatePartnerFee(currentMonth);
+  const partnerFee = calculatePartnerFee(new Date());
 
   const { register, handleSubmit, watch, formState: { errors }, trigger, setError } = useForm({
     defaultValues: {
@@ -622,8 +621,8 @@ const PartnerRegisterPage = () => {
                           />
                           <span className="text-sm text-secondary-500">
                             {lang === 'de' 
-                              ? 'Ich bin mit der jaehrlichen Intranet-Gebuehr von 100,00 EUR einverstanden (anteilig ab Registrierungsmonat).'
-                              : 'I agree to the annual intranet fee of EUR 100.00 (prorated from registration month).'}
+                              ? 'Ich bin mit der jaehrlichen Intranet-Gebuehr von 100,00 EUR einverstanden (anteilig bis Jahresende).'
+                              : 'I agree to the annual intranet fee of EUR 100.00 (prorated to year-end).'}
                           </span>
                         </label>
 
