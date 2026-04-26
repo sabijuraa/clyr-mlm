@@ -1387,7 +1387,7 @@ export const repairOrderFinancials = asyncHandler(async (req, res) => {
 
   const repairResult = await transaction(async (client) => {
     const orderResult = await client.query(
-      'SELECT * FROM orders WHERE id = $1 OR order_number = $1',
+      'SELECT * FROM orders WHERE id::text = $1 OR order_number = $1',
       [id]
     );
 
