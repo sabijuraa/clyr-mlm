@@ -11,8 +11,7 @@ import toast from 'react-hot-toast';
 const CommissionsPage = () => {
   const { t } = useLanguage();
   const now = new Date();
-  const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const defaultPeriod = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}`;
+  const defaultPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
   const [stats, setStats] = useState({ totalEarned: 0, pendingAmount: 0, paidAmount: 0 });
   const [commissions, setCommissions] = useState([]);

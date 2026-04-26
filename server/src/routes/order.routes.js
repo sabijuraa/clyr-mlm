@@ -80,6 +80,13 @@ router.post(
 );
 
 router.post(
+  '/:id/repair-financials',
+  authenticate,
+  requireRole('admin'),
+  orderController.repairOrderFinancials
+);
+
+router.post(
   '/:id/refund',
   authenticate,
   requireRole('admin'),

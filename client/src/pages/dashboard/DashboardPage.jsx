@@ -28,6 +28,7 @@ const DashboardPage = () => {
   
   const [stats, setStats] = useState({
     balance: 0,
+    pendingCommission: 0,
     totalSales: 0,
     teamSize: 0,
     monthlyCommission: 0
@@ -53,6 +54,7 @@ const DashboardPage = () => {
 
       setStats({
         balance: parseFloat(data.commissions?.available || data.commissions?.totalEarned || 0),
+        pendingCommission: parseFloat(data.commissions?.pending || 0),
         totalSales: parseInt(data.monthlyOrders?.count || user?.own_sales_count || 0),
         teamSize: parseInt(data.team?.total || 0),
         monthlyCommission: parseFloat(data.commissions?.thisMonth || 0)
@@ -156,7 +158,14 @@ const DashboardPage = () => {
       </motion.div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title={lang === 'de' ? 'Guthaben' : 'Balance'} value={formatCurrency(stats.balance)} icon={Wallet} color="primary" index={0} />
+        <StatCard
+          title={lang === 'de' ? 'Guthaben' : 'Balance'}
+          value={formatCurrency(stats.balance)}
+          subtitle={`${lang === 'de' ? 'Wartezeit' : 'On hold'}: ${formatCurrency(stats.pendingCommission)}`}
+          icon={Wallet}
+          color="primary"
+          index={0}
+        />
         <StatCard title={lang === 'de' ? 'Verkäufe' : 'Sales'} value={stats.totalSales} subtitle={lang === 'de' ? 'Diesen Monat' : 'This month'} icon={ShoppingBag} color="success" index={1} />
         <StatCard title={lang === 'de' ? 'Team' : 'Team'} value={stats.teamSize} subtitle="Partner" icon={Users} color="info" index={2} />
         <StatCard title={lang === 'de' ? 'Monatsprovision' : 'Monthly Commission'} value={formatCurrency(stats.monthlyCommission)} icon={TrendingUp} color="warning" index={3} />

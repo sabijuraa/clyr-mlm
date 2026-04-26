@@ -48,7 +48,15 @@ export const calculateCommissions = async (client, orderId, partnerId, orderSubt
 
   const holdDays = settings.commission_hold_days?.days || 14;
 
-  const heldUntil = new Date();
+  // Hold period starts from order purchase date (business rule), not from calculation time.
+  const orderDateResult = await client.query(
+    'SELECT created_at FROM orders WHERE id = $1',
+    [orderId]
+  );
+  const holdBaseDate = orderDateResult.rows[0]?.created_at
+    ? new Date(orderDateResult.rows[0].created_at)
+    : new Date();
+  const heldUntil = new Date(holdBaseDate);
   heldUntil.setDate(heldUntil.getDate() + holdDays);
 
   // Get partner with rank info

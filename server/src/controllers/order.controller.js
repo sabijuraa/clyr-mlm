@@ -36,6 +36,8 @@ const getOrderCommissionBase = (order) => {
   return Math.max(0, subtotal - discount);
 };
 
+const roundMoney = (value) => Math.round((parseFloat(value) || 0) * 100) / 100;
+
 /**
  * Get shipping cost based on country and items
  * CLYR shipping rules (per Theresa 2026-02-17):
@@ -1373,6 +1375,159 @@ export const markOrderPaid = asyncHandler(async (req, res) => {
 
   const updatedOrder = await query('SELECT * FROM orders WHERE id = $1', [id]);
   res.json({ message: 'Bestellung erfolgreich als bezahlt markiert', order: updatedOrder.rows[0] });
+});
+
+/**
+ * Repair order financial fields and related commissions (Admin only)
+ * Fixes legacy records created with old discount/VAT/commission logic.
+ */
+export const repairOrderFinancials = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { regenerateInvoice = true, recalculateCommissions = true } = req.body || {};
+
+  const repairResult = await transaction(async (client) => {
+    const orderResult = await client.query(
+      'SELECT * FROM orders WHERE id = $1 OR order_number = $1',
+      [id]
+    );
+
+    if (orderResult.rows.length === 0) {
+      throw new AppError('Bestellung nicht gefunden', 404);
+    }
+
+    const order = orderResult.rows[0];
+    const orderId = order.id;
+
+    const itemsResult = await client.query(
+      'SELECT quantity, product_price, total FROM order_items WHERE order_id = $1',
+      [orderId]
+    );
+
+    if (itemsResult.rows.length === 0) {
+      throw new AppError('Keine Bestellpositionen gefunden', 400);
+    }
+
+    const subtotalFromItems = roundMoney(
+      itemsResult.rows.reduce((sum, item) => {
+        const lineTotal = parseFloat(item.total);
+        if (Number.isFinite(lineTotal)) return sum + lineTotal;
+        return sum + ((parseFloat(item.product_price) || 0) * (parseInt(item.quantity, 10) || 0));
+      }, 0)
+    );
+
+    const discountAmount = roundMoney(order.discount_amount || 0);
+    const shippingCost = roundMoney(order.shipping_cost || 0);
+    const vatRate = parseFloat(order.vat_rate || 0) || 0;
+    const discountedSubtotal = roundMoney(Math.max(0, subtotalFromItems - discountAmount));
+    const taxableAmount = roundMoney(discountedSubtotal + shippingCost);
+    const vatAmount = roundMoney(taxableAmount * (vatRate / 100));
+    const total = roundMoney(taxableAmount + vatAmount);
+
+    const updatedOrderResult = await client.query(
+      `UPDATE orders
+       SET subtotal = $1,
+           vat_amount = $2,
+           total = $3,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $4
+       RETURNING *`,
+      [subtotalFromItems, vatAmount, total, orderId]
+    );
+    const updatedOrder = updatedOrderResult.rows[0];
+
+    const commissionRepair = {
+      attempted: false,
+      recalculated: false,
+      skippedReason: null,
+      deletedCount: 0
+    };
+
+    if (recalculateCommissions) {
+      commissionRepair.attempted = true;
+
+      if (!updatedOrder.partner_id || updatedOrder.payment_status !== 'paid') {
+        commissionRepair.skippedReason = 'order_has_no_paid_partner';
+      } else {
+        const paidCommissions = await client.query(
+          `SELECT COUNT(*)::int AS count
+           FROM commissions
+           WHERE order_id = $1 AND status = 'paid'`,
+          [orderId]
+        );
+        const paidCount = paidCommissions.rows[0]?.count || 0;
+
+        if (paidCount > 0) {
+          commissionRepair.skippedReason = 'paid_commissions_present_manual_review_required';
+        } else {
+          const deleted = await client.query(
+            `DELETE FROM commissions
+             WHERE order_id = $1 AND status IN ('pending', 'held', 'released')`,
+            [orderId]
+          );
+          commissionRepair.deletedCount = deleted.rowCount || 0;
+
+          await calculateCommissions(
+            client,
+            orderId,
+            updatedOrder.partner_id,
+            getOrderCommissionBase(updatedOrder)
+          );
+          commissionRepair.recalculated = true;
+        }
+      }
+    }
+
+    await client.query(
+      `INSERT INTO activity_log (user_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        req.user.id,
+        'order_financials_repaired',
+        'order',
+        orderId,
+        JSON.stringify({
+          orderNumber: updatedOrder.order_number,
+          subtotalFromItems,
+          discountAmount,
+          shippingCost,
+          vatRate,
+          vatAmount,
+          total,
+          commissionRepair
+        })
+      ]
+    );
+
+    return {
+      order: updatedOrder,
+      recalculated: {
+        subtotalFromItems,
+        discountAmount,
+        shippingCost,
+        vatRate,
+        vatAmount,
+        total
+      },
+      commissionRepair
+    };
+  });
+
+  let invoiceRegenerated = false;
+  if (regenerateInvoice) {
+    try {
+      const { generateInvoice } = await import('../services/invoice.service.js');
+      await generateInvoice(repairResult.order.id);
+      invoiceRegenerated = true;
+    } catch (e) {
+      console.error('Invoice regeneration after financial repair failed:', e.message);
+    }
+  }
+
+  res.json({
+    message: 'Bestellwerte erfolgreich repariert',
+    ...repairResult,
+    invoiceRegenerated
+  });
 });
 
 /**
