@@ -51,26 +51,6 @@ export const calculateCommissions = async (client, orderId, partnerId, orderSubt
   const heldUntil = new Date();
   heldUntil.setDate(heldUntil.getDate() + holdDays);
 
-  // Check if this order used a voucher from the partner (discount deducted from commission)
-  const orderResult = await client.query(
-    'SELECT discount_code, discount_amount FROM orders WHERE id = $1',
-    [orderId]
-  );
-  const orderDiscount = parseFloat(orderResult.rows[0]?.discount_amount) || 0;
-  const orderDiscountCode = orderResult.rows[0]?.discount_code;
-
-  // Check if the voucher belongs to THIS partner
-  let voucherDeduction = 0;
-  if (orderDiscount > 0 && orderDiscountCode) {
-    const voucherResult = await client.query(
-      'SELECT partner_id FROM discount_codes WHERE code = $1',
-      [orderDiscountCode]
-    );
-    if (voucherResult.rows.length > 0 && voucherResult.rows[0].partner_id === partnerId) {
-      voucherDeduction = orderDiscount;
-    }
-  }
-
   // Get partner with rank info
   const partnerResult = await client.query(
     `SELECT u.*, r.commission_rate, r.level as rank_level, r.name as rank_name
@@ -90,22 +70,15 @@ export const calculateCommissions = async (client, orderId, partnerId, orderSubt
   // -----------------------------------------------
   // 1. DIRECT COMMISSION — ALWAYS PAID regardless of activity status
   // Partner's rank rate × order subtotal
-  // If partner used own voucher: deduct voucher amount from commission
+  // orderSubtotal is already net (after voucher/discount)
   // -----------------------------------------------
   let directCommission = roundCurrency(orderSubtotal * (partnerCommissionRate / 100));
-  
-  // Deduct voucher amount from affiliate's commission
-  if (voucherDeduction > 0) {
-    directCommission = Math.max(0, roundCurrency(directCommission - voucherDeduction));
-  }
-
-  const voucherNote = voucherDeduction > 0 ? ` (abzgl. EUR ${voucherDeduction.toFixed(2)} Gutschein)` : '';
 
   const directCommissionResult = await client.query(
     `INSERT INTO commissions (user_id, order_id, type, amount, rate, base_amount, status, held_until, description)
      VALUES ($1, $2, 'direct', $3, $4, $5, 'held', $6, $7)
      RETURNING *`,
-    [partnerId, orderId, directCommission, partnerCommissionRate, orderSubtotal, heldUntil, `Direkt-Provision (${partnerCommissionRate}%)${voucherNote}`]
+    [partnerId, orderId, directCommission, partnerCommissionRate, orderSubtotal, heldUntil, `Direkt-Provision (${partnerCommissionRate}%)`]
   );
   commissions.push(directCommissionResult.rows[0]);
 
@@ -888,16 +861,27 @@ export const getCommissionSummary = async (userId) => {
   // Get commission totals
   const result = await query(
     `SELECT 
-       SUM(CASE WHEN status IN ('released', 'paid') THEN amount ELSE 0 END) as total_earned,
-       SUM(CASE WHEN status = 'held' THEN amount ELSE 0 END) as pending,
-       SUM(CASE WHEN status = 'released' THEN amount ELSE 0 END) as available,
-       SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END) as paid_out,
-       SUM(CASE WHEN created_at >= date_trunc('month', CURRENT_DATE) AND status NOT IN ('reversed', 'cancelled') THEN amount ELSE 0 END) as this_month,
-       COUNT(CASE WHEN type = 'direct' AND status NOT IN ('reversed', 'cancelled') THEN 1 END) as direct_count,
-       COUNT(CASE WHEN type = 'difference' AND status NOT IN ('reversed', 'cancelled') THEN 1 END) as difference_count,
-       COUNT(CASE WHEN type LIKE '%bonus%' AND status NOT IN ('reversed', 'cancelled') THEN 1 END) as bonus_count
-     FROM commissions
-     WHERE user_id = $1`,
+       SUM(CASE WHEN c.status IN ('released', 'paid') THEN c.amount ELSE 0 END) as total_earned,
+       SUM(CASE WHEN c.status = 'held' THEN c.amount ELSE 0 END) as pending,
+       SUM(CASE WHEN c.status = 'released' THEN c.amount ELSE 0 END) as available,
+       SUM(CASE WHEN c.status = 'paid' THEN c.amount ELSE 0 END) as paid_out,
+       SUM(
+         CASE
+           WHEN c.status NOT IN ('reversed', 'cancelled')
+            AND (
+              (o.created_at >= date_trunc('month', CURRENT_DATE) AND c.order_id IS NOT NULL)
+              OR (c.order_id IS NULL AND c.created_at >= date_trunc('month', CURRENT_DATE))
+            )
+           THEN c.amount
+           ELSE 0
+         END
+       ) as this_month,
+       COUNT(CASE WHEN c.type = 'direct' AND c.status NOT IN ('reversed', 'cancelled') THEN 1 END) as direct_count,
+       COUNT(CASE WHEN c.type = 'difference' AND c.status NOT IN ('reversed', 'cancelled') THEN 1 END) as difference_count,
+       COUNT(CASE WHEN c.type LIKE '%bonus%' AND c.status NOT IN ('reversed', 'cancelled') THEN 1 END) as bonus_count
+     FROM commissions c
+     LEFT JOIN orders o ON o.id = c.order_id
+     WHERE c.user_id = $1`,
     [userId]
   );
 

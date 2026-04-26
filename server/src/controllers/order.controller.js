@@ -30,6 +30,12 @@ const generateOrderNumber = async () => {
   return `${prefix}${sequence.toString().padStart(4, '0')}`;
 };
 
+const getOrderCommissionBase = (order) => {
+  const subtotal = parseFloat(order?.subtotal || 0);
+  const discount = parseFloat(order?.discount_amount || 0);
+  return Math.max(0, subtotal - discount);
+};
+
 /**
  * Get shipping cost based on country and items
  * CLYR shipping rules (per Theresa 2026-02-17):
@@ -419,7 +425,7 @@ export const verifyPayment = asyncHandler(async (req, res) => {
         if (order.partner_id) {
           try {
             await transaction(async (client) => {
-              await calculateCommissions(client, order.id, order.partner_id, parseFloat(order.subtotal));
+              await calculateCommissions(client, order.id, order.partner_id, getOrderCommissionBase(order));
             });
           } catch (e) {
             console.error('Commission calculation failed:', e.message);
@@ -462,7 +468,7 @@ export const verifyPayment = asyncHandler(async (req, res) => {
     if (order.partner_id) {
       try {
         await transaction(async (client) => {
-          await calculateCommissions(client, order.id, order.partner_id, parseFloat(order.subtotal));
+          await calculateCommissions(client, order.id, order.partner_id, getOrderCommissionBase(order));
         });
       } catch (e) {
         console.error('Commission calculation failed:', e.message);
@@ -524,7 +530,7 @@ export const paymentSuccessPage = asyncHandler(async (req, res) => {
           if (order.partner_id) {
             try {
               await transaction(async (client) => {
-                await calculateCommissions(client, order.id, order.partner_id, parseFloat(order.subtotal));
+                await calculateCommissions(client, order.id, order.partner_id, getOrderCommissionBase(order));
               });
               console.log('Commissions calculated for order', orderId);
             } catch (e) { console.error('Commission error:', e.message); }
@@ -634,7 +640,7 @@ export const paymentSuccessRedirect = asyncHandler(async (req, res) => {
           if (order.partner_id) {
             try {
               await transaction(async (client) => {
-                await calculateCommissions(client, order.id, order.partner_id, parseFloat(order.subtotal));
+                await calculateCommissions(client, order.id, order.partner_id, getOrderCommissionBase(order));
               });
             } catch (e) {
               console.error('Commission error:', e.message);
@@ -813,8 +819,6 @@ export const createOrder = asyncHandler(async (req, res) => {
 
   const shippingCost = await getShippingCost(country, items, products);
   const vatRate = await getVatRate(country, hasVatId);
-  const taxableAmount = subtotal + shippingCost;
-  const vatAmount = Math.round(taxableAmount * (vatRate / 100) * 100) / 100;
 
   // Handle discount code
   let discountAmount = 0;
@@ -856,7 +860,10 @@ export const createOrder = asyncHandler(async (req, res) => {
     }
   }
 
-  const total = Math.round((taxableAmount + vatAmount - discountAmount) * 100) / 100;
+  const discountedSubtotal = Math.max(0, subtotal - discountAmount);
+  const taxableAmount = discountedSubtotal + shippingCost;
+  const vatAmount = Math.round(taxableAmount * (vatRate / 100) * 100) / 100;
+  const total = Math.round((taxableAmount + vatAmount) * 100) / 100;
 
   // Create order in transaction
   const order = await transaction(async (client) => {
@@ -1009,10 +1016,9 @@ export const createOrder = asyncHandler(async (req, res) => {
     }
 
     // Calculate and create commissions if partner exists and payment is confirmed
-    // Commission is calculated on FULL subtotal (before discount)
-    // Any voucher deduction is handled centrally inside calculateCommissions()
+    // Commission base is net product subtotal after voucher/discount.
     if (partnerId && newOrder.payment_status === 'paid') {
-      await calculateCommissions(client, newOrder.id, partnerId, subtotal);
+      await calculateCommissions(client, newOrder.id, partnerId, getOrderCommissionBase(newOrder));
     }
 
     // Log activity
@@ -1344,7 +1350,7 @@ export const markOrderPaid = asyncHandler(async (req, res) => {
         [id, 'direct']
       );
       if (existingCommissions.rows.length === 0) {
-        await calculateCommissions(client, order.id, order.partner_id, parseFloat(order.subtotal));
+        await calculateCommissions(client, order.id, order.partner_id, getOrderCommissionBase(order));
       }
     }
 
