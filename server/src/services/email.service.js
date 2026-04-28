@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { getPublicAppUrl } from '../utils/public-url.js';
+import { query } from '../config/database.js';
 
 let transporterPromise;
 
@@ -64,15 +65,84 @@ const formatCurrency = (amount) => {
   }).format(amount);
 };
 
+const escapeHtml = (value) => String(value ?? '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;');
+
+const formatVariantDescription = (item = {}) => {
+  if (item.variant_description) return String(item.variant_description);
+
+  let variantData = item.variant_data;
+  if (typeof variantData === 'string') {
+    try {
+      variantData = JSON.parse(variantData);
+    } catch {
+      variantData = null;
+    }
+  }
+
+  if (!variantData || typeof variantData !== 'object') return '';
+
+  return Object.entries(variantData)
+    .map(([type, option]) => {
+      if (!option) return null;
+      const name = option.name || option.label || option.title;
+      if (!name) return null;
+      const typeLabel = type
+        ? `${String(type).charAt(0).toUpperCase()}${String(type).slice(1)}: `
+        : '';
+      return `${typeLabel}${name}`;
+    })
+    .filter(Boolean)
+    .join(', ');
+};
+
+const countryNames = {
+  DE: 'Deutschland',
+  AT: 'Oesterreich',
+  CH: 'Schweiz'
+};
+
+const formatAddressHtml = (order, prefix) => {
+  const company = order[`${prefix}_company`] || (prefix === 'billing' ? order.customer_company : '');
+  const street = order[`${prefix}_street`];
+  const zip = order[`${prefix}_zip`];
+  const city = order[`${prefix}_city`];
+  const country = order[`${prefix}_country`];
+  const name = `${order.customer_first_name || ''} ${order.customer_last_name || ''}`.trim();
+  const lines = [
+    company,
+    name,
+    street,
+    `${zip || ''} ${city || ''}`.trim(),
+    countryNames[country] || country
+  ].filter(Boolean);
+
+  return lines.map((line) => escapeHtml(line)).join('<br>');
+};
+
+const getInternalOrderRecipients = () => {
+  const configured = process.env.ORDER_NOTIFICATION_EMAILS
+    ? process.env.ORDER_NOTIFICATION_EMAILS.split(',')
+    : ['service@clyr.shop', 'technik@clyr.shop'];
+
+  return [...new Set(configured.map((email) => email.trim()).filter(Boolean))];
+};
+
 /**
  * Send email - base function
  */
-export const sendEmail = async ({ to, subject, html, text, attachments }) => {
+export const sendEmail = async ({ to, cc, bcc, subject, html, text, attachments }) => {
   try {
     const transporter = await getTransporter();
     const info = await transporter.sendMail({
       from: process.env.SMTP_FROM || '"CLYR" <service@clyr.shop>',
       to,
+      cc,
+      bcc,
       subject,
       html,
       text: text || html.replace(/<[^>]*>/g, ''),
@@ -96,13 +166,58 @@ export const sendEmail = async ({ to, subject, html, text, attachments }) => {
  * Order confirmation email
  */
 export const sendOrderConfirmation = async (order, items) => {
+  const internalRecipients = getInternalOrderRecipients()
+    .filter((email) => email.toLowerCase() !== String(order.customer_email || '').toLowerCase());
+
   const itemsHtml = items.map(item => `
     <tr>
-      <td style="padding: 12px; border-bottom: 1px solid #eee;">${item.product_name}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #eee;">
+        <strong>${escapeHtml(item.product_name)}</strong>
+        ${formatVariantDescription(item) ? `<br><span style="color:#666;font-size:13px;">Variante: ${escapeHtml(formatVariantDescription(item))}</span>` : ''}
+      </td>
       <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
       <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;">${formatCurrency(item.total)}</td>
     </tr>
   `).join('');
+
+  const billingAddressHtml = formatAddressHtml(order, 'billing');
+  const shippingAddressHtml = formatAddressHtml(order, 'shipping') || billingAddressHtml;
+  const subtotal = parseFloat(order.subtotal || 0);
+  const discount = parseFloat(order.discount_amount || 0);
+  const shipping = parseFloat(order.shipping_cost || 0);
+  const vat = parseFloat(order.vat_amount || 0);
+  const total = parseFloat(order.total || 0);
+  let invoiceNumber = order.invoice_number || null;
+  if (!invoiceNumber && order.id) {
+    try {
+      const invoiceResult = await query(
+        `SELECT COALESCE(o.invoice_number, i.invoice_number) as invoice_number
+         FROM orders o
+         LEFT JOIN invoices i ON i.order_id = o.id
+         WHERE o.id = $1
+         ORDER BY i.created_at DESC
+         LIMIT 1`,
+        [order.id]
+      );
+      invoiceNumber = invoiceResult.rows[0]?.invoice_number || null;
+    } catch (e) {
+      console.error('Invoice number lookup failed:', e.message);
+    }
+  }
+  invoiceNumber = invoiceNumber || order.order_number;
+
+  let attachments = [];
+  try {
+    const { generateInvoicePDF } = await import('./invoice.service.js');
+    const pdfBuffer = await generateInvoicePDF({ ...order, invoice_number: invoiceNumber, items }, invoiceNumber);
+    attachments = [{
+      filename: `Rechnung-${invoiceNumber}.pdf`,
+      content: pdfBuffer,
+      contentType: 'application/pdf'
+    }];
+  } catch (e) {
+    console.error('Invoice attachment generation failed:', e.message);
+  }
 
   const html = `
     <!DOCTYPE html>
@@ -116,6 +231,10 @@ export const sendOrderConfirmation = async (order, items) => {
         .logo { font-size: 28px; font-weight: bold; color: #00B4B4; }
         .content { padding: 30px 0; }
         .order-box { background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .address-grid { display: table; width: 100%; margin: 20px 0; }
+        .address-col { display: table-cell; width: 50%; vertical-align: top; padding: 0 10px 0 0; }
+        .summary { width: 100%; max-width: 300px; margin-left: auto; }
+        .summary td { padding: 4px 0; }
         table { width: 100%; border-collapse: collapse; }
         th { background: #00B4B4; color: white; padding: 12px; text-align: left; }
         .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
@@ -131,6 +250,17 @@ export const sendOrderConfirmation = async (order, items) => {
         <div class="content">
           <p>Hallo ${order.customer_first_name},</p>
           <p>Ihre Bestellung #${order.order_number} wurde erfolgreich aufgenommen.</p>
+
+          <div class="address-grid">
+            <div class="address-col">
+              <strong>Rechnungsadresse</strong><br>
+              ${billingAddressHtml}
+            </div>
+            <div class="address-col">
+              <strong>Lieferadresse</strong><br>
+              ${shippingAddressHtml}
+            </div>
+          </div>
           
           <div class="order-box">
             <table>
@@ -141,10 +271,15 @@ export const sendOrderConfirmation = async (order, items) => {
               </tr>
               ${itemsHtml}
             </table>
-            <div style="margin-top: 20px; text-align: right;">
-              <strong>Gesamt: ${formatCurrency(order.total)}</strong>
-            </div>
+            <table class="summary" style="margin-top: 20px;">
+              <tr><td>Zwischensumme netto:</td><td style="text-align:right;">${formatCurrency(subtotal)}</td></tr>
+              ${discount > 0 ? `<tr><td>Rabatt:</td><td style="text-align:right;">-${formatCurrency(discount)}</td></tr>` : ''}
+              <tr><td>Versand:</td><td style="text-align:right;">${formatCurrency(shipping)}</td></tr>
+              <tr><td>MwSt.:</td><td style="text-align:right;">${formatCurrency(vat)}</td></tr>
+              <tr><td style="font-weight:bold;">Gesamt:</td><td style="text-align:right;font-weight:bold;">${formatCurrency(total)}</td></tr>
+            </table>
           </div>
+          <p>Die Rechnung finden Sie im Anhang.</p>
         </div>
         
         <div class="footer">
@@ -158,27 +293,23 @@ export const sendOrderConfirmation = async (order, items) => {
   // Send to customer
   await sendEmail({
     to: order.customer_email,
+    cc: internalRecipients,
     subject: `Bestellbestaetigung #${order.order_number}`,
-    html
+    html,
+    attachments
   });
 
-  // Send notification to admin (Theresa)
-  const adminEmail = process.env.ADMIN_EMAIL || process.env.SMTP_FROM || 'service@clyr.shop';
+  // Send compact internal notification when no internal CC recipient is configured.
+  const adminEmail = process.env.ADMIN_EMAIL || '';
   try {
-    await sendEmail({
-      to: adminEmail,
-      subject: `Neue Bestellung #${order.order_number} - ${formatCurrency(order.total)}`,
-      html: `
-        <h2>Neue Bestellung eingegangen!</h2>
-        <p><strong>Bestellnummer:</strong> ${order.order_number}</p>
-        <p><strong>Kunde:</strong> ${order.customer_first_name} ${order.customer_last_name}</p>
-        <p><strong>E-Mail:</strong> ${order.customer_email}</p>
-        <p><strong>Gesamt:</strong> ${formatCurrency(order.total)}</p>
-        ${order.referral_code ? `<p><strong>Empfehlungscode:</strong> ${order.referral_code}</p>` : ''}
-        <hr>
-        ${itemsHtml ? `<table style="width:100%;border-collapse:collapse;"><tr><th style="background:#00B4B4;color:white;padding:8px;">Produkt</th><th style="background:#00B4B4;color:white;padding:8px;">Menge</th><th style="background:#00B4B4;color:white;padding:8px;">Preis</th></tr>${itemsHtml}</table>` : ''}
-      `
-    });
+    if (adminEmail && !internalRecipients.some((email) => email.toLowerCase() === adminEmail.toLowerCase())) {
+      await sendEmail({
+        to: adminEmail,
+        subject: `Neue Bestellung #${order.order_number} - ${formatCurrency(order.total)}`,
+        html,
+        attachments
+      });
+    }
   } catch (e) { console.error('Admin notification failed:', e.message); }
 
   // Send notification to referring partner if exists

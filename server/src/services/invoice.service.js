@@ -37,6 +37,34 @@ const COLORS = {
   bgLight: '#f9fafb',
 };
 
+const formatVariantDescription = (item = {}) => {
+  if (item.variant_description) return String(item.variant_description);
+
+  let variantData = item.variant_data;
+  if (typeof variantData === 'string') {
+    try {
+      variantData = JSON.parse(variantData);
+    } catch {
+      variantData = null;
+    }
+  }
+
+  if (!variantData || typeof variantData !== 'object') return '';
+
+  return Object.entries(variantData)
+    .map(([type, option]) => {
+      if (!option) return null;
+      const name = option.name || option.label || option.title;
+      if (!name) return null;
+      const typeLabel = type
+        ? `${String(type).charAt(0).toUpperCase()}${String(type).slice(1)}: `
+        : '';
+      return `${typeLabel}${name}`;
+    })
+    .filter(Boolean)
+    .join(', ');
+};
+
 class InvoiceService {
 
   async getCompanyInfo() {
@@ -178,15 +206,36 @@ class InvoiceService {
           const price = parseFloat(item.product_price || item.price || 0);
           const qty = parseInt(item.quantity || 1);
           const lineTotal = parseFloat(item.total || (price * qty));
+          const variantDescription = formatVariantDescription(item);
+          const productName = item.product_name || item.name || '';
+          const descriptionHeight = doc.heightOfString(productName, { width: 230 });
+          const variantHeight = variantDescription
+            ? doc.heightOfString(`Variante: ${variantDescription}`, { width: 230 })
+            : 0;
+          const rowHeight = Math.max(22, descriptionHeight + variantHeight + 10);
 
-          if (idx % 2 === 1) { doc.rect(50, y - 3, 495, 18).fill(COLORS.bgLight); doc.fillColor(COLORS.text); }
+          if (y + rowHeight > 735) {
+            doc.addPage();
+            y = 50;
+          }
+
+          if (idx % 2 === 1) {
+            doc.rect(50, y - 3, 495, rowHeight).fill(COLORS.bgLight);
+            doc.fillColor(COLORS.text);
+          }
 
           doc.text(`${idx + 1}`, 50, y, { width: 30 });
-          doc.text(item.product_name || item.name || '', 80, y, { width: 230 });
+          doc.font('Helvetica').fontSize(8.5).fillColor(COLORS.text);
+          doc.text(productName, 80, y, { width: 230 });
+          if (variantDescription) {
+            doc.font('Helvetica').fontSize(7.5).fillColor(COLORS.textLight);
+            doc.text(`Variante: ${variantDescription}`, 80, doc.y + 2, { width: 230 });
+            doc.font('Helvetica').fontSize(8.5).fillColor(COLORS.text);
+          }
           doc.text(`${qty}`, 310, y, { width: 50, align: 'center' });
           doc.text(`${price.toFixed(2)} EUR`, 370, y, { width: 80, align: 'right' });
           doc.text(`${lineTotal.toFixed(2)} EUR`, 460, y, { width: 85, align: 'right' });
-          y += 18;
+          y += rowHeight;
         });
 
         y += 5;
@@ -455,6 +504,7 @@ class InvoiceService {
 
       const invoiceNumber = await this.getNextInvoiceNumber();
       const subtotal = parseFloat(order.subtotal || 0);
+      const discount = parseFloat(order.discount_amount || 0);
       const shipping = parseFloat(order.shipping_cost || 0);
       const customerCountry = order.billing_country || 'AT';
       const hasVatId = !!(order.customer_vat_id || order.vat_id);
@@ -467,9 +517,10 @@ class InvoiceService {
       else taxRate = 20;
 
       const isReverseCharge = customerCountry === 'DE' && hasVatId;
-      const netAmount = subtotal + shipping;
-      const taxAmount = Math.round(netAmount * (taxRate / 100) * 100) / 100;
-      const total = netAmount + taxAmount;
+      const discountedSubtotal = Math.max(0, subtotal - discount);
+      const netAmount = Math.round((discountedSubtotal + shipping) * 100) / 100;
+      const taxAmount = parseFloat(order.vat_amount || Math.round(netAmount * (taxRate / 100) * 100) / 100);
+      const total = parseFloat(order.total || Math.round((netAmount + taxAmount) * 100) / 100);
 
       const invoiceResult = await pool.query(`
         INSERT INTO invoices (invoice_number, type, order_id, customer_id,
