@@ -64,8 +64,8 @@ const AdminDashboardPage = () => {
           ordersGrowth: parseInt(data.orders?.thisMonth || data.orders?.this_month || 0),
           totalPartners: parseInt(data.partners?.total || 0),
           partnersGrowth: parseInt(data.partners?.newThisMonth || data.partners?.new_this_month || 0),
-          // Show gross (with 20% VAT) for outstanding commissions
-          pendingCommissions: (parseFloat(data.commissions?.held || 0) + parseFloat(data.commissions?.pendingPayout || data.commissions?.pending_payout || 0)) * 1.20,
+          // "Offene Provisionen" should show only commissions still on hold (not already released for payout).
+          pendingCommissions: parseFloat(data.commissions?.held || 0),
           activePartners: parseInt(data.partners?.active || 0),
           unpaidOrders: parseInt(data.orders?.unpaid || 0),
           ordersByStatus: {
