@@ -478,17 +478,30 @@ export const generatePayoutStatement = async (payoutId) => {
     [payoutId]
   );
 
-  const period = `${payout.period_start.toLocaleDateString('de-DE')} - ${payout.period_end.toLocaleDateString('de-DE')}`;
+  const parseDateSafe = (value) => {
+    if (!value) return null;
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return null;
+    return d;
+  };
+  const hasPlausibleYear = (d) => d && d.getFullYear() >= 2020;
 
-  // Calculate VAT info
-  const vatInfo = calculateCommissionVAT(payout, payout.net_amount);
+  const periodStart = parseDateSafe(payout.period_start);
+  const periodEnd = parseDateSafe(payout.period_end);
+  const createdAt = parseDateSafe(payout.created_at);
+  const periodBaseDate = hasPlausibleYear(periodStart)
+    ? periodStart
+    : hasPlausibleYear(periodEnd)
+      ? periodEnd
+      : createdAt || new Date();
+  const periodLabel = periodBaseDate.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
 
   // Generate PDF
   const pdfBuffer = await generateCommissionStatement(
     payout, 
     commissionsResult.rows, 
-    period,
-    vatInfo
+    periodLabel,
+    payout
   );
 
   return {

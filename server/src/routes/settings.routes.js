@@ -106,6 +106,9 @@ router.get('/admin/invoices/:id/pdf', authenticate, isAdmin, async (req, res) =>
     }
     res.status(404).json({ error: 'PDF nicht gefunden' });
   } catch (error) {
+    if (error.message === 'Invoice not found') {
+      return res.status(404).json({ error: 'Rechnung nicht gefunden' });
+    }
     res.status(500).json({ error: error.message });
   }
 });

@@ -55,6 +55,8 @@ const AdminInvoicesPage = () => {
       let endpoint;
       if (invoice.type === 'customer' && invoice.order_id) {
         endpoint = `/orders/${invoice.order_id}/invoice`;
+      } else if (invoice.type === 'commission') {
+        endpoint = `/payouts/${invoice.id}/statement`;
       } else {
         endpoint = `/admin/invoices/${invoice.id}/pdf`;
       }
