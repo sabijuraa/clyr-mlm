@@ -72,8 +72,7 @@ export default function CheckoutPage() {
   };
 
   // ===== CONFIRMATION VIEW (after successful Stripe payment) =====
-  if (orderConfirmed) {
-    return (
+  const confirmationView = (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white py-20">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           {/* Success Icon */}
@@ -157,8 +156,7 @@ export default function CheckoutPage() {
           </div>
         </div>
       </div>
-    );
-  }
+  );
   
   // Form data
   const [formData, setFormData] = useState({
@@ -380,6 +378,10 @@ export default function CheckoutPage() {
       setLoading(false);
     }
   };
+
+  if (orderConfirmed) {
+    return confirmationView;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-12">
