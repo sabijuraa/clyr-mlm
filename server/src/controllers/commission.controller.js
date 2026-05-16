@@ -2,6 +2,7 @@ import { query, transaction } from '../config/database.js';
 import { asyncHandler, AppError } from '../middleware/error.middleware.js';
 import { releaseHeldCommissions, getCommissionSummary as getCommSummary, distributeBonusPool, checkRankDecay } from '../services/commission.service.js';
 import { generateCommissionStatement } from '../services/invoice.service.js';
+import { isVatIdFormatValid } from '../services/tax.service.js';
 
 /**
  * Get my commissions
@@ -63,7 +64,8 @@ export const getMyCommissions = asyncHandler(async (req, res) => {
     [userId]
   );
   const partnerCountry = userResult.rows[0]?.country || 'AT';
-  const partnerHasVatId = !!userResult.rows[0]?.vat_id;
+  const partnerVatId = userResult.rows[0]?.vat_id;
+  const partnerHasValidVatId = partnerVatId && isVatIdFormatValid(partnerVatId, partnerCountry);
 
   // Commission VAT rules:
   // AT affiliate WITH UID → VAT shown separately (20% on top of commission)
@@ -78,17 +80,17 @@ export const getMyCommissions = asyncHandler(async (req, res) => {
     vatNote: ''
   };
 
-  if (partnerCountry === 'AT' && partnerHasVatId) {
+  if (partnerCountry === 'AT') {
     commissionVatInfo.vatRate = 20;
     commissionVatInfo.vatDisplay = 'separate';
     commissionVatInfo.vatNote = '20% USt. wird separat ausgewiesen';
-  } else if (partnerCountry === 'AT' && !partnerHasVatId) {
-    commissionVatInfo.vatRate = 20;
-    commissionVatInfo.vatDisplay = 'included';
-    commissionVatInfo.vatNote = 'Inkl. 20% USt.';
-  } else if (partnerCountry === 'DE') {
+  } else if (partnerCountry === 'DE' && partnerHasValidVatId) {
     commissionVatInfo.vatDisplay = 'none';
     commissionVatInfo.vatNote = 'Steuerschuldnerschaft des Leistungsempfaengers';
+  } else if (partnerCountry === 'DE') {
+    commissionVatInfo.vatRate = 19;
+    commissionVatInfo.vatDisplay = 'separate';
+    commissionVatInfo.vatNote = '19% USt. wird separat ausgewiesen';
   } else if (partnerCountry === 'CH') {
     commissionVatInfo.vatDisplay = 'none';
     commissionVatInfo.vatNote = 'Nicht steuerbar (Drittland)';
@@ -338,7 +340,7 @@ export const processPayouts = asyncHandler(async (req, res) => {
             (SELECT COALESCE(SUM(amount), 0) FROM commissions 
              WHERE user_id = u.id AND status = 'released') as pending_amount
      FROM users u
-     WHERE u.role IN ('partner', 'admin') AND u.status = 'active' AND u.wallet_balance > 0
+     WHERE u.role = 'partner' AND u.status = 'active' AND u.wallet_balance > 0
      ORDER BY u.wallet_balance DESC`
   );
 

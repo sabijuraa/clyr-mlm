@@ -119,7 +119,7 @@ router.post('/admin/invoices/generate-missing', authenticate, isAdmin, async (re
     const ordersResult = await pool.query(`
       SELECT o.id FROM orders o
       LEFT JOIN invoices i ON i.order_id = o.id AND i.type = 'customer'
-      WHERE i.id IS NULL AND o.payment_status IN ('paid', 'pending')
+      WHERE i.id IS NULL AND o.payment_status = 'paid'
       ORDER BY o.created_at ASC
       LIMIT 50
     `);

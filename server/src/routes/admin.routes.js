@@ -28,6 +28,7 @@ router.get('/full-tree', adminController.getFullTree);
 
 // Invoices
 router.get('/invoices',     adminController.getInvoices);
+router.post('/invoices/generate-missing', adminController.generateMissingInvoices);
 router.get('/fee-payments', adminController.getFeePayments);
 router.get('/fee-payments/:id/invoice', adminController.getFeePaymentInvoice);
 

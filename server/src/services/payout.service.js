@@ -1,5 +1,6 @@
 import { query, transaction } from '../config/database.js';
 import { generateCommissionStatement } from './invoice.service.js';
+import { isVatIdFormatValid } from './tax.service.js';
 
 /**
  * CLYR Payout Service
@@ -12,9 +13,9 @@ import { generateCommissionStatement } from './invoice.service.js';
  * - Commission statements generated per payout
  * 
  * VAT Handling for Commission Statements:
- * - German affiliates: Net commission (they always need VAT ID)
- * - Austrian with VAT ID: Net commission, Reverse Charge (0%)
- * - Austrian without VAT ID: Commission with VAT included (not separately declared)
+ * - Austrian affiliates: 20% VAT, with or without UID
+ * - German affiliates with UID: Reverse Charge (0%)
+ * - German affiliates without UID: 19% VAT
  */
 
 /**
@@ -44,53 +45,42 @@ const generateStatementNumber = async () => {
  * Calculate VAT for commission based on partner's country and VAT status
  */
 const calculateCommissionVAT = (partner, netAmount) => {
-  // German affiliates: They always need VAT ID, no VAT on our side
-  if (partner.country === 'DE') {
+  const country = String(partner.country || '').toUpperCase();
+  const hasValidVatId = partner.vat_id && isVatIdFormatValid(partner.vat_id, country);
+
+  if (country === 'DE' && hasValidVatId) {
     return {
       vatRate: 0,
       vatAmount: 0,
       grossAmount: netAmount,
       vatType: 'reverse_charge',
-      vatNote: 'Reverse Charge - Steuerschuldnerschaft des Leistungsempfängers gem. §13b UStG'
+      vatNote: 'Reverse Charge - Steuerschuldnerschaft des Leistungsempfaengers gem. Par. 13b UStG'
     };
   }
 
-  // Austrian with VAT ID: Reverse Charge
-  if (partner.country === 'AT' && partner.vat_id) {
+  if (country === 'DE') {
+    const vatAmount = Math.round(netAmount * 0.19 * 100) / 100;
     return {
-      vatRate: 0,
-      vatAmount: 0,
-      grossAmount: netAmount,
-      vatType: 'reverse_charge',
-      vatNote: 'Reverse Charge - Steuerschuldnerschaft des Leistungsempfängers'
+      vatRate: 19,
+      vatAmount,
+      grossAmount: Math.round((netAmount + vatAmount) * 100) / 100,
+      vatType: 'standard',
+      vatNote: 'Umsatzsteuer 19 % gemaess deutschem UStG.'
     };
   }
 
-  // Austrian without VAT ID (Kleinunternehmer): VAT exempt
-  if (partner.country === 'AT' && !partner.vat_id) {
-    if (partner.is_kleinunternehmer) {
-      return {
-        vatRate: 0,
-        vatAmount: 0,
-        grossAmount: netAmount,
-        vatType: 'exempt',
-        vatNote: 'Umsatzsteuerfrei gem. §6 Abs.1 Z 27 UStG (Kleinunternehmerregelung)'
-      };
-    } else {
-      // Regular Austrian without VAT ID: Commission includes VAT (20%) but not separately declared
-      // The commission amount is already the gross amount
-      return {
-        vatRate: 20,
-        vatAmount: Math.round(netAmount * (20/120) * 100) / 100, // Extract VAT from gross
-        grossAmount: netAmount,
-        vatType: 'included',
-        vatNote: 'Umsatzsteuer in der Provision enthalten'
-      };
-    }
+  if (country === 'AT') {
+    const vatAmount = Math.round(netAmount * 0.20 * 100) / 100;
+    return {
+      vatRate: 20,
+      vatAmount,
+      grossAmount: Math.round((netAmount + vatAmount) * 100) / 100,
+      vatType: 'standard',
+      vatNote: 'Umsatzsteuer 20 % gemaess oesterreichischem UStG.'
+    };
   }
 
-  // Swiss: No VAT
-  if (partner.country === 'CH') {
+  if (country === 'CH') {
     return {
       vatRate: 0,
       vatAmount: 0,
@@ -100,7 +90,6 @@ const calculateCommissionVAT = (partner, netAmount) => {
     };
   }
 
-  // Default: No VAT
   return {
     vatRate: 0,
     vatAmount: 0,
@@ -148,8 +137,8 @@ export const createPayoutRequest = async (userId, amount = null) => {
          country, vat_id, is_kleinunternehmer,
          iban, bic, bank_name, account_holder,
          wallet_balance, street, zip, city
-       FROM users 
-       WHERE id = $1`,
+       FROM users
+       WHERE id = $1 AND role = 'partner'`,
       [userId]
     );
 

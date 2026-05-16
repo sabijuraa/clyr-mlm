@@ -1,4 +1,5 @@
 import { query, transaction } from '../config/database.js';
+import { isVatIdFormatValid } from './tax.service.js';
 
 /**
  * CLYR Commission Service — Correct Vergütungsplan Implementation
@@ -71,6 +72,9 @@ export const calculateCommissions = async (client, orderId, partnerId, orderSubt
   if (partnerResult.rows.length === 0) return [];
 
   const partner = partnerResult.rows[0];
+  if (partner.role === 'admin') {
+    return [];
+  }
   const partnerCommissionRate = partner.commission_rate;
 
   const commissions = [];
@@ -150,7 +154,7 @@ const calculateDifferenceCommissions = async (client, orderId, partnerId, seller
   while (depth < maxDepth) {
     // Get upline
     const uplineResult = await client.query(
-      `SELECT u.id, u.upline_id, u.status, u.first_name, u.last_name, 
+      `SELECT u.id, u.upline_id, u.status, u.role, u.first_name, u.last_name,
               r.commission_rate, r.level
        FROM users u
        JOIN ranks r ON u.rank_id = r.id
@@ -161,6 +165,11 @@ const calculateDifferenceCommissions = async (client, orderId, partnerId, seller
     if (uplineResult.rows.length === 0) break;
 
     const upline = uplineResult.rows[0];
+    if (upline.role === 'admin') {
+      currentUserId = upline.id;
+      depth++;
+      continue;
+    }
 
     // Check if upline is ACTIVE (2+ sales in current quarter)
     const isActive = await checkPartnerIsActive(client, upline.id);
@@ -659,21 +668,16 @@ export const distributeBonusPool = async (triggeredByUserId) => {
       `SELECT u.id, u.first_name, u.last_name, r.level, r.name as rank_name
        FROM users u
        JOIN ranks r ON u.rank_id = r.id
-       WHERE r.level >= 4
+       WHERE u.role = 'partner'
+       AND r.level >= 4
        AND u.status = 'active'
        AND (
-         (
-           u.role = 'partner'
-           AND (
-             SELECT COUNT(*) FROM orders o
-             WHERE o.partner_id = u.id
-             AND o.created_at >= $1
-             AND o.payment_status = 'paid'
-             AND o.status NOT IN ('cancelled', 'refunded')
-           ) >= 2
-         )
-         OR u.role = 'admin'
-       )`,
+         SELECT COUNT(*) FROM orders o
+         WHERE o.partner_id = u.id
+         AND o.created_at >= $1
+         AND o.payment_status = 'paid'
+         AND o.status NOT IN ('cancelled', 'refunded')
+       ) >= 2`,
       [quarterStart]
     );
 
@@ -898,16 +902,17 @@ export const getCommissionSummary = async (userId) => {
     'SELECT vat_id, country FROM users WHERE id = $1',
     [userId]
   );
-  const hasVatId = !!userResult.rows[0]?.vat_id;
+  const vatId = userResult.rows[0]?.vat_id;
   const country = userResult.rows[0]?.country || 'AT';
+  const hasValidVatId = vatId && isVatIdFormatValid(vatId, country);
   let vatDisplay = 'none';
   let vatRate = 0;
-  if (country === 'AT' && hasVatId) {
+  if (country === 'AT') {
     vatDisplay = 'separate';
     vatRate = 20;
-  } else if (country === 'AT' && !hasVatId) {
-    vatDisplay = 'included';
-    vatRate = 20;
+  } else if (country === 'DE' && !hasValidVatId) {
+    vatDisplay = 'separate';
+    vatRate = 19;
   }
   const toNumber = (n) => Math.round((parseFloat(n) || 0) * 100) / 100;
 
@@ -920,7 +925,7 @@ export const getCommissionSummary = async (userId) => {
     directCount: parseInt(result.rows[0].direct_count) || 0,
     differenceCount: parseInt(result.rows[0].difference_count) || 0,
     bonusCount: parseInt(result.rows[0].bonus_count) || 0,
-    hasVatId,
+    hasVatId: !!vatId,
     vatRate,
     vatDisplay
   };

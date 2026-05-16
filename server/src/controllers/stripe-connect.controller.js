@@ -2,11 +2,31 @@
 import Stripe from 'stripe';
 import { query, transaction } from '../config/database.js';
 import { asyncHandler, AppError } from '../middleware/error.middleware.js';
+import { isVatIdFormatValid } from '../services/tax.service.js';
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY)
   : null;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://clyr.shop';
+
+const calculateAffiliateCommissionVat = (partner, netAmount) => {
+  const country = String(partner.country || '').toUpperCase();
+  const vatId = String(partner.vat_id || '').trim();
+  const hasValidVatId = vatId && isVatIdFormatValid(vatId, country);
+
+  if (country === 'DE' && hasValidVatId) {
+    return { vatAmount: 0, grossAmount: netAmount, vatRate: 0, vatType: 'reverse_charge' };
+  }
+
+  const vatRate = country === 'DE' ? 19 : country === 'AT' ? 20 : 0;
+  const vatAmount = Math.round(netAmount * (vatRate / 100) * 100) / 100;
+  return {
+    vatAmount,
+    grossAmount: Math.round((netAmount + vatAmount) * 100) / 100,
+    vatRate,
+    vatType: vatRate > 0 ? 'standard' : 'zero_rated',
+  };
+};
 
 // ─── Partner: Start Stripe Connect onboarding ────────────────────────────────
 export const startOnboarding = asyncHandler(async (req, res) => {
@@ -111,7 +131,8 @@ export const runStripePayouts = async () => {
         COUNT(c.id) as commission_count
       FROM users u
       JOIN commissions c ON c.user_id = u.id AND c.status = 'released'
-      WHERE u.status = 'active'
+      WHERE u.role = 'partner'
+        AND u.status = 'active'
       GROUP BY u.id, u.first_name, u.last_name, u.email,
                u.stripe_account_id, u.vat_id, u.country, u.status
       HAVING COALESCE(SUM(c.amount), 0) >= 10
@@ -150,8 +171,9 @@ export const runStripePayouts = async () => {
   for (const p of partners) {
     const name = `${p.first_name} ${p.last_name}`;
     const netAmount = parseFloat(p.net_amount);
-    const vatAmount = p.vat_id ? Math.round(netAmount * 0.20 * 100) / 100 : 0;
-    const grossAmount = netAmount + vatAmount;
+    const vatInfo = calculateAffiliateCommissionVat(p, netAmount);
+    const vatAmount = vatInfo.vatAmount;
+    const grossAmount = vatInfo.grossAmount;
 
     L(`Processing ${name}: net=€${netAmount} vat=€${vatAmount} gross=€${grossAmount}`);
 

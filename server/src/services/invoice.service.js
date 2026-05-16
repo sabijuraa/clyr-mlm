@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import pool from '../config/database.js';
+import { calculateVatRule, isVatIdFormatValid, splitGrossAmount } from './tax.service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -63,6 +64,37 @@ const formatVariantDescription = (item = {}) => {
     })
     .filter(Boolean)
     .join(', ');
+};
+
+const toDate = (value) => (value ? new Date(value) : new Date());
+
+const calculateAffiliateFeeVatRule = ({ country, vatId } = {}) => {
+  const normalizedCountry = String(country || '').trim().toUpperCase();
+  const hasValidVatId = vatId && isVatIdFormatValid(vatId, normalizedCountry);
+
+  if (normalizedCountry === 'DE' && hasValidVatId) {
+    return {
+      country: normalizedCountry,
+      vatRate: 0,
+      vatType: 'reverse_charge',
+      isReverseCharge: true,
+      vatNote: 'Reverse Charge - Steuerschuldnerschaft des Leistungsempfaengers',
+    };
+  }
+
+  if (normalizedCountry === 'DE') {
+    return { country: normalizedCountry, vatRate: 19, vatType: 'standard', isReverseCharge: false, vatNote: '' };
+  }
+
+  if (normalizedCountry === 'AT') {
+    return { country: normalizedCountry, vatRate: 20, vatType: 'standard', isReverseCharge: false, vatNote: '' };
+  }
+
+  if (normalizedCountry === 'CH') {
+    return { country: normalizedCountry, vatRate: 0, vatType: 'zero_rated', isReverseCharge: false, vatNote: '' };
+  }
+
+  return { country: normalizedCountry, vatRate: 20, vatType: 'standard', isReverseCharge: false, vatNote: '' };
 };
 
 class InvoiceService {
@@ -249,7 +281,11 @@ class InvoiceService {
         const vatAmount = parseFloat(order.vat_amount || 0);
         const discountAmount = parseFloat(order.discount_amount || 0);
         const total = parseFloat(order.total || 0);
-        const isRC = order.is_reverse_charge || (order.billing_country === 'DE' && !!order.customer_vat_id);
+        const isRC = order.billing_country === 'DE' && (
+          order.is_reverse_charge === true ||
+          order.is_reverse_charge === 'true' ||
+          (parseFloat(order.vat_rate || 0) === 0 && !!order.customer_vat_id)
+        );
 
         const tLine = (label, val, bold) => {
           doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(9).fillColor(COLORS.text);
@@ -340,13 +376,13 @@ class InvoiceService {
     const netTotal = commissions.reduce((s, c) => s + parseFloat(c.amount || 0), 0);
     const country  = (partner.country || 'AT').toUpperCase();
     const hasUid   = !!partner.vat_id;
+    const hasValidUid = hasUid && isVatIdFormatValid(partner.vat_id, country);
 
     let vatRate = 0, vatLabel = '', vatNote = '';
-    if      (country === 'AT' && hasUid)  { vatRate = 20; vatLabel = 'USt. 20% (AT)';    vatNote = 'Umsatzsteuer 20 % gemäß österreichischem UStG.'; }
-    else if (country === 'AT' && !hasUid) { vatNote = 'Steuerbefreit gemäß § 6 Abs. 1 Z 27 UStG (Kleinunternehmerregelung).'; }
-    else if (country === 'DE' && hasUid)  { vatNote = 'Steuerschuldnerschaft des Leistungsempfängers gem. § 13b UStG (Reverse Charge).'; }
-    else if (country === 'DE' && !hasUid) { vatRate = 19; vatLabel = 'USt. 19% (DE)';    vatNote = 'Umsatzsteuer 19 % gemäß deutschem UStG.'; }
-    else if (country === 'CH')            { vatNote = 'Nicht steuerbar – Leistungsempfänger im Drittland (Schweiz).'; }
+    if      (country === 'AT')            { vatRate = 20; vatLabel = 'USt. 20% (AT)';    vatNote = 'Umsatzsteuer 20 % gemaess oesterreichischem UStG.'; }
+    else if (country === 'DE' && hasValidUid) { vatNote = 'Steuerschuldnerschaft des Leistungsempfaengers gem. Par. 13b UStG (Reverse Charge).'; }
+    else if (country === 'DE')            { vatRate = 19; vatLabel = 'USt. 19% (DE)';    vatNote = 'Umsatzsteuer 19 % gemaess deutschem UStG.'; }
+    else if (country === 'CH')            { vatNote = 'Nicht steuerbar - Leistungsempfaenger im Drittland (Schweiz).'; }
 
     const vatAmt   = vatRate > 0 ? Math.round(netTotal * vatRate / 100 * 100) / 100 : 0;
     const gross    = netTotal + vatAmt;
@@ -502,38 +538,93 @@ class InvoiceService {
       `, [orderId]);
       order.items = itemsResult.rows;
 
-      const invoiceNumber = await this.getNextInvoiceNumber();
       const subtotal = parseFloat(order.subtotal || 0);
       const discount = parseFloat(order.discount_amount || 0);
       const shipping = parseFloat(order.shipping_cost || 0);
       const customerCountry = order.billing_country || 'AT';
-      const hasVatId = !!(order.customer_vat_id || order.vat_id);
-
-      let taxRate;
-      if (customerCountry === 'DE' && hasVatId) taxRate = 0;
-      else if (customerCountry === 'DE') taxRate = 19;
-      else if (customerCountry === 'AT') taxRate = 20;
-      else if (customerCountry === 'CH') taxRate = 8.1;
-      else taxRate = 20;
-
-      const isReverseCharge = customerCountry === 'DE' && hasVatId;
+      const taxRule = calculateVatRule({
+        country: customerCountry,
+        vatId: order.customer_vat_id || order.vat_id,
+        date: order.created_at || new Date(),
+      });
+      const taxRate = taxRule.vatRate;
+      const isReverseCharge = taxRule.isReverseCharge;
       const discountedSubtotal = Math.max(0, subtotal - discount);
       const netAmount = Math.round((discountedSubtotal + shipping) * 100) / 100;
-      const taxAmount = parseFloat(order.vat_amount || Math.round(netAmount * (taxRate / 100) * 100) / 100);
-      const total = parseFloat(order.total || Math.round((netAmount + taxAmount) * 100) / 100);
+      const taxAmount = Math.round(netAmount * (taxRate / 100) * 100) / 100;
+      const total = Math.round((netAmount + taxAmount) * 100) / 100;
 
-      const invoiceResult = await pool.query(`
-        INSERT INTO invoices (invoice_number, type, order_id, customer_id,
-          net_amount, vat_rate, vat_amount, gross_amount, vat_type, pdf_generated_at)
-        VALUES ($1, 'customer', $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
-        RETURNING *
-      `, [invoiceNumber, orderId, order.customer_id, netAmount, taxRate, taxAmount, total,
-          isReverseCharge ? 'reverse_charge' : 'standard']);
+      const existingInvoice = await pool.query(
+        `SELECT * FROM invoices
+         WHERE order_id = $1 AND type = 'customer'
+         ORDER BY created_at ASC
+         LIMIT 1`,
+        [orderId]
+      );
 
-      const invoice = invoiceResult.rows[0];
-      await pool.query('UPDATE orders SET invoice_number = $1, invoice_generated_at = CURRENT_TIMESTAMP WHERE id = $2', [invoiceNumber, orderId]);
+      let invoice;
+      let invoiceNumber = existingInvoice.rows[0]?.invoice_number;
+      if (invoiceNumber) {
+        const invoiceResult = await pool.query(`
+          UPDATE invoices
+          SET customer_id = $1,
+              net_amount = $2,
+              vat_rate = $3,
+              vat_amount = $4,
+              gross_amount = $5,
+              vat_type = $6,
+              pdf_generated_at = CURRENT_TIMESTAMP
+          WHERE id = $7
+          RETURNING *
+        `, [
+          order.customer_id,
+          netAmount,
+          taxRate,
+          taxAmount,
+          total,
+          isReverseCharge ? 'reverse_charge' : 'standard',
+          existingInvoice.rows[0].id,
+        ]);
+        invoice = invoiceResult.rows[0];
+      } else {
+        for (let attempt = 0; attempt < 3; attempt++) {
+          invoiceNumber = await this.getNextInvoiceNumber(order.created_at || new Date());
+          try {
+            const invoiceResult = await pool.query(`
+              INSERT INTO invoices (invoice_number, type, order_id, customer_id,
+                net_amount, vat_rate, vat_amount, gross_amount, vat_type, pdf_generated_at)
+              VALUES ($1, 'customer', $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
+              RETURNING *
+            `, [invoiceNumber, orderId, order.customer_id, netAmount, taxRate, taxAmount, total,
+                isReverseCharge ? 'reverse_charge' : 'standard']);
+            invoice = invoiceResult.rows[0];
+            break;
+          } catch (error) {
+            if (error.code !== '23505' || error.constraint !== 'invoices_invoice_number_key' || attempt === 2) {
+              throw error;
+            }
+          }
+        }
+      }
+
+      await pool.query(
+        `UPDATE orders
+         SET invoice_number = $1,
+             invoice_generated_at = CURRENT_TIMESTAMP,
+             vat_rate = $2,
+             vat_amount = $3,
+             total = $4,
+             is_reverse_charge = $5
+         WHERE id = $6`,
+        [invoiceNumber, taxRate, taxAmount, total, isReverseCharge, orderId]
+      );
 
       order.invoice_number = invoiceNumber;
+      order.invoice_generated_at = new Date();
+      order.vat_rate = taxRate;
+      order.vat_amount = taxAmount;
+      order.total = total;
+      order.is_reverse_charge = isReverseCharge;
       const pdfBuffer = await this.generateInvoicePDFBuffer(order);
 
       const invoiceDir = path.join(__dirname, '../../public/invoices');
@@ -581,16 +672,184 @@ class InvoiceService {
   // ==========================================
   // HELPERS
   // ==========================================
-  async getNextInvoiceNumber() {
+  async getNextInvoiceNumber(date = new Date()) {
     try {
-      const result = await pool.query('SELECT generate_invoice_number()');
-      return result.rows[0].generate_invoice_number;
+      const year = new Date(date).getFullYear();
+      const result = await pool.query(`
+        SELECT COALESCE(MAX(CAST(SPLIT_PART(invoice_number, '-', 3) AS INTEGER)), 0) + 1 as next_seq
+        FROM invoices
+        WHERE invoice_number ~ $1
+      `, [`^RE-${year}-[0-9]+$`]);
+      return `RE-${year}-${String(parseInt(result.rows[0].next_seq) || 1).padStart(5, '0')}`;
     } catch (error) {
-      const year = new Date().getFullYear();
+      const year = new Date(date).getFullYear();
       const countResult = await pool.query("SELECT COUNT(*) FROM invoices WHERE invoice_number LIKE $1", [`RE-${year}-%`]).catch(() => ({ rows: [{ count: 0 }] }));
       const seq = parseInt(countResult.rows[0].count) + 1;
       return `RE-${year}-${String(seq).padStart(5, '0')}`;
     }
+  }
+
+  async ensureFeeInvoiceStorage() {
+    await pool.query(`
+      ALTER TABLE invoices
+      ADD COLUMN IF NOT EXISTS subscription_payment_id INTEGER
+    `).catch(() => {});
+
+    await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_subscription_payment
+      ON invoices(subscription_payment_id)
+      WHERE subscription_payment_id IS NOT NULL
+    `).catch(() => {});
+
+    await pool.query(`
+      DO $$
+      DECLARE constraint_name text;
+      BEGIN
+        SELECT conname INTO constraint_name
+        FROM pg_constraint
+        WHERE conrelid = 'invoices'::regclass
+          AND contype = 'c'
+          AND pg_get_constraintdef(oid) LIKE '%type%'
+          AND pg_get_constraintdef(oid) LIKE '%customer%';
+
+        IF constraint_name IS NOT NULL THEN
+          EXECUTE format('ALTER TABLE invoices DROP CONSTRAINT %I', constraint_name);
+          ALTER TABLE invoices
+            ADD CONSTRAINT invoices_type_check
+            CHECK (type IN ('customer', 'commission', 'commission_statement', 'fee'));
+        END IF;
+      END $$;
+    `).catch(() => {});
+  }
+
+  async createOrGetPartnerFeeInvoice(payment) {
+    await this.ensureFeeInvoiceStorage();
+
+    const existing = await pool.query(
+      'SELECT * FROM invoices WHERE subscription_payment_id = $1 LIMIT 1',
+      [payment.id]
+    ).catch(() => ({ rows: [] }));
+
+    const paidAt = toDate(payment.paid_at || payment.created_at);
+    const vatRule = calculateAffiliateFeeVatRule({
+      country: payment.country,
+      vatId: payment.vat_id,
+    });
+    const amounts = splitGrossAmount(payment.amount, vatRule.vatRate);
+
+    if (existing.rows.length > 0) {
+      const existingInvoice = existing.rows[0];
+      const updated = await pool.query(
+        `UPDATE invoices
+         SET created_at = $1,
+             net_amount = $2,
+             vat_rate = $3,
+             vat_amount = $4,
+             gross_amount = $5,
+             vat_type = $6
+         WHERE id = $7
+         RETURNING *`,
+        [
+          paidAt,
+          amounts.netAmount,
+          vatRule.vatRate,
+          amounts.vatAmount,
+          amounts.grossAmount,
+          vatRule.vatType,
+          existingInvoice.id,
+        ]
+      ).catch(() => ({ rows: [] }));
+      return updated.rows[0] || { ...existingInvoice, created_at: paidAt };
+    }
+
+    let result = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const invoiceNumber = await this.getNextInvoiceNumber(paidAt);
+      try {
+        result = await pool.query(`
+          INSERT INTO invoices (
+            invoice_number, type, partner_id, subscription_payment_id,
+            net_amount, vat_rate, vat_amount, gross_amount, vat_type,
+            pdf_generated_at, created_at
+          )
+          VALUES ($1, 'fee', $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, $9)
+          RETURNING *
+        `, [
+          invoiceNumber,
+          payment.user_id,
+          payment.id,
+          amounts.netAmount,
+          vatRule.vatRate,
+          amounts.vatAmount,
+          amounts.grossAmount,
+          vatRule.vatType,
+          paidAt,
+        ]);
+        break;
+      } catch (error) {
+        if (error.code !== '23505' || error.constraint !== 'invoices_invoice_number_key' || attempt === 2) {
+          throw error;
+        }
+      }
+    }
+
+      return result.rows[0];
+  }
+
+  async generateMissingInvoices() {
+    const result = {
+      customerGenerated: 0,
+      customerUpdated: 0,
+      feeGenerated: 0,
+      feeUpdated: 0,
+      errors: [],
+    };
+
+    const paidOrders = await pool.query(`
+      SELECT o.id, i.id as invoice_id
+      FROM orders o
+      LEFT JOIN invoices i ON i.order_id = o.id AND i.type = 'customer'
+      WHERE o.payment_status = 'paid'
+      ORDER BY o.created_at ASC
+    `);
+
+    for (const row of paidOrders.rows) {
+      try {
+        await this.generateInvoice(row.id);
+        if (row.invoice_id) result.customerUpdated += 1;
+        else result.customerGenerated += 1;
+      } catch (error) {
+        result.errors.push({ type: 'customer', id: row.id, message: error.message });
+      }
+    }
+
+    const paidFees = await pool.query(`
+      SELECT sp.*, sp.id as payment_id,
+             u.first_name, u.last_name, u.company, u.street, u.zip, u.city, u.country, u.vat_id, u.email
+      FROM subscription_payments sp
+      JOIN users u ON u.id = sp.user_id
+      WHERE sp.status = 'paid'
+      ORDER BY sp.paid_at ASC, sp.created_at ASC
+    `);
+
+    for (const payment of paidFees.rows) {
+      try {
+        payment.id = payment.payment_id;
+        const before = await pool.query(
+          'SELECT id FROM invoices WHERE subscription_payment_id = $1 LIMIT 1',
+          [payment.id]
+        );
+        await this.createOrGetPartnerFeeInvoice(payment);
+        if (before.rows.length > 0) result.feeUpdated += 1;
+        else result.feeGenerated += 1;
+      } catch (error) {
+        result.errors.push({ type: 'fee', id: payment.payment_id, message: error.message });
+      }
+    }
+
+    result.generated = result.customerGenerated + result.feeGenerated;
+    result.updated = result.customerUpdated + result.feeUpdated;
+    return result;
   }
 
   async getAllInvoices(type) {
@@ -601,12 +860,13 @@ class InvoiceService {
       const result = await pool.query(`
         SELECT i.*,
           COALESCE(c.first_name || ' ' || c.last_name, '') as customer_name,
-          COALESCE(u.first_name || ' ' || u.last_name, '') as partner_name,
+          COALESCE(u.first_name || ' ' || u.last_name, pu.first_name || ' ' || pu.last_name, '') as partner_name,
           o.order_number
         FROM invoices i
         LEFT JOIN customers c ON i.customer_id = c.id
         LEFT JOIN orders o ON i.order_id = o.id
         LEFT JOIN users u ON i.user_id = u.id
+        LEFT JOIN users pu ON i.partner_id = pu.id
         ${whereClause}
         ORDER BY i.created_at DESC
       `, params);
@@ -640,10 +900,15 @@ const invoiceService = new InvoiceService();
 /**
  * Generate PDF invoice for partner annual fee
  */
-export const generatePartnerFeeInvoicePDF = async (partner, amount) => {
+export const generatePartnerFeeInvoicePDF = async (partner, amount, options = {}) => {
   const company = await invoiceService.getCompanyInfo();
-  const invoiceNumber = await invoiceService.getNextInvoiceNumber();
-  const invoiceDate = new Date();
+  const invoiceNumber = options.invoiceNumber || await invoiceService.getNextInvoiceNumber();
+  const invoiceDate = toDate(options.invoiceDate || options.paidAt);
+  const vatRule = calculateAffiliateFeeVatRule({
+    country: partner.country,
+    vatId: partner.vat_id,
+  });
+  const totals = splitGrossAmount(amount, vatRule.vatRate);
 
   return new Promise((resolve, reject) => {
     try {
@@ -690,7 +955,7 @@ export const generatePartnerFeeInvoicePDF = async (partner, amount) => {
       doc.font('Helvetica').fontSize(9).fillColor(COLORS.text);
       doc.text('1', 50, y, { width: 30 });
       doc.text(`CLYR Vertriebspartner Jahresgebuehr ${invoiceDate.getFullYear()} (anteilig)`, 80, y, { width: 280 });
-      doc.text(`EUR ${amount.toFixed(2)}`, 440, y, { width: 100, align: 'right' });
+      doc.text(`EUR ${totals.netAmount.toFixed(2)}`, 440, y, { width: 100, align: 'right' });
       y += 25;
 
       // Totals
@@ -698,37 +963,30 @@ export const generatePartnerFeeInvoicePDF = async (partner, amount) => {
       y += 8;
       doc.font('Helvetica').fontSize(9);
       doc.text('Nettobetrag:', 350, y, { width: 90, align: 'right' });
-      doc.text(`EUR ${amount.toFixed(2)}`, 440, y, { width: 100, align: 'right' });
+      doc.text(`EUR ${totals.netAmount.toFixed(2)}`, 440, y, { width: 100, align: 'right' });
       y += 14;
 
-      // VAT handling based on partner country
-      let vatAmount = 0;
-      let vatNote = '';
-      if (partner.country === 'AT' && !partner.vat_id) {
-        vatAmount = Math.round(amount * 0.20 * 100) / 100;
-        doc.text('20% MwSt.:', 350, y, { width: 90, align: 'right' });
-        doc.text(`EUR ${vatAmount.toFixed(2)}`, 440, y, { width: 100, align: 'right' });
+      if (vatRule.vatRate > 0) {
+        doc.text(`${vatRule.vatRate}% MwSt.:`, 350, y, { width: 90, align: 'right' });
+        doc.text(`EUR ${totals.vatAmount.toFixed(2)}`, 440, y, { width: 100, align: 'right' });
         y += 14;
-      } else if (partner.country === 'AT' && partner.vat_id) {
-        vatNote = 'Reverse Charge - Steuerschuldnerschaft des Leistungsempfaengers';
-      } else if (partner.country === 'DE') {
-        vatNote = 'Reverse Charge - Steuerschuldnerschaft des Leistungsempfaengers';
       } else {
-        vatNote = 'Steuerfreie Leistung';
+        doc.text('MwSt. (0%):', 350, y, { width: 90, align: 'right' });
+        doc.text('EUR 0.00', 440, y, { width: 100, align: 'right' });
+        y += 14;
       }
 
-      const total = amount + vatAmount;
       y += 2;
       doc.moveTo(350, y).lineTo(545, y).lineWidth(1).strokeColor(COLORS.primary).stroke();
       y += 8;
       doc.font('Helvetica-Bold').fontSize(10).fillColor(COLORS.primary);
       doc.text('Gesamtbetrag:', 350, y, { width: 90, align: 'right' });
-      doc.text(`EUR ${total.toFixed(2)}`, 440, y, { width: 100, align: 'right' });
+      doc.text(`EUR ${totals.grossAmount.toFixed(2)}`, 440, y, { width: 100, align: 'right' });
       y += 25;
 
-      if (vatNote) {
+      if (vatRule.vatNote) {
         doc.font('Helvetica').fontSize(8).fillColor('#6B7280');
-        doc.text(vatNote, 50, y);
+        doc.text(vatRule.vatNote, 50, y);
         y += 14;
       }
 
@@ -749,6 +1007,8 @@ export const generatePartnerFeeInvoicePDF = async (partner, amount) => {
 export const generateInvoice = (orderId) => invoiceService.generateInvoice(orderId);
 export const generateInvoicePDF = (orderData, invoiceNumber) => invoiceService.generateInvoicePDF(orderData, invoiceNumber);
 export const generateCommissionStatement = (a, b, c, d) => invoiceService.generateCommissionStatement(a, b, c, d);
+export const createOrGetPartnerFeeInvoice = (payment) => invoiceService.createOrGetPartnerFeeInvoice(payment);
+export const generateMissingInvoices = () => invoiceService.generateMissingInvoices();
 export const getAllInvoices = (type) => invoiceService.getAllInvoices(type);
 export const getInvoiceById = (invoiceId) => invoiceService.getInvoiceById(invoiceId);
 export const getInvoiceByOrderId = (orderId) => invoiceService.getInvoiceByOrderId(orderId);

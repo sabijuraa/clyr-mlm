@@ -252,17 +252,10 @@ export const calculateShipping = (country) => {
 export const calculateVAT = (amount, country, hasVatId = false) => {
   const config = appConfig.countries[country];
   if (!config) return 0;
-  
-  // Switzerland: Always 0%
-  if (country === 'CH') return 0;
-  
-  // Reverse Charge: Any EU country with valid VAT ID = 0%
-  if (hasVatId && config.reverseCharge) return 0;
-  
-  // Austria with VAT ID: 0% (reverse charge)
-  if (country === 'AT' && hasVatId) return 0;
-  
-  // Standard VAT rates
+
+  if (country === 'DE' && hasVatId) return 0;
+  if (new Date() < new Date('2026-07-01T00:00:00.000Z')) return amount * 0.20;
+
   return amount * config.vatRate;
 };
 
@@ -283,8 +276,8 @@ export const calculateOrderTotals = (subtotal, country, hasVatId = false) => {
     shipping,
     vat,
     total,
-    vatRate: appConfig.countries[country]?.vatRate || 0,
-    hasReverseCharge: hasVatId && (country === 'AT' || (appConfig.countries[country]?.reverseCharge && hasVatId))
+    vatRate: country === 'DE' && hasVatId ? 0 : (new Date() < new Date('2026-07-01T00:00:00.000Z') ? 0.20 : appConfig.countries[country]?.vatRate || 0),
+    hasReverseCharge: country === 'DE' && hasVatId
   };
 };
 
@@ -346,8 +339,8 @@ export const getNextRank = (currentId) => {
  * @returns {string} - VAT label
  */
 export const getVatLabel = (country, hasVatId = false) => {
-  if (country === 'CH') return 'Keine MwSt.';
-  if (country === 'AT' && hasVatId) return 'Reverse Charge';
+  if (country === 'DE' && hasVatId) return 'Reverse Charge';
+  if (new Date() < new Date('2026-07-01T00:00:00.000Z')) return '20% MwSt.';
   return appConfig.countries[country]?.vatLabel || '19% MwSt.';
 };
 

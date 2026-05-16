@@ -3,6 +3,7 @@ import { query, transaction } from '../config/database.js';
 import { asyncHandler, AppError } from '../middleware/error.middleware.js';
 import { calculateCommissions } from '../services/commission.service.js';
 import { generateInvoicePDF } from '../services/invoice.service.js';
+import { calculateVatRule, validateVatId } from '../services/tax.service.js';
 import { getPublicAppUrl, getPublicApiUrl } from '../utils/public-url.js';
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
@@ -87,36 +88,22 @@ const getShippingCost = async (country, items, products) => {
 };
 
 /**
- * Get VAT rate based on country and customer type
- * CLYR Tax Rules (Austrian company selling):
- * - DE customer without VAT ID → 19% German MwSt
- * - DE customer with VAT ID → 0% Reverse Charge (B2B)
- * - AT customer → 20% Austrian MwSt (always, home country)
- * - CH customer → 8.1% Swiss MwSt (non-EU export)
- * - AT customer with VAT ID → still 20% (domestic B2B)
+ * Get VAT rate based on the confirmed billing rules:
+ * - DE customer with valid VAT ID -> 0% Reverse Charge
+ * - Until 2026-07-01, non-Reverse-Charge customer sales -> 20%
+ * - From 2026-07-01, country rates apply
  */
-const getVatRate = async (country, hasVatId = false) => {
-  // Load configurable rates from settings
-  const settingsResult = await query("SELECT value FROM settings WHERE key = 'vat_rates'");
-  const vatRates = settingsResult.rows[0]?.value || { DE: 19, AT: 20, CH: 8.1 };
-
-  switch (country) {
-    case 'DE':
-      // Germany: B2B with valid VAT ID = Reverse Charge (0%)
-      // Germany: B2C or no VAT ID = 19%
-      return hasVatId ? 0 : (vatRates.DE || 19);
-    
-    case 'AT':
-      // Austria (home country): Always 20%, even B2B
-      return vatRates.AT || 20;
-    
-    case 'CH':
-      // Switzerland: 8.1% (non-EU, Swiss VAT applies on import)
-      return vatRates.CH || 8.1;
-    
-    default:
-      return 0;
+const getVatRate = async (country, vatId = null, date = new Date()) => {
+  let vatIdValid = null;
+  if (vatId) {
+    const validation = await validateVatId(vatId, country);
+    if (!validation.valid && validation.source !== 'format_vies_unavailable') {
+      throw new AppError('Die angegebene USt-IdNr. konnte nicht validiert werden.', 400);
+    }
+    vatIdValid = validation.valid;
   }
+
+  return calculateVatRule({ country, vatId, date, vatIdValid });
 };
 
 /**
@@ -180,7 +167,7 @@ export const validateDiscountCode = asyncHandler(async (req, res) => {
  * Calculate order totals
  */
 export const calculateOrderTotals = asyncHandler(async (req, res) => {
-  const { items, country, hasVatId = false } = req.body;
+  const { items, country, hasVatId = false, vatId = null } = req.body;
 
   if (!items || items.length === 0) {
     throw new AppError('Keine Artikel angegeben', 400);
@@ -214,8 +201,10 @@ export const calculateOrderTotals = asyncHandler(async (req, res) => {
   // Get shipping cost
   const shippingCost = await getShippingCost(country, items, products);
 
-  // Get VAT rate
-  const vatRate = await getVatRate(country, hasVatId);
+  const vatRule = vatId
+    ? await getVatRate(country, vatId)
+    : calculateVatRule({ country, vatId: hasVatId ? `${country}VALID` : null, vatIdValid: !!hasVatId });
+  const vatRate = vatRule.vatRate;
 
   // Calculate VAT (on subtotal + shipping)
   const taxableAmount = subtotal + shippingCost;
@@ -224,23 +213,14 @@ export const calculateOrderTotals = asyncHandler(async (req, res) => {
   // Calculate total
   const total = Math.round((taxableAmount + vatAmount) * 100) / 100;
 
-  // Determine reverse charge status and VAT note
-  const isReverseCharge = (country === 'DE' && hasVatId);
-  let vatNote = '';
-  if (isReverseCharge) {
-    vatNote = 'Steuerschuldnerschaft des Leistungsempfaengers (Reverse Charge)';
-  } else if (country === 'CH') {
-    vatNote = 'Schweizer MwSt. 8.1%';
-  }
-
   res.json({
     subtotal: Math.round(subtotal * 100) / 100,
     shippingCost,
     vatRate,
     vatAmount,
     total,
-    isReverseCharge,
-    vatNote,
+    isReverseCharge: vatRule.isReverseCharge,
+    vatNote: vatRule.vatNote,
     items: items.map(item => {
       const product = products.find(p => p.id === item.productId);
       return {
@@ -804,7 +784,7 @@ export const createOrder = asyncHandler(async (req, res) => {
 
   // Calculate totals
   const country = billing.country;
-  const hasVatId = !!customer.vatId;
+  const customerVatId = customer.vatId || null;
 
   // Territory restriction: only DE/AT/CH allowed (#49)
   const allowedCountries = ['DE', 'AT', 'CH'];
@@ -820,7 +800,8 @@ export const createOrder = asyncHandler(async (req, res) => {
   }, 0);
 
   const shippingCost = await getShippingCost(country, items, products);
-  const vatRate = await getVatRate(country, hasVatId);
+  const vatRule = await getVatRate(country, customerVatId, new Date());
+  const vatRate = vatRule.vatRate;
 
   // Handle discount code
   let discountAmount = 0;
@@ -909,11 +890,7 @@ export const createOrder = asyncHandler(async (req, res) => {
       customerId = newCustomer.rows[0].id;
     }
 
-    // Determine reverse charge
-    const isReverseCharge = (country === 'DE' && hasVatId);
-    const vatNote = isReverseCharge 
-      ? 'Steuerschuldnerschaft des Leistungsempfaengers (Reverse Charge)' 
-      : (country === 'CH' ? 'Schweizer MwSt. 8.1%' : '');
+    const isReverseCharge = vatRule.isReverseCharge;
 
     // Create order
     const orderResult = await client.query(

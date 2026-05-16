@@ -44,3 +44,6 @@ server/uploads/*
 *.pid.lock
 coverage/
 .nyc_output/
+
+
+server/public/invoices/*.pdf

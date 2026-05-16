@@ -1156,12 +1156,6 @@ app.listen(PORT, '0.0.0.0', async () => {
       }
     } catch(e) { console.error('Theresa account check error:', e.message); }
 
-    // Remove wrong admin: Wolfgang Kronsteiner
-    try {
-      const w = await dbQuery("DELETE FROM users WHERE email='technik@clyr.shop' AND role='admin' RETURNING email");
-      if (w.rowCount > 0) console.log('Removed wrong admin: technik@clyr.shop');
-    } catch(e) { console.error('Wolfgang removal:', e.message); }
-
     // Auto-retry: pay partners who now have Stripe but had pending SEPA payout
     try {
       const pending = await dbQuery(`
@@ -1185,14 +1179,6 @@ app.listen(PORT, '0.0.0.0', async () => {
         console.log(`Stripe retry: ${result.processed} paid, ${result.failed} failed`);
       }
     } catch(e) { console.error('Stripe auto-retry:', e.message); }
-
-    // Remove wrong admin account (Wolfgang Kronsteiner)
-    try {
-      const wResult = await dbQuery(
-        "DELETE FROM users WHERE email = 'technik@clyr.shop' AND role = 'admin' AND email != 'theresa@clyr.at' RETURNING email"
-      );
-      if (wResult.rowCount > 0) console.log('Removed wrong admin: technik@clyr.shop');
-    } catch(e) { console.error('Wolfgang removal error:', e.message); }
 
     // Auto-retry: if any partner has pending SEPA payouts AND now has Stripe connected
     // → cancel the pending record, reset commissions to released, trigger Stripe direct payout
@@ -1243,16 +1229,6 @@ app.listen(PORT, '0.0.0.0', async () => {
       console.error('[AUTO-RETRY] Error:', e.message);
       console.error(e.stack);
     }
-
-    // Remove wrong admin account (Wolfgang Kronsteiner - technik@clyr.shop)
-    try {
-      const wResult = await dbQuery(
-        "DELETE FROM users WHERE email = 'technik@clyr.shop' AND role = 'admin' RETURNING email"
-      );
-      if (wResult.rowCount > 0) {
-        console.log('Removed wrong admin account: technik@clyr.shop');
-      }
-    } catch(e) { console.error('Wolfgang removal error:', e.message); }
 
     // Auto-trigger Stripe payout for partners with pending payouts who now have Stripe connected
     try {

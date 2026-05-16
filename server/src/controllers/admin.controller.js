@@ -1047,14 +1047,40 @@ export const getFeePayments = asyncHandler(async (req, res) => {
   const result = await query(
     `SELECT sp.*,
             u.email, u.first_name, u.last_name, u.referral_code,
-            r.name as rank_name
+            r.name as rank_name,
+            i.invoice_number, i.created_at as invoice_date,
+            i.net_amount as invoice_net_amount,
+            i.vat_rate as invoice_vat_rate,
+            i.vat_amount as invoice_vat_amount,
+            i.gross_amount as invoice_gross_amount,
+            i.vat_type as invoice_vat_type
      FROM subscription_payments sp
      JOIN users u ON sp.user_id = u.id
      LEFT JOIN ranks r ON u.rank_id = r.id
+     LEFT JOIN invoices i ON i.subscription_payment_id = sp.id
      ORDER BY sp.created_at DESC`
   );
 
   res.json({ payments: result.rows });
+});
+
+/**
+ * Generate missing customer and affiliate fee invoice records
+ */
+export const generateMissingInvoices = asyncHandler(async (req, res) => {
+  const { generateMissingInvoices: generateAllMissing } = await import('../services/invoice.service.js');
+  const result = await generateAllMissing();
+
+  await query(
+    `INSERT INTO activity_log (user_id, action, entity_type, details)
+     VALUES ($1, $2, $3, $4)`,
+    [req.user.id, 'missing_invoices_generated', 'invoice', JSON.stringify(result)]
+  ).catch(() => {});
+
+  res.json({
+    message: 'Fehlende Rechnungen verarbeitet',
+    ...result,
+  });
 });
 
 /**
@@ -1238,7 +1264,10 @@ export const getFeePaymentInvoice = asyncHandler(async (req, res) => {
 
   // Get fee payment
   const paymentResult = await query(
-    `SELECT sp.*, u.* FROM subscription_payments sp
+    `SELECT sp.*, sp.id as payment_id,
+            u.id as partner_user_id, u.first_name, u.last_name, u.company,
+            u.street, u.zip, u.city, u.country, u.vat_id, u.email
+     FROM subscription_payments sp
      JOIN users u ON sp.user_id = u.id
      WHERE sp.id = $1`,
     [id]
@@ -1249,6 +1278,7 @@ export const getFeePaymentInvoice = asyncHandler(async (req, res) => {
   }
 
   const payment = paymentResult.rows[0];
+  payment.id = payment.payment_id;
   const partner = {
     first_name: payment.first_name,
     last_name: payment.last_name,
@@ -1261,8 +1291,12 @@ export const getFeePaymentInvoice = asyncHandler(async (req, res) => {
     email: payment.email,
   };
 
-  const { generatePartnerFeeInvoicePDF } = await import('../services/invoice.service.js');
-  const { buffer, invoiceNumber } = await generatePartnerFeeInvoicePDF(partner, parseFloat(payment.amount));
+  const { generatePartnerFeeInvoicePDF, createOrGetPartnerFeeInvoice } = await import('../services/invoice.service.js');
+  const invoice = await createOrGetPartnerFeeInvoice(payment);
+  const { buffer, invoiceNumber } = await generatePartnerFeeInvoicePDF(partner, parseFloat(payment.amount), {
+    invoiceNumber: invoice.invoice_number,
+    paidAt: payment.paid_at || payment.created_at,
+  });
 
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `inline; filename="${invoiceNumber}.pdf"`);

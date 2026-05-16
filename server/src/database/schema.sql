@@ -564,13 +564,14 @@ CREATE TABLE invoices (
     
     -- Reference
     invoice_number VARCHAR(50) UNIQUE NOT NULL,
-    type VARCHAR(50) NOT NULL CHECK (type IN ('customer', 'commission_statement')),
+    type VARCHAR(50) NOT NULL CHECK (type IN ('customer', 'commission', 'commission_statement', 'fee')),
     
     -- Related entities
     order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
     payout_id UUID REFERENCES payouts(id) ON DELETE SET NULL,
     customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
     partner_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    subscription_payment_id INTEGER,
     
     -- Document
     pdf_url VARCHAR(500),

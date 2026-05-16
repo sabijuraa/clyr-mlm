@@ -84,6 +84,7 @@ const notifyNewDownlineActivation = async (partnerId) => {
  */
 export const createPartnerFeeCheckout = asyncHandler(async (req, res) => {
   const { partnerId, partnerEmail } = req.body;
+  const baseUrl = getPublicAppUrl();
 
   if (!partnerId && !partnerEmail) {
     throw new AppError('Partner-ID oder E-Mail erforderlich', 400);
@@ -277,7 +278,9 @@ export const partnerFeeSuccess = async (req, res) => {
       return res.redirect(`${baseUrl}/login?fee=error&reason=no_partner`);
     }
 
-    const { periodStart, periodEnd, amount } = getAffiliateFeePeriod(new Date());
+    const paidAt = session.created ? new Date(session.created * 1000) : new Date();
+    const { periodStart, periodEnd, amount: calculatedAmount } = getAffiliateFeePeriod(paidAt);
+    const amount = session.amount_total ? Math.round((session.amount_total / 100) * 100) / 100 : calculatedAmount;
 
     // Ensure tables and columns exist
     try {
@@ -304,14 +307,17 @@ export const partnerFeeSuccess = async (req, res) => {
     }
 
     // Check if already processed (idempotent)
-    const existing = await query('SELECT id FROM subscription_payments WHERE stripe_session_id = $1', [session.id]);
+    const existing = await query('SELECT * FROM subscription_payments WHERE stripe_session_id = $1', [session.id]);
+    let payment = existing.rows[0] || null;
     if (existing.rows.length === 0) {
       // Record payment
-      await query(
+      const inserted = await query(
         `INSERT INTO subscription_payments (user_id, amount, payment_method, payment_reference, stripe_session_id, period_start, period_end, status, paid_at)
-         VALUES ($1, $2, 'stripe', $3, $4, $5, $6, 'paid', CURRENT_TIMESTAMP)`,
-        [partnerId, amount, session.payment_intent || session.id, session.id, periodStart, periodEnd]
+         VALUES ($1, $2, 'stripe', $3, $4, $5, $6, 'paid', $7)
+         RETURNING *`,
+        [partnerId, amount, session.payment_intent || session.id, session.id, periodStart, periodEnd, paidAt]
       );
+      payment = inserted.rows[0];
     }
 
     // Activate partner
@@ -320,11 +326,11 @@ export const partnerFeeSuccess = async (req, res) => {
         subscription_status = 'active',
         subscription_amount = $2,
         subscription_prorated = $2,
-        annual_fee_paid_at = CURRENT_TIMESTAMP,
+        annual_fee_paid_at = $4,
         annual_fee_expires_at = $3,
         status = 'active'
        WHERE id = $1`,
-        [partnerId, amount, periodEnd]
+        [partnerId, amount, periodEnd, paidAt]
     );
 
     await notifyNewDownlineActivation(partnerId);
@@ -344,10 +350,24 @@ export const partnerFeeSuccess = async (req, res) => {
       const partnerResult = await query('SELECT * FROM users WHERE id = $1', [partnerId]);
       if (partnerResult.rows.length > 0) {
         const partner = partnerResult.rows[0];
-        const { generatePartnerFeeInvoicePDF } = await import('../services/invoice.service.js');
+        const { generatePartnerFeeInvoicePDF, createOrGetPartnerFeeInvoice } = await import('../services/invoice.service.js');
         const { sendEmail } = await import('../services/email.service.js');
-        
-        const { buffer, invoiceNumber } = await generatePartnerFeeInvoicePDF(partner, amount);
+        const invoice = await createOrGetPartnerFeeInvoice({
+          ...payment,
+          first_name: partner.first_name,
+          last_name: partner.last_name,
+          company: partner.company,
+          street: partner.street,
+          zip: partner.zip,
+          city: partner.city,
+          country: partner.country,
+          vat_id: partner.vat_id,
+          email: partner.email,
+        });
+        const { buffer, invoiceNumber } = await generatePartnerFeeInvoicePDF(partner, amount, {
+          invoiceNumber: invoice.invoice_number,
+          paidAt: payment.paid_at || paidAt,
+        });
         
         await sendEmail({
           to: partner.email,

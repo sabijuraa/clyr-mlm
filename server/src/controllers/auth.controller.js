@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { query, transaction } from '../config/database.js';
 import { asyncHandler, AppError } from '../middleware/error.middleware.js';
 import { sendPasswordReset, sendPartnerWelcome } from '../services/email.service.js';
+import { validateVatId } from '../services/tax.service.js';
 
 /**
  * Generate access token
@@ -176,6 +177,13 @@ export const register = asyncHandler(async (req, res) => {
   // DE affiliates must have VAT UID (#28)
   if (country === 'DE' && !vatId) {
     throw new AppError('Deutsche Partner benoetigen eine gueltige USt-IdNr.', 400);
+  }
+
+  if (vatId) {
+    const vatValidation = await validateVatId(vatId, country);
+    if (!vatValidation.valid && vatValidation.source !== 'format_vies_unavailable') {
+      throw new AppError('Die angegebene USt-IdNr. ist nicht gueltig.', 400);
+    }
   }
 
   // ============================================================
@@ -466,6 +474,12 @@ export const updateProfile = asyncHandler(async (req, res) => {
   const nullIfEmpty = (v) => (v === '' || v === undefined) ? null : v;
   const effectiveBankName = bankName || bank_name;
   const effectiveAccountHolder = accountHolder || account_holder;
+  if (vatId) {
+    const vatValidation = await validateVatId(vatId, country || req.user.country);
+    if (!vatValidation.valid && vatValidation.source !== 'format_vies_unavailable') {
+      throw new AppError('Die angegebene USt-IdNr. ist nicht gueltig.', 400);
+    }
+  }
 
   const result = await query(
     `UPDATE users SET

@@ -251,7 +251,7 @@ export const createCreditNote = async (orderId, reason, lineItems = null, issued
   // Calculate totals
   const subtotal = lineItems.reduce((sum, item) => sum + (item.quantity * item.price), 0);
   const vatRate = order.vat_rate || 19;
-  const isReverseCharge = order.country === 'AT' && order.vat_id;
+  const isReverseCharge = order.country === 'DE' && order.vat_id;
   const isExport = order.country === 'CH';
   const vatAmount = (isReverseCharge || isExport) ? 0 : subtotal * (vatRate / 100);
   const total = subtotal + vatAmount;

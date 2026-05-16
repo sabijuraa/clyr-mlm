@@ -5,6 +5,7 @@ import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { referralAPI, ordersAPI } from '../../services/api';
 import api from '../../services/api';
+import { isValidVatId } from '../../utils/validators';
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
@@ -217,7 +218,8 @@ export default function CheckoutPage() {
   // VAT calculation based on country and VAT ID
   const getClientVatRate = () => {
     const { country, vatId } = formData;
-    if (country === 'DE' && vatId) return 0; // Reverse charge
+    if (country === 'DE' && vatId && isValidVatId(vatId, country)) return 0; // Reverse charge
+    if (new Date() < new Date('2026-07-01T00:00:00.000Z')) return 20;
     if (country === 'DE') return 19;
     if (country === 'AT') return 20;
     if (country === 'CH') return 8.1;
@@ -228,7 +230,7 @@ export default function CheckoutPage() {
   const taxableAmount = effectiveSubtotal + effectiveShipping - discountAmount;
   const vatAmount = Math.round(taxableAmount * (vatRate / 100) * 100) / 100;
   const effectiveTotal = Math.round((taxableAmount + vatAmount) * 100) / 100;
-  const isReverseCharge = formData.country === 'DE' && !!formData.vatId;
+  const isReverseCharge = formData.country === 'DE' && !!formData.vatId && isValidVatId(formData.vatId, formData.country);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

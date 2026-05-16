@@ -57,6 +57,8 @@ const AdminInvoicesPage = () => {
         endpoint = `/orders/${invoice.order_id}/invoice`;
       } else if (invoice.type === 'commission') {
         endpoint = `/payouts/${invoice.id}/statement`;
+      } else if (invoice.type === 'fee' && invoice.subscription_payment_id) {
+        endpoint = `/admin/fee-payments/${invoice.subscription_payment_id}/invoice`;
       } else {
         endpoint = `/admin/invoices/${invoice.id}/pdf`;
       }
@@ -74,8 +76,9 @@ const AdminInvoicesPage = () => {
   const handleGenerateMissing = async () => {
     try {
       const response = await api.post('/admin/invoices/generate-missing');
-      toast.success(`${response.data.generated || 0} Rechnungen erstellt`);
-      fetchInvoices();
+      toast.success(`${response.data.generated || 0} Rechnungen erstellt, ${response.data.updated || 0} aktualisiert`);
+      if (filter === 'fees') fetchFeePayments();
+      else fetchInvoices();
     } catch (err) {
       toast.error('Fehler beim Erstellen');
     }
@@ -106,12 +109,14 @@ const AdminInvoicesPage = () => {
   const getTypeBadge = (type) => {
     const styles = {
       customer: 'bg-blue-100 text-blue-800',
-      commission: 'bg-purple-100 text-purple-800'
+      commission: 'bg-purple-100 text-purple-800',
+      fee: 'bg-green-100 text-green-800'
     };
     
     const labels = {
       customer: 'Kundenrechnung',
-      commission: 'Provisionsabrechnung'
+      commission: 'Provisionsabrechnung',
+      fee: 'Gebuehr'
     };
     
     return (
@@ -214,7 +219,7 @@ const AdminInvoicesPage = () => {
             </div>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            DE: 19% | DE+UID: 0% RC | AT: 20% | CH: 8.1%
+            Bis 01.07.2026: 20% | DE+UID: 0% RC
           </p>
         </div>
         
@@ -231,7 +236,7 @@ const AdminInvoicesPage = () => {
             </div>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            AT+UID: +20% | AT ohne UID: Par.6 | DE: RC
+            AT: +20% | DE+UID: RC | DE ohne UID: +19%
           </p>
         </div>
         
@@ -332,6 +337,9 @@ const AdminInvoicesPage = () => {
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${p.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
                         {p.status === 'paid' ? 'Bezahlt' : p.status}
                       </span>
+                      {p.invoice_number && (
+                        <p className="text-xs text-gray-500 mt-1">{p.invoice_number}</p>
+                      )}
                     </td>
                     <td className="py-3 px-3 text-sm text-gray-600 hidden sm:table-cell">{formatDate(p.paid_at || p.created_at)}</td>
                     <td className="py-3 px-3">

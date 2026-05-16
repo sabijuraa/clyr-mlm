@@ -12,7 +12,7 @@ import ExcelJS from 'exceljs';
  */
 export const generateVatReport = async (country, reportType, periodStart, periodEnd) => {
   console.log(`[VAT] generateVatReport called: country=${country} type=${reportType} period=${periodStart} → ${periodEnd}`);
-  
+
   // Check vat_reports table exists
   try {
     await query('SELECT 1 FROM vat_reports LIMIT 1');
@@ -46,7 +46,7 @@ export const generateVatReport = async (country, reportType, periodStart, period
     AND o.status NOT IN ('cancelled', 'refunded')
     ORDER BY o.created_at
   `, [periodStart, periodEnd]);
-  
+
   const orders = ordersResult.rows;
   console.log(`[VAT] Orders found for ${country}: ${orders.length}`);
   if (orders.length > 0) {
@@ -76,15 +76,18 @@ export const generateVatReport = async (country, reportType, periodStart, period
     commissionPayoutsNet: 0,
     commissionPayoutsVat: 0
   };
-  
+
   // Process orders based on country
   for (const order of orders) {
+    const orderCountry = order.customer_country || order.cust_country || order.billing_country;
+    const hasCustomerVatId = !!(order.cust_vat_id || order.customer_vat_id);
+
     if (country === 'DE') {
       // German report: include all German domestic sales
-      if (order.customer_country || order.cust_country || order.billing_country === 'DE') {
+      if (orderCountry === 'DE') {
         reportData.netSales += parseFloat(order.subtotal);
         reportData.vatCollected += parseFloat(order.vat);
-        
+
         // Breakdown by VAT rate
         const rate = order.vat_rate || 19;
         if (!reportData.breakdown[rate]) {
@@ -93,38 +96,32 @@ export const generateVatReport = async (country, reportType, periodStart, period
         reportData.breakdown[rate].net += parseFloat(order.subtotal);
         reportData.breakdown[rate].vat += parseFloat(order.vat);
       }
-      
-      // Intra-community supplies (to AT with VAT ID)
-      if (order.customer_country || order.cust_country || order.billing_country === 'AT' && order.cust_vat_id || order.customer_vat_id) {
+
+      // Reverse Charge only applies to German customers with a valid UID.
+      if (orderCountry === 'DE' && hasCustomerVatId) {
         reportData.reverseChargeSales += parseFloat(order.subtotal);
       }
-      
+
       // Exports (to CH)
-      if (order.customer_country || order.cust_country || order.billing_country === 'CH') {
+      if (orderCountry === 'CH') {
         reportData.exportSales += parseFloat(order.subtotal);
       }
     } else if (country === 'AT') {
-      // Austrian report: include Austrian domestic sales
-      if (order.customer_country || order.cust_country || order.billing_country === 'AT') {
-        if (order.cust_vat_id || order.customer_vat_id) {
-          // B2B with reverse charge
-          reportData.reverseChargeSales += parseFloat(order.subtotal);
-        } else {
-          // B2C with Austrian VAT
-          reportData.netSales += parseFloat(order.subtotal);
-          reportData.vatCollected += parseFloat(order.vat);
-          
-          const rate = order.vat_rate || 20;
-          if (!reportData.breakdown[rate]) {
-            reportData.breakdown[rate] = { net: 0, vat: 0 };
-          }
-          reportData.breakdown[rate].net += parseFloat(order.subtotal);
-          reportData.breakdown[rate].vat += parseFloat(order.vat);
+      // Austrian sales are taxable with 20% even when an Austrian UID is present.
+      if (orderCountry === 'AT') {
+        reportData.netSales += parseFloat(order.subtotal);
+        reportData.vatCollected += parseFloat(order.vat);
+
+        const rate = order.vat_rate || 20;
+        if (!reportData.breakdown[rate]) {
+          reportData.breakdown[rate] = { net: 0, vat: 0 };
         }
+        reportData.breakdown[rate].net += parseFloat(order.subtotal);
+        reportData.breakdown[rate].vat += parseFloat(order.vat);
       }
     }
   }
-  
+
   // Get commission payouts for the period (for CLYR Solutions GmbH)
   if (country === 'AT') {
     const payoutsResult = await query(`
@@ -139,18 +136,16 @@ export const generateVatReport = async (country, reportType, periodStart, period
       AND p.completed_at >= $1
       AND p.completed_at < $2
     `, [periodStart, periodEnd]);
-    
+
     for (const payout of payoutsResult.rows) {
       reportData.commissionPayoutsNet += parseFloat(payout.amount);
-      
-      // VAT on commissions depends on partner status
-      if (payout.partner_country === 'AT' && !payout.is_kleinunternehmer && payout.partner_vat_id) {
-        // Austrian partner with VAT ID: add 20% VAT
+
+      if (payout.partner_country === 'AT') {
         reportData.commissionPayoutsVat += parseFloat(payout.amount) * 0.20;
       }
     }
   }
-  
+
   // Save report to database
   const result = await query(`
     console.log('[VAT] Inserting report into vat_reports...');
@@ -183,7 +178,7 @@ export const generateVatReport = async (country, reportType, periodStart, period
     reportData.commissionPayoutsNet,
     reportData.commissionPayoutsVat
   ]);
-  
+
   return result.rows[0];
 };
 
@@ -192,50 +187,50 @@ export const generateVatReport = async (country, reportType, periodStart, period
  */
 export const generateVatReportExcel = async (reportId) => {
   const reportResult = await query('SELECT * FROM vat_reports WHERE id = $1', [reportId]);
-  
+
   if (reportResult.rows.length === 0) {
     throw new Error('Bericht nicht gefunden');
   }
-  
+
   const report = reportResult.rows[0];
   const breakdown = typeof report.breakdown === 'string' 
     ? JSON.parse(report.breakdown) 
     : report.breakdown;
-  
+
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'CLYR MLM Platform';
   workbook.created = new Date();
-  
+
   const sheet = workbook.addWorksheet('USt-Bericht');
-  
+
   // Header
   sheet.mergeCells('A1:D1');
   sheet.getCell('A1').value = `USt-Bericht ${report.country} - ${formatPeriod(report.period_start, report.period_end)}`;
   sheet.getCell('A1').font = { bold: true, size: 16 };
-  
+
   sheet.getCell('A3').value = 'Berichtszeitraum:';
   sheet.getCell('B3').value = `${formatDate(report.period_start)} - ${formatDate(report.period_end)}`;
-  
+
   sheet.getCell('A4').value = 'Land:';
   sheet.getCell('B4').value = report.country === 'DE' ? 'Deutschland' : 'Österreich';
-  
+
   sheet.getCell('A5').value = 'Berichtsart:';
   sheet.getCell('B5').value = report.report_type === 'monthly' ? 'Monatlich' : 
                               report.report_type === 'quarterly' ? 'Quartal' : 'Jährlich';
-  
+
   // Sales Summary
   sheet.getCell('A7').value = 'UMSATZÜBERSICHT';
   sheet.getCell('A7').font = { bold: true, size: 14 };
-  
+
   let row = 9;
-  
+
   // Breakdown by VAT rate
   sheet.getCell(`A${row}`).value = 'Steuersatz';
   sheet.getCell(`B${row}`).value = 'Nettoumsatz';
   sheet.getCell(`C${row}`).value = 'MwSt.';
   sheet.getRow(row).font = { bold: true };
   row++;
-  
+
   for (const [rate, data] of Object.entries(breakdown)) {
     sheet.getCell(`A${row}`).value = `${rate}%`;
     sheet.getCell(`B${row}`).value = parseFloat(data.net);
@@ -244,7 +239,7 @@ export const generateVatReportExcel = async (reportId) => {
     sheet.getCell(`C${row}`).numFmt = '#,##0.00 €';
     row++;
   }
-  
+
   row++;
   sheet.getCell(`A${row}`).value = 'Steuerpflichtige Umsätze gesamt:';
   sheet.getCell(`A${row}`).font = { bold: true };
@@ -252,9 +247,9 @@ export const generateVatReportExcel = async (reportId) => {
   sheet.getCell(`B${row}`).numFmt = '#,##0.00 €';
   sheet.getCell(`C${row}`).value = parseFloat(report.vat_collected);
   sheet.getCell(`C${row}`).numFmt = '#,##0.00 €';
-  
+
   row += 2;
-  
+
   // Special categories
   if (parseFloat(report.reverse_charge_sales) > 0) {
     sheet.getCell(`A${row}`).value = 'Innergemeinschaftliche Lieferungen (Reverse Charge):';
@@ -262,36 +257,36 @@ export const generateVatReportExcel = async (reportId) => {
     sheet.getCell(`B${row}`).numFmt = '#,##0.00 €';
     row++;
   }
-  
+
   if (parseFloat(report.export_sales) > 0) {
     sheet.getCell(`A${row}`).value = 'Steuerfreie Ausfuhrlieferungen (Drittland):';
     sheet.getCell(`B${row}`).value = parseFloat(report.export_sales);
     sheet.getCell(`B${row}`).numFmt = '#,##0.00 €';
     row++;
   }
-  
+
   // Commission payouts (for AT)
   if (report.country === 'AT' && parseFloat(report.commission_payouts_net) > 0) {
     row += 2;
     sheet.getCell(`A${row}`).value = 'PROVISIONSAUSZAHLUNGEN';
     sheet.getCell(`A${row}`).font = { bold: true, size: 14 };
     row += 2;
-    
+
     sheet.getCell(`A${row}`).value = 'Netto Provisionen:';
     sheet.getCell(`B${row}`).value = parseFloat(report.commission_payouts_net);
     sheet.getCell(`B${row}`).numFmt = '#,##0.00 €';
     row++;
-    
+
     sheet.getCell(`A${row}`).value = 'MwSt. auf Provisionen:';
     sheet.getCell(`B${row}`).value = parseFloat(report.commission_payouts_vat);
     sheet.getCell(`B${row}`).numFmt = '#,##0.00 €';
   }
-  
+
   // Auto-width columns
   sheet.columns.forEach(column => {
     column.width = 25;
   });
-  
+
   return workbook;
 };
 
@@ -301,39 +296,39 @@ export const generateVatReportExcel = async (reportId) => {
 export const getVatReports = async (filters = {}) => {
   const { country, reportType, year, page = 1, limit = 20 } = filters;
   const offset = (page - 1) * limit;
-  
+
   let whereClause = 'WHERE 1=1';
   const params = [];
   let paramCount = 0;
-  
+
   if (country) {
     params.push(country);
     whereClause += ` AND country = $${++paramCount}`;
   }
-  
+
   if (reportType) {
     params.push(reportType);
     whereClause += ` AND report_type = $${++paramCount}`;
   }
-  
+
   if (year) {
     params.push(`${year}-01-01`);
     params.push(`${parseInt(year) + 1}-01-01`);
     whereClause += ` AND period_start >= $${++paramCount} AND period_start < $${++paramCount}`;
   }
-  
+
   const countResult = await query(
     `SELECT COUNT(*) FROM vat_reports ${whereClause}`,
     params
   );
-  
+
   params.push(limit, offset);
   const result = await query(`
     SELECT * FROM vat_reports ${whereClause}
     ORDER BY period_start DESC
     LIMIT $${++paramCount} OFFSET $${++paramCount}
   `, params);
-  
+
   return {
     reports: result.rows,
     total: parseInt(countResult.rows[0].count),
@@ -348,10 +343,10 @@ export const getVatReports = async (filters = {}) => {
 export const generateMonthlyReports = async (year, month) => {
   const startDate = new Date(year, month - 1, 1);
   const endDate = new Date(year, month, 1);
-  
+
   const deReport = await generateVatReport('DE', 'monthly', startDate, endDate);
   const atReport = await generateVatReport('AT', 'monthly', startDate, endDate);
-  
+
   return { deReport, atReport };
 };
 
@@ -362,10 +357,10 @@ export const generateQuarterlyReports = async (year, quarter) => {
   const startMonth = (quarter - 1) * 3;
   const startDate = new Date(year, startMonth, 1);
   const endDate = new Date(year, startMonth + 3, 1);
-  
+
   const deReport = await generateVatReport('DE', 'quarterly', startDate, endDate);
   const atReport = await generateVatReport('AT', 'quarterly', startDate, endDate);
-  
+
   return { deReport, atReport };
 };
 
@@ -375,10 +370,10 @@ export const generateQuarterlyReports = async (year, quarter) => {
 export const generateAnnualReports = async (year) => {
   const startDate = new Date(year, 0, 1);
   const endDate = new Date(year + 1, 0, 1);
-  
+
   const deReport = await generateVatReport('DE', 'annual', startDate, endDate);
   const atReport = await generateVatReport('AT', 'annual', startDate, endDate);
-  
+
   return { deReport, atReport };
 };
 
@@ -396,10 +391,10 @@ function formatPeriod(start, end) {
   const s = new Date(start);
   const e = new Date(end);
   e.setDate(e.getDate() - 1); // End is exclusive, so show day before
-  
+
   const startMonth = s.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
   const endMonth = e.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
-  
+
   if (startMonth === endMonth) {
     return startMonth;
   }

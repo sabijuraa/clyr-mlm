@@ -115,14 +115,14 @@ export const CartProvider = ({ children }) => {
 
   // VAT rate for display
   const vatRate = useMemo(() => {
-    if (country === 'CH') return 0;
-    if (country === 'AT' && hasVatId) return 0;
-    return appConfig.countries[country]?.vatRate || 0.19;
+    if (country === 'DE' && hasVatId) return 0;
+    if (new Date() < new Date('2026-07-01T00:00:00.000Z')) return 0.20;
+    return appConfig.countries[country]?.vatRate || 0.20;
   }, [country, hasVatId]);
 
   // Is reverse charge applicable
   const isReverseCharge = useMemo(() => {
-    return country === 'AT' && hasVatId;
+    return country === 'DE' && hasVatId;
   }, [country, hasVatId]);
 
   // Formatted totals for display

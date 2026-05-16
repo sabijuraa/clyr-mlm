@@ -28,6 +28,34 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'invoices' AND column_name = 'subscription_payment_id') THEN
+    ALTER TABLE invoices ADD COLUMN subscription_payment_id INTEGER;
+  END IF;
+END $$;
+
+DO $$
+DECLARE constraint_name text;
+BEGIN
+  SELECT conname INTO constraint_name
+  FROM pg_constraint
+  WHERE conrelid = 'invoices'::regclass
+    AND contype = 'c'
+    AND pg_get_constraintdef(oid) LIKE '%type%'
+    AND pg_get_constraintdef(oid) LIKE '%customer%';
+
+  IF constraint_name IS NOT NULL THEN
+    EXECUTE format('ALTER TABLE invoices DROP CONSTRAINT %I', constraint_name);
+    ALTER TABLE invoices
+      ADD CONSTRAINT invoices_type_check
+      CHECK (type IN ('customer', 'commission', 'commission_statement', 'fee'));
+  END IF;
+END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_subscription_payment
+ON invoices(subscription_payment_id)
+WHERE subscription_payment_id IS NOT NULL;
+
 -- Ensure orders table has invoice columns
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'invoice_number') THEN
