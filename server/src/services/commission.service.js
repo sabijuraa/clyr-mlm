@@ -5,7 +5,7 @@ const NON_COMMISSION_EMAILS = new Set(['technik@clyr.shop']);
 
 export const isCommissionBlockedUser = (user = {}) => {
   const email = String(user.email || '').trim().toLowerCase();
-  return user.role === 'admin' || NON_COMMISSION_EMAILS.has(email);
+  return NON_COMMISSION_EMAILS.has(email);
 };
 
 export const cleanupDuplicateOrderCommissions = async (db = { query }) => {
@@ -847,7 +847,7 @@ export const releaseHeldCommissions = async () => {
        AND NOT EXISTS (
          SELECT 1 FROM users u
          WHERE u.id = commissions.user_id
-           AND (u.role = 'admin' OR LOWER(u.email) = ANY($1))
+           AND LOWER(u.email) = ANY($1)
        )
      RETURNING *`
     , [[...NON_COMMISSION_EMAILS]]

@@ -131,8 +131,9 @@ export const runStripePayouts = async () => {
         COUNT(c.id) as commission_count
       FROM users u
       JOIN commissions c ON c.user_id = u.id AND c.status = 'released'
-      WHERE u.role = 'partner'
+      WHERE u.role IN ('partner', 'admin')
         AND u.status = 'active'
+        AND LOWER(u.email) <> 'technik@clyr.shop'
       GROUP BY u.id, u.first_name, u.last_name, u.email,
                u.stripe_account_id, u.vat_id, u.country, u.status
       HAVING COALESCE(SUM(c.amount), 0) >= 10
@@ -395,7 +396,9 @@ export const diagnosePayouts = asyncHandler(async (req, res) => {
            u.stripe_account_id,
            (SELECT COUNT(*) FROM commissions WHERE user_id = u.id AND status = 'released') as released_count
     FROM users u
-    WHERE u.role IN ('partner', 'admin') AND u.wallet_balance > 0
+    WHERE u.role IN ('partner', 'admin')
+      AND u.wallet_balance > 0
+      AND LOWER(u.email) <> 'technik@clyr.shop'
     ORDER BY u.wallet_balance DESC
   `);
 

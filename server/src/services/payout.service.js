@@ -114,10 +114,11 @@ export const getEligiblePayouts = async () => {
        u.wallet_balance,
        u.street, u.zip, u.city
      FROM users u
-     WHERE u.role = 'partner'
+     WHERE u.role IN ('partner', 'admin')
      AND u.status = 'active'
      AND u.wallet_balance >= $1
      AND u.iban IS NOT NULL
+     AND LOWER(u.email) <> 'technik@clyr.shop'
      ORDER BY u.wallet_balance DESC`,
     [minPayout]
   );
@@ -138,7 +139,7 @@ export const createPayoutRequest = async (userId, amount = null) => {
          iban, bic, bank_name, account_holder,
          wallet_balance, street, zip, city
        FROM users
-       WHERE id = $1 AND role = 'partner'`,
+       WHERE id = $1 AND role IN ('partner', 'admin')`,
       [userId]
     );
 
@@ -147,6 +148,9 @@ export const createPayoutRequest = async (userId, amount = null) => {
     }
 
     const partner = partnerResult.rows[0];
+    if (String(partner.email || '').trim().toLowerCase() === 'technik@clyr.shop') {
+      throw new Error('This admin account is not eligible for commission payout');
+    }
 
     // Check minimum payout
     const settingsResult = await client.query("SELECT value FROM settings WHERE key = 'min_payout_amount'");

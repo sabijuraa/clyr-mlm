@@ -45,6 +45,7 @@ assert.deepEqual(
 );
 
 assert.equal(isCommissionBlockedUser({ email: 'technik@clyr.shop', role: 'partner' }), true);
+assert.equal(isCommissionBlockedUser({ email: 'theresa@clyr.at', role: 'admin' }), false);
 assert.equal(isCommissionBlockedUser({ email: 'partner@example.com', role: 'partner' }), false);
 
 console.log('Billing rule verification passed');

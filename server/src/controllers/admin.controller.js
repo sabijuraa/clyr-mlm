@@ -994,7 +994,7 @@ export const getInvoices = asyncHandler(async (req, res) => {
        LEFT JOIN customers c ON i.customer_id = c.id
        LEFT JOIN users u ON i.partner_id = u.id
        ${whereClause}
-       ORDER BY i.created_at DESC LIMIT $1 OFFSET $2`,
+       ORDER BY i.created_at DESC, i.id DESC LIMIT $1 OFFSET $2`,
       [parseInt(limit), offset]
     );
     invoices = res2.rows.map(inv => ({

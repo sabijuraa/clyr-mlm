@@ -85,6 +85,14 @@ const REAL_INVOICE_WHERE = `
   )
 `;
 
+const INVOICEABLE_ORDER_WHERE = `
+  o.status NOT IN ('cancelled', 'refunded', 'disputed')
+  AND (
+    o.payment_status IN ('paid', 'partially_refunded')
+    OR o.status IN ('processing', 'shipped', 'delivered', 'completed')
+  )
+`;
+
 class InvoiceService {
 
   async getCompanyInfo() {
@@ -886,7 +894,7 @@ class InvoiceService {
       SELECT o.id, i.id as invoice_id
       FROM orders o
       LEFT JOIN invoices i ON i.order_id = o.id AND i.type = 'customer'
-      WHERE o.payment_status = 'paid'
+      WHERE ${INVOICEABLE_ORDER_WHERE}
       ORDER BY o.created_at ASC
     `);
 

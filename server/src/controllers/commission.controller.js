@@ -224,7 +224,7 @@ export const getAllCommissions = asyncHandler(async (req, res) => {
   const { page = 1, limit = 50, userId, type, status, startDate, endDate } = req.query;
   const offset = (page - 1) * limit;
 
-  let whereClause = "WHERE u.role <> 'admin' AND LOWER(u.email) <> 'technik@clyr.shop'";
+  let whereClause = "WHERE LOWER(u.email) <> 'technik@clyr.shop'";
   const params = [];
   let paramIndex = 1;
 
@@ -244,6 +244,8 @@ export const getAllCommissions = asyncHandler(async (req, res) => {
     whereClause += ` AND c.status = $${paramIndex}`;
     params.push(status);
     paramIndex++;
+  } else {
+    whereClause += " AND c.status NOT IN ('cancelled', 'reversed')";
   }
 
   if (startDate) {
@@ -290,7 +292,6 @@ export const getAllCommissions = asyncHandler(async (req, res) => {
      FROM commissions c
      JOIN users u ON c.user_id = u.id
      WHERE c.status != 'reversed'
-       AND u.role <> 'admin'
        AND LOWER(u.email) <> 'technik@clyr.shop'`
   );
 
@@ -317,7 +318,6 @@ export const getPendingCommissions = asyncHandler(async (req, res) => {
      JOIN users u ON c.user_id = u.id
      LEFT JOIN orders o ON c.order_id = o.id
      WHERE c.status = 'held' AND c.held_until <= CURRENT_TIMESTAMP
-       AND u.role <> 'admin'
        AND LOWER(u.email) <> 'technik@clyr.shop'
      ORDER BY c.held_until ASC`
   );
@@ -362,7 +362,7 @@ export const processPayouts = asyncHandler(async (req, res) => {
             (SELECT COALESCE(SUM(amount), 0) FROM commissions 
              WHERE user_id = u.id AND status = 'released') as pending_amount
      FROM users u
-     WHERE u.role = 'partner' AND u.status = 'active' AND u.wallet_balance > 0
+     WHERE u.role IN ('partner', 'admin') AND u.status = 'active' AND u.wallet_balance > 0
      ORDER BY u.wallet_balance DESC`
   );
 
