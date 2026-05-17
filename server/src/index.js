@@ -893,25 +893,20 @@ app.listen(PORT, '0.0.0.0', async () => {
 
         // Fix commissions — only if not already paid out
         if (theresaId) {
-          const holdUntil = new Date();
-          holdUntil.setDate(holdUntil.getDate() + 14);
-
-          // Check if commissions already exist and are paid — if so, skip
-          const existingPaid1 = await dbQuery(
-            "SELECT COUNT(*) as cnt FROM commissions WHERE order_id = $1 AND status = 'paid'",
+          // Recovery should be idempotent: if a non-cancelled commission already
+          // exists, keep its accounting state and timestamps intact.
+          const existingCommission1 = await dbQuery(
+            "SELECT COUNT(*) as cnt FROM commissions WHERE order_id = $1 AND status NOT IN ('cancelled', 'reversed')",
             [o1id]
           );
-          if (parseInt(existingPaid1.rows[0].cnt) > 0) {
-            console.log('  FL26030001 commissions already paid — skipping recovery');
+          if (parseInt(existingCommission1.rows[0].cnt) > 0) {
+            console.log('  FL26030001 commissions already exist — skipping recovery');
           } else {
-          // Delete unpaid commissions and re-insert correctly
-          await dbQuery("DELETE FROM commissions WHERE order_id = $1 AND status != 'paid'", [o1id]);
-
           // Direct commission for Theresa (31% of 3477.50)
           const directAmount = Math.round(3477.50 * (theresaRate / 100) * 100) / 100;
           await dbQuery(`
-            INSERT INTO commissions (user_id, order_id, type, amount, rate, base_amount, status, held_until, description)
-            VALUES ($1, $2, 'direct', $3, $4, 3477.50, 'released', NOW(), $5)
+            INSERT INTO commissions (user_id, order_id, type, amount, rate, base_amount, status, held_until, description, created_at, updated_at)
+            VALUES ($1, $2, 'direct', $3, $4, 3477.50, 'released', '2026-03-20 10:00:00', $5, '2026-03-06 10:00:00', NOW())
           `, [theresaId, o1id, directAmount, theresaRate,
               `Direkt-Provision (${theresaRate}%) — FL26030001`]);
 

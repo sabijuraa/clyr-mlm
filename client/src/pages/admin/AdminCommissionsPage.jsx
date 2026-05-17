@@ -161,8 +161,8 @@ const AdminCommissionsPage = () => {
     // Use the commission's own month — not today's month
     // Find the commission for this partner to get its date
     const partnerCommission = commissions.find(c => c.user_id === partnerId);
-    const commissionDate = partnerCommission?.created_at 
-      ? new Date(partnerCommission.created_at).toISOString().slice(0, 7)
+    const commissionDate = (partnerCommission?.order_date || partnerCommission?.created_at)
+      ? new Date(partnerCommission.order_date || partnerCommission.created_at).toISOString().slice(0, 7)
       : null;
     const usePeriod = period || commissionDate || new Date().toISOString().slice(0, 7);
     try {

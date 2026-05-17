@@ -388,10 +388,11 @@ class InvoiceService {
     const vatAmt   = vatRate > 0 ? Math.round(netTotal * vatRate / 100 * 100) / 100 : 0;
     const gross    = netTotal + vatAmt;
 
-    // Use authoritative payout record values if present
-    const pNet     = payoutRecord ? parseFloat(payoutRecord.net_amount  || netTotal) : netTotal;
-    const pVat     = payoutRecord ? parseFloat(payoutRecord.vat_amount  || vatAmt)   : vatAmt;
-    const pGross   = payoutRecord ? parseFloat(payoutRecord.gross_amount || gross)    : gross;
+    // The statement totals must match the printed commission rows. Payout records
+    // can be stale or cancelled, so use them only for metadata below.
+    const pNet     = netTotal;
+    const pVat     = vatAmt;
+    const pGross   = gross;
     const pMethod  = payoutRecord?.method === 'stripe' ? 'Stripe (automatische Überweisung)' : 'SEPA-Banküberweisung';
     const pRef     = payoutRecord?.reference || '';
     const pStatus  = payoutRecord?.status || 'pending';

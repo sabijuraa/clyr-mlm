@@ -195,8 +195,23 @@ export const getStatement = asyncHandler(async (req, res) => {
   console.log('[STATEMENT] Period resolved from request param:', periodFormatted);
 
   const payoutRes2 = await query(
-    `SELECT * FROM payouts WHERE user_id=$1 ORDER BY created_at DESC LIMIT 1`,
-    [userId]
+    `SELECT *
+     FROM payouts
+     WHERE user_id = $1
+       AND status <> 'cancelled'
+       AND (
+         (period_start <= $3 AND period_end >= $2)
+         OR (period_start IS NULL AND period_end IS NULL AND created_at >= $4 AND created_at <= $5)
+       )
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [
+      userId,
+      startDate,
+      endDate,
+      new Date(year, month, 1),
+      new Date(year, month + 1, 0, 23, 59, 59)
+    ]
   );
   console.log('[STATEMENT] Generating PDF for', userResult.rows[0].email, 'period:', periodFormatted, 'commissions:', finalCommissions.length);
   let pdfBuffer;
@@ -279,6 +294,7 @@ export const getAllCommissions = asyncHandler(async (req, res) => {
     `SELECT c.*, 
             u.first_name, u.last_name, u.email,
             o.order_number,
+            o.created_at as order_date,
             NULLIF(TRIM(CONCAT(COALESCE(o.customer_first_name, ''), ' ', COALESCE(o.customer_last_name, ''))), '') as customer_name
      FROM commissions c
      JOIN users u ON c.user_id = u.id
@@ -292,10 +308,10 @@ export const getAllCommissions = asyncHandler(async (req, res) => {
   // Get totals (exclude reversed commissions)
   const totalsResult = await query(
     `SELECT 
-       SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END) as total_pending,
-       SUM(CASE WHEN status = 'held' THEN amount ELSE 0 END) as total_held,
-       SUM(CASE WHEN status = 'released' THEN amount ELSE 0 END) as total_released,
-       SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END) as total_paid
+       SUM(CASE WHEN c.status = 'pending' THEN c.amount ELSE 0 END) as total_pending,
+       SUM(CASE WHEN c.status = 'held' THEN c.amount ELSE 0 END) as total_held,
+       SUM(CASE WHEN c.status = 'released' THEN c.amount ELSE 0 END) as total_released,
+       SUM(CASE WHEN c.status = 'paid' THEN c.amount ELSE 0 END) as total_paid
      FROM commissions c
      JOIN users u ON c.user_id = u.id
      WHERE c.status NOT IN ('cancelled', 'reversed')
@@ -516,8 +532,23 @@ export const generateStatementForPartner = asyncHandler(async (req, res) => {
 
   // Get payout record for this period
   const payoutResult = await query(
-    `SELECT * FROM payouts WHERE user_id=$1 AND created_at>=$2 AND created_at<=$3 ORDER BY created_at DESC LIMIT 1`,
-    [partnerId, startDate, endDate]
+    `SELECT *
+     FROM payouts
+     WHERE user_id = $1
+       AND status <> 'cancelled'
+       AND (
+         (period_start <= $3 AND period_end >= $2)
+         OR (period_start IS NULL AND period_end IS NULL AND created_at >= $4 AND created_at <= $5)
+       )
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [
+      partnerId,
+      startDate,
+      endDate,
+      new Date(year, month, 1),
+      new Date(year, month + 1, 0, 23, 59, 59)
+    ]
   );
 
   const pdfBuffer = await generateCommissionStatement(

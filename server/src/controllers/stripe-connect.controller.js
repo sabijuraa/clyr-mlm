@@ -175,10 +175,37 @@ export const runStripePayouts = async () => {
     const vatInfo = calculateAffiliateCommissionVat(p, netAmount);
     const vatAmount = vatInfo.vatAmount;
     const grossAmount = vatInfo.grossAmount;
+    const payoutReference = `AUTO-${new Date().toISOString().slice(0,7)}-${p.id.slice(0,8)}`;
 
     L(`Processing ${name}: net=€${netAmount} vat=€${vatAmount} gross=€${grossAmount}`);
 
     try {
+      const existingPayout = await query(
+        `SELECT id, status
+         FROM payouts
+         WHERE user_id = $1
+           AND reference = $2
+           AND status IN ('pending', 'processing', 'approved', 'completed')
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [p.id, payoutReference]
+      );
+
+      if (existingPayout.rows.length > 0) {
+        L(`  Active payout already exists (${existingPayout.rows[0].id}, ${existingPayout.rows[0].status}); skipping duplicate.`);
+        summary.skipped++;
+        summary.details.push({
+          name,
+          email: p.email,
+          netAmount,
+          vatAmount,
+          grossAmount,
+          status: existingPayout.rows[0].status,
+          existingPayoutId: existingPayout.rows[0].id,
+        });
+        continue;
+      }
+
       await transaction(async (client) => {
         let method = 'sepa';
         let status = 'pending';
@@ -315,7 +342,7 @@ export const runStripePayouts = async () => {
           method, status,
           stripeTransferId
             ? `STRIPE-${stripeTransferId}`
-            : `AUTO-${new Date().toISOString().slice(0,7)}-${p.id.slice(0,8)}`,
+            : payoutReference,
         ]);
 
         const payoutId = payoutRows[0]?.id;
