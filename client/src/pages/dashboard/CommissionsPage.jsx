@@ -87,8 +87,13 @@ const CommissionsPage = () => {
     return Math.round(total * vatMult * 100) / 100;
   })();
 
+  const displayAmount = (commission) => {
+    const net = parseFloat(commission.amount || 0);
+    if (vatInfo?.vatDisplay !== 'separate') return net;
+    return Math.round(net * (1 + (parseFloat(vatInfo.vatRate || 0) / 100)) * 100) / 100;
+  };
+
   const filteredCommissions = commissions.filter(c => {
-    if (!isWithinSelectedPeriod(c)) return false;
     if (filter === 'all') return true;
     return c.status === filter;
   });
@@ -179,7 +184,7 @@ const CommissionsPage = () => {
               className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${filter === f.key ? 'bg-secondary-100 text-secondary-700' : 'bg-gray-100 text-secondary-500 hover:bg-gray-200'}`}>
               {f.label}
               {f.key !== 'all' && (
-                <span className="ml-1.5 text-xs">({commissions.filter(c => isWithinSelectedPeriod(c) && c.status === f.key).length})</span>
+                <span className="ml-1.5 text-xs">({commissions.filter(c => c.status === f.key).length})</span>
               )}
             </button>
           ))}
@@ -231,7 +236,12 @@ const CommissionsPage = () => {
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm text-secondary-800 font-semibold text-right">
-                      {formatCurrency(parseFloat(c.amount || 0))}
+                      {formatCurrency(displayAmount(c))}
+                      {vatInfo?.vatDisplay === 'separate' && (
+                        <div className="text-xs text-secondary-400 font-normal">
+                          Netto: {formatCurrency(parseFloat(c.amount || 0))}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-center">
                       <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[c.status] || 'bg-gray-100 text-gray-600'}`}>

@@ -1016,13 +1016,9 @@ export const getInvoices = asyncHandler(async (req, res) => {
               p.gross_amount as total_amount
        FROM payouts p
        JOIN users u ON p.user_id = u.id
-       WHERE p.status IN ('processing', 'completed')
-         AND EXISTS (
-           SELECT 1 FROM commissions c
-           WHERE c.payout_id = p.id
-             AND c.status = 'paid'
-             AND c.type <> 'bonus_pool'
-         )
+       WHERE p.status <> 'cancelled'
+         AND COALESCE(p.gross_amount, p.net_amount, 0) > 0
+         AND LOWER(u.email) <> 'technik@clyr.shop'
        ORDER BY p.created_at DESC
        LIMIT $1 OFFSET $2`,
       [parseInt(limit), offset]
@@ -1038,13 +1034,10 @@ export const getInvoices = asyncHandler(async (req, res) => {
     const countRes = await query(`
       SELECT COUNT(*)
       FROM payouts p
-      WHERE p.status IN ('processing', 'completed')
-        AND EXISTS (
-          SELECT 1 FROM commissions c
-          WHERE c.payout_id = p.id
-            AND c.status = 'paid'
-            AND c.type <> 'bonus_pool'
-        )
+      JOIN users u ON p.user_id = u.id
+      WHERE p.status <> 'cancelled'
+        AND COALESCE(p.gross_amount, p.net_amount, 0) > 0
+        AND LOWER(u.email) <> 'technik@clyr.shop'
     `);
     total = parseInt(countRes.rows[0].count);
   }
