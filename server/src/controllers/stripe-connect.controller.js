@@ -130,7 +130,7 @@ export const runStripePayouts = async () => {
         COALESCE(SUM(c.amount), 0)::numeric AS net_amount,
         COUNT(c.id) as commission_count
       FROM users u
-      JOIN commissions c ON c.user_id = u.id AND c.status = 'released'
+      JOIN commissions c ON c.user_id = u.id AND c.status = 'released' AND c.type <> 'bonus_pool'
       WHERE u.role IN ('partner', 'admin')
         AND u.status = 'active'
         AND LOWER(u.email) <> 'technik@clyr.shop'
@@ -333,7 +333,7 @@ export const runStripePayouts = async () => {
             UPDATE commissions
             SET status = 'paid', paid_at = CURRENT_TIMESTAMP
                 ${payoutId ? `, payout_id = '${payoutId}'` : ''}
-            WHERE user_id = $1 AND status = 'released'
+            WHERE user_id = $1 AND status = 'released' AND type <> 'bonus_pool'
             RETURNING id
           `, [p.id]);
           L(`  Marked ${updateResult.rowCount} commissions as paid`);
@@ -394,7 +394,7 @@ export const diagnosePayouts = asyncHandler(async (req, res) => {
   const walletResult = await query(`
     SELECT u.email, u.first_name, u.last_name, u.wallet_balance,
            u.stripe_account_id,
-           (SELECT COUNT(*) FROM commissions WHERE user_id = u.id AND status = 'released') as released_count
+           (SELECT COUNT(*) FROM commissions WHERE user_id = u.id AND status = 'released' AND type <> 'bonus_pool') as released_count
     FROM users u
     WHERE u.role IN ('partner', 'admin')
       AND u.wallet_balance > 0
@@ -430,6 +430,7 @@ export const releaseAndPay = asyncHandler(async (req, res) => {
     UPDATE commissions
     SET status = 'released', released_at = CURRENT_TIMESTAMP
     WHERE status = 'held'
+      AND type <> 'bonus_pool'
     RETURNING id, user_id, amount
   `);
   console.log(`[MANUAL TRIGGER] Force-released ${releaseResult.rowCount} held commissions`);

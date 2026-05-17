@@ -26,6 +26,8 @@ export const getMyCommissions = asyncHandler(async (req, res) => {
     whereClause += ` AND c.status = $${paramIndex}`;
     params.push(status);
     paramIndex++;
+  } else {
+    whereClause += " AND c.status NOT IN ('cancelled', 'reversed') AND c.type <> 'bonus_pool'";
   }
 
   if (startDate) {
@@ -75,7 +77,7 @@ export const getMyCommissions = asyncHandler(async (req, res) => {
   // CH affiliate → no VAT
   let commissionVatInfo = {
     country: partnerCountry,
-    hasVatId: partnerHasVatId,
+    hasVatId: !!partnerVatId,
     vatRate: 0,
     vatDisplay: 'none', // 'separate', 'included', 'none'
     vatNote: ''
@@ -124,7 +126,9 @@ export const getCommissionSummary = asyncHandler(async (req, res) => {
        SUM(CASE WHEN type IN ('leadership_bonus', 'team_volume_bonus', 'rank_bonus') THEN amount ELSE 0 END) as bonuses,
        SUM(amount) as total
      FROM commissions
-     WHERE user_id = $1 AND status != 'reversed'
+     WHERE user_id = $1
+       AND status NOT IN ('cancelled', 'reversed')
+       AND type <> 'bonus_pool'
      AND created_at >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '5 months'
      GROUP BY DATE_TRUNC('month', created_at)
      ORDER BY month DESC`,
@@ -165,6 +169,7 @@ export const getStatement = asyncHandler(async (req, res) => {
      LEFT JOIN orders o ON c.order_id = o.id
      WHERE c.user_id = $1 
      AND c.status IN ('held', 'released', 'paid', 'pending')
+     AND c.type <> 'bonus_pool'
      AND (
        (o.created_at >= $2 AND o.created_at <= $3)
        OR (o.created_at IS NULL AND c.created_at >= $2 AND c.created_at <= $3)
@@ -238,6 +243,8 @@ export const getAllCommissions = asyncHandler(async (req, res) => {
     whereClause += ` AND c.type = $${paramIndex}`;
     params.push(type);
     paramIndex++;
+  } else {
+    whereClause += " AND c.type <> 'bonus_pool'";
   }
 
   if (status) {
@@ -291,7 +298,8 @@ export const getAllCommissions = asyncHandler(async (req, res) => {
        SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END) as total_paid
      FROM commissions c
      JOIN users u ON c.user_id = u.id
-     WHERE c.status != 'reversed'
+     WHERE c.status NOT IN ('cancelled', 'reversed')
+       AND c.type <> 'bonus_pool'
        AND LOWER(u.email) <> 'technik@clyr.shop'`
   );
 
@@ -318,6 +326,7 @@ export const getPendingCommissions = asyncHandler(async (req, res) => {
      JOIN users u ON c.user_id = u.id
      LEFT JOIN orders o ON c.order_id = o.id
      WHERE c.status = 'held' AND c.held_until <= CURRENT_TIMESTAMP
+       AND c.type <> 'bonus_pool'
        AND LOWER(u.email) <> 'technik@clyr.shop'
      ORDER BY c.held_until ASC`
   );
@@ -360,7 +369,7 @@ export const processPayouts = asyncHandler(async (req, res) => {
     `SELECT u.id, u.first_name, u.last_name, u.email, u.iban, u.bic, u.country, u.vat_id,
             u.wallet_balance,
             (SELECT COALESCE(SUM(amount), 0) FROM commissions 
-             WHERE user_id = u.id AND status = 'released') as pending_amount
+             WHERE user_id = u.id AND status = 'released' AND type <> 'bonus_pool') as pending_amount
      FROM users u
      WHERE u.role IN ('partner', 'admin') AND u.status = 'active' AND u.wallet_balance > 0
      ORDER BY u.wallet_balance DESC`
@@ -416,7 +425,7 @@ export const processPayouts = asyncHandler(async (req, res) => {
         // Update commissions to paid
         await client.query(
           `UPDATE commissions SET status = 'paid', paid_at = CURRENT_TIMESTAMP, payout_id = $1
-           WHERE user_id = $2 AND status = 'released'`,
+           WHERE user_id = $2 AND status = 'released' AND type <> 'bonus_pool'`,
           [payoutResult.rows[0].id, partner.id]
         );
 
@@ -477,6 +486,7 @@ export const generateStatementForPartner = asyncHandler(async (req, res) => {
      LEFT JOIN orders o ON c.order_id = o.id
      WHERE c.user_id = $1 
        AND c.status IN ('held', 'released', 'paid', 'pending')
+       AND c.type <> 'bonus_pool'
        AND (
          (o.created_at >= $2 AND o.created_at <= $3)
          OR (o.created_at IS NULL AND c.created_at >= $2 AND c.created_at <= $3)

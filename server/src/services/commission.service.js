@@ -9,7 +9,7 @@ export const isCommissionBlockedUser = (user = {}) => {
 };
 
 export const cleanupDuplicateOrderCommissions = async (db = { query }) => {
-  const result = await db.query(`
+  const duplicateResult = await db.query(`
     WITH ranked AS (
       SELECT id,
              ROW_NUMBER() OVER (
@@ -30,7 +30,40 @@ export const cleanupDuplicateOrderCommissions = async (db = { query }) => {
     RETURNING c.id
   `);
 
-  return result.rows;
+  const invalidResult = await db.query(`
+    UPDATE commissions c
+    SET status = 'cancelled',
+        cancelled_at = CURRENT_TIMESTAMP,
+        description = LEFT(COALESCE(c.description, '') || ' (not commission-eligible)', 500)
+    FROM users u
+    WHERE u.id = c.user_id
+      AND c.status IN ('pending', 'held', 'released')
+      AND (
+        LOWER(u.email) = ANY($1)
+        OR c.type = 'bonus_pool'
+      )
+    RETURNING c.id, c.user_id
+  `, [[...NON_COMMISSION_EMAILS]]);
+
+  if (invalidResult.rows.length > 0 || duplicateResult.rows.length > 0) {
+    await db.query(`
+      UPDATE users u
+      SET wallet_balance = COALESCE((
+        SELECT SUM(c.amount)
+        FROM commissions c
+        WHERE c.user_id = u.id
+          AND c.status = 'released'
+          AND c.type <> 'bonus_pool'
+      ), 0)
+      WHERE u.id IN (
+        SELECT DISTINCT user_id
+        FROM commissions
+        WHERE status IN ('released', 'cancelled')
+      )
+    `);
+  }
+
+  return [...duplicateResult.rows, ...invalidResult.rows];
 };
 
 /**
@@ -680,6 +713,10 @@ export const checkTeamVolumeBonus = async (userId) => {
 // 2% BONUS POOL DISTRIBUTION (monthly, admin-triggered)
 // ============================================
 export const distributeBonusPool = async (triggeredByUserId) => {
+  return {
+    error: 'Bonus Pool ist deaktiviert, bis die Provisionsabrechnung final freigegeben ist.',
+    disabled: true,
+  };
   return await transaction(async (client) => {
     const now = new Date();
     const year = now.getFullYear();
@@ -844,6 +881,7 @@ export const releaseHeldCommissions = async () => {
     `UPDATE commissions
      SET status = 'released', released_at = CURRENT_TIMESTAMP
      WHERE status = 'held' AND held_until <= CURRENT_TIMESTAMP
+       AND type <> 'bonus_pool'
        AND NOT EXISTS (
          SELECT 1 FROM users u
          WHERE u.id = commissions.user_id
@@ -950,7 +988,9 @@ export const getCommissionSummary = async (userId) => {
        COUNT(CASE WHEN c.type LIKE '%bonus%' AND c.status NOT IN ('reversed', 'cancelled') THEN 1 END) as bonus_count
      FROM commissions c
      LEFT JOIN orders o ON o.id = c.order_id
-     WHERE c.user_id = $1`,
+     WHERE c.user_id = $1
+       AND c.type <> 'bonus_pool'
+       AND c.status NOT IN ('cancelled', 'reversed')`,
     [userId]
   );
 

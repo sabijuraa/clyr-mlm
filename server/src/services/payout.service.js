@@ -212,6 +212,7 @@ export const createPayoutRequest = async (userId, amount = null) => {
        LEFT JOIN orders o ON c.order_id = o.id
        WHERE c.user_id = $1 
        AND c.status = 'released'
+       AND c.type <> 'bonus_pool'
        AND c.payout_id IS NULL
        ORDER BY c.created_at ASC`,
       [userId]
@@ -469,6 +470,7 @@ export const generatePayoutStatement = async (payoutId) => {
      FROM commissions c
      LEFT JOIN orders o ON c.order_id = o.id
      WHERE c.payout_id = $1
+       AND c.type <> 'bonus_pool'
      ORDER BY c.created_at ASC`,
     [payoutId]
   );

@@ -223,7 +223,7 @@ const CommissionsPage = () => {
                       {typeLabels[c.type] || c.type}
                     </td>
                     <td className="px-6 py-4 text-sm text-secondary-500">
-                      {c.order_number || '-'}
+                      {c.customer_name || c.order_number || '-'}
                       {c.source_first_name && (
                         <span className="text-xs text-secondary-400 ml-2">
                           (von {c.source_first_name} {c.source_last_name?.charAt(0)}.)
