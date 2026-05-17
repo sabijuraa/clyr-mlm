@@ -968,7 +968,9 @@ export const uploadBrochure = asyncHandler(async (req, res) => {
 });
 
 /**
- * Get all invoices (customer and commission)
+ * Get all invoices.
+ * "All" is intentionally limited to real customer/order and affiliate-fee invoices.
+ * Commission payouts are credit notes and stay behind the commission filter.
  */
 export const getInvoices = asyncHandler(async (req, res) => {
   const { type = 'all', page = 1, limit = 50 } = req.query;
@@ -1003,7 +1005,7 @@ export const getInvoices = asyncHandler(async (req, res) => {
     total = parseInt(countRes.rows[0].count);
   }
 
-  if (type === 'all' || type === 'commission') {
+  if (type === 'commission') {
     // Commission invoices from payouts table
     const payoutsRes = await query(
       `SELECT p.*, 
@@ -1025,15 +1027,9 @@ export const getInvoices = asyncHandler(async (req, res) => {
       invoice_number: `PG-${new Date(p.created_at).getFullYear()}-${String(new Date(p.created_at).getMonth()+1).padStart(2,'0')}-${p.id.slice(0,8).toUpperCase()}`,
     }));
     
-    if (type === 'commission') {
-      invoices = commInvoices;
-      const countRes = await query('SELECT COUNT(*) FROM payouts');
-      total = parseInt(countRes.rows[0].count);
-    } else {
-      invoices = [...invoices, ...commInvoices].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
-      const countRes = await query('SELECT COUNT(*) FROM payouts');
-      total += parseInt(countRes.rows[0].count);
-    }
+    invoices = commInvoices;
+    const countRes = await query('SELECT COUNT(*) FROM payouts');
+    total = parseInt(countRes.rows[0].count);
   }
 
   res.json({

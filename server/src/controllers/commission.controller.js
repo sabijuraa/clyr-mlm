@@ -1,6 +1,6 @@
 import { query, transaction } from '../config/database.js';
 import { asyncHandler, AppError } from '../middleware/error.middleware.js';
-import { releaseHeldCommissions, getCommissionSummary as getCommSummary, distributeBonusPool, checkRankDecay, isCommissionBlockedUser } from '../services/commission.service.js';
+import { releaseHeldCommissions, getCommissionSummary as getCommSummary, distributeBonusPool, checkRankDecay, isCommissionBlockedUser, cleanupDuplicateOrderCommissions } from '../services/commission.service.js';
 import { generateCommissionStatement } from '../services/invoice.service.js';
 import { isVatIdFormatValid } from '../services/tax.service.js';
 
@@ -47,6 +47,7 @@ export const getMyCommissions = asyncHandler(async (req, res) => {
 
   const commissionsResult = await query(
     `SELECT c.*, o.order_number, o.customer_first_name, o.customer_last_name,
+            NULLIF(TRIM(CONCAT(COALESCE(o.customer_first_name, ''), ' ', COALESCE(o.customer_last_name, ''))), '') as customer_name,
             o.created_at as order_date,
             su.first_name as source_first_name, su.last_name as source_last_name
      FROM commissions c
@@ -158,7 +159,8 @@ export const getStatement = asyncHandler(async (req, res) => {
   const endDate = new Date(year, month, 0, 23, 59, 59);
 
   const commissionsResult = await query(
-    `SELECT c.*, o.order_number, o.subtotal as order_total, o.created_at as order_date
+    `SELECT c.*, o.order_number, o.subtotal as order_total, o.created_at as order_date,
+            NULLIF(TRIM(CONCAT(COALESCE(o.customer_first_name, ''), ' ', COALESCE(o.customer_last_name, ''))), '') as customer_name
      FROM commissions c
      LEFT JOIN orders o ON c.order_id = o.id
      WHERE c.user_id = $1 
@@ -215,10 +217,14 @@ export const getStatement = asyncHandler(async (req, res) => {
  * Get all commissions (Admin)
  */
 export const getAllCommissions = asyncHandler(async (req, res) => {
+  await cleanupDuplicateOrderCommissions().catch((error) => {
+    console.error('Commission duplicate cleanup failed:', error.message);
+  });
+
   const { page = 1, limit = 50, userId, type, status, startDate, endDate } = req.query;
   const offset = (page - 1) * limit;
 
-  let whereClause = 'WHERE 1=1';
+  let whereClause = "WHERE u.role <> 'admin' AND LOWER(u.email) <> 'technik@clyr.shop'";
   const params = [];
   let paramIndex = 1;
 
@@ -253,14 +259,18 @@ export const getAllCommissions = asyncHandler(async (req, res) => {
   }
 
   const countResult = await query(
-    `SELECT COUNT(*) FROM commissions c ${whereClause}`,
+    `SELECT COUNT(*)
+     FROM commissions c
+     JOIN users u ON c.user_id = u.id
+     ${whereClause}`,
     params
   );
 
   const commissionsResult = await query(
     `SELECT c.*, 
             u.first_name, u.last_name, u.email,
-            o.order_number
+            o.order_number,
+            NULLIF(TRIM(CONCAT(COALESCE(o.customer_first_name, ''), ' ', COALESCE(o.customer_last_name, ''))), '') as customer_name
      FROM commissions c
      JOIN users u ON c.user_id = u.id
      LEFT JOIN orders o ON c.order_id = o.id
@@ -277,8 +287,11 @@ export const getAllCommissions = asyncHandler(async (req, res) => {
        SUM(CASE WHEN status = 'held' THEN amount ELSE 0 END) as total_held,
        SUM(CASE WHEN status = 'released' THEN amount ELSE 0 END) as total_released,
        SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END) as total_paid
-     FROM commissions
-     WHERE status != 'reversed'`
+     FROM commissions c
+     JOIN users u ON c.user_id = u.id
+     WHERE c.status != 'reversed'
+       AND u.role <> 'admin'
+       AND LOWER(u.email) <> 'technik@clyr.shop'`
   );
 
   res.json({
@@ -298,11 +311,14 @@ export const getAllCommissions = asyncHandler(async (req, res) => {
  */
 export const getPendingCommissions = asyncHandler(async (req, res) => {
   const result = await query(
-    `SELECT c.*, u.first_name, u.last_name, u.email, o.order_number
+    `SELECT c.*, u.first_name, u.last_name, u.email, o.order_number,
+            NULLIF(TRIM(CONCAT(COALESCE(o.customer_first_name, ''), ' ', COALESCE(o.customer_last_name, ''))), '') as customer_name
      FROM commissions c
      JOIN users u ON c.user_id = u.id
      LEFT JOIN orders o ON c.order_id = o.id
      WHERE c.status = 'held' AND c.held_until <= CURRENT_TIMESTAMP
+       AND u.role <> 'admin'
+       AND LOWER(u.email) <> 'technik@clyr.shop'
      ORDER BY c.held_until ASC`
   );
 
@@ -319,6 +335,9 @@ export const getPendingCommissions = asyncHandler(async (req, res) => {
  * Release held commissions (Admin)
  */
 export const releaseCommissions = asyncHandler(async (req, res) => {
+  await cleanupDuplicateOrderCommissions().catch((error) => {
+    console.error('Commission duplicate cleanup failed:', error.message);
+  });
   const released = await releaseHeldCommissions();
 
   res.json({
@@ -332,6 +351,9 @@ export const releaseCommissions = asyncHandler(async (req, res) => {
  */
 export const processPayouts = asyncHandler(async (req, res) => {
   const { dryRun = false } = req.body;
+  await cleanupDuplicateOrderCommissions().catch((error) => {
+    console.error('Commission duplicate cleanup failed:', error.message);
+  });
 
   // Get all partners with released commissions
   const partnersResult = await query(
@@ -449,7 +471,8 @@ export const generateStatementForPartner = asyncHandler(async (req, res) => {
   const endDate = new Date(year, month, 0, 23, 59, 59);
   
   const commissionsResult = await query(
-    `SELECT c.*, o.order_number, o.subtotal as order_total, o.created_at as order_date
+    `SELECT c.*, o.order_number, o.subtotal as order_total, o.created_at as order_date,
+            NULLIF(TRIM(CONCAT(COALESCE(o.customer_first_name, ''), ' ', COALESCE(o.customer_last_name, ''))), '') as customer_name
      FROM commissions c
      LEFT JOIN orders o ON c.order_id = o.id
      WHERE c.user_id = $1 

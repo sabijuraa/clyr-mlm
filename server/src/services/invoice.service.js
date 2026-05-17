@@ -78,6 +78,13 @@ const calculateAffiliateFeeVatRule = async ({ country, vatId, date = new Date() 
   return calculateVatRule({ country, vatId, date, vatIdValid });
 };
 
+const REAL_INVOICE_WHERE = `
+  (
+    (type = 'customer' AND order_id IS NOT NULL)
+    OR (type = 'fee' AND subscription_payment_id IS NOT NULL)
+  )
+`;
+
 class InvoiceService {
 
   async getCompanyInfo() {
@@ -342,17 +349,21 @@ class InvoiceService {
     const labelMonth = MONTHS[labelParts[0]] || (now.getMonth() + 1);
     const labelYear  = parseInt(labelParts[1]) || now.getFullYear();
     const yr         = labelYear;
-    const mo         = String(labelMonth).padStart(2, '0');
-    // Short statement number: PG-YYYYMM-XXXX (last 4 chars only)
-    // Defensive: ensure partner.id is a string before calling .replace
-    const partnerIdStr = String(partner?.id || '').replace(/-/g, '');
-    const shortId    = (partnerIdStr.slice(-4) || 'XXXX').toUpperCase();
-    const shortYear  = String(yr).slice(-2);
-    const stmtNr     = `PG-${shortYear}${mo}-${shortId}`;
-
     // Payout date = 1st of the month FOLLOWING the period
     // (March commissions → paid 1st April)
     const payoutDate = new Date(yr, labelMonth, 1); // labelMonth is 1-indexed, so this gives 1st of next month
+    let stmtNr = payoutRecord?.statement_number;
+    if (!stmtNr) {
+      const sequenceDate = payoutRecord?.created_at ? new Date(payoutRecord.created_at) : payoutDate;
+      const seqResult = await pool.query(
+        `SELECT COUNT(*)::int + 1 as seq
+         FROM payouts
+         WHERE created_at >= date_trunc('year', $1::timestamp)
+           AND created_at < $1::timestamp`,
+        [sequenceDate]
+      ).catch(() => ({ rows: [{ seq: 1 }] }));
+      stmtNr = `PG-${sequenceDate.getFullYear()}-${String(seqResult.rows[0]?.seq || 1).padStart(3, '0')}`;
+    }
 
     const netTotal = commissions.reduce((s, c) => s + parseFloat(c.amount || 0), 0);
     const country  = (partner.country || 'AT').toUpperCase();
@@ -373,7 +384,6 @@ class InvoiceService {
     const pNet     = payoutRecord ? parseFloat(payoutRecord.net_amount  || netTotal) : netTotal;
     const pVat     = payoutRecord ? parseFloat(payoutRecord.vat_amount  || vatAmt)   : vatAmt;
     const pGross   = payoutRecord ? parseFloat(payoutRecord.gross_amount || gross)    : gross;
-    const pDate    = payoutRecord?.created_at ? new Date(payoutRecord.created_at).toLocaleDateString('de-DE') : now.toLocaleDateString('de-DE');
     const pMethod  = payoutRecord?.method === 'stripe' ? 'Stripe (automatische Überweisung)' : 'SEPA-Banküberweisung';
     const pRef     = payoutRecord?.reference || '';
     const pStatus  = payoutRecord?.status || 'pending';
@@ -441,7 +451,7 @@ class InvoiceService {
           const basis = comm.base_amount ? parseFloat(comm.base_amount).toFixed(2) : (comm.order_total ? parseFloat(comm.order_total).toFixed(2) : '—');
           const rate  = comm.rate ? `${parseFloat(comm.rate).toFixed(0)}%` : comm.type === 'difference' ? '—' : '—';
           doc.text(new Date(comm.order_date || comm.created_at).toLocaleDateString('de-DE'), cols.date,  y, { width: 60 });
-          doc.text(comm.order_number || '—',                               cols.order, y, { width: 86 });
+          doc.text(comm.customer_name || comm.order_number || '—',          cols.order, y, { width: 86 });
           doc.text(typeLabels[comm.type] || comm.type,                     cols.type,  y, { width: 138 });
           doc.text(basis,                                                   cols.basis, y, { width: 73, align: 'right' });
           doc.text(rate,                                                    cols.rate,  y, { width: 38, align: 'right' });
@@ -666,14 +676,93 @@ class InvoiceService {
         SELECT COALESCE(MAX(CAST(SPLIT_PART(invoice_number, '-', 3) AS INTEGER)), 0) + 1 as next_seq
         FROM invoices
         WHERE invoice_number ~ $1
+          AND ${REAL_INVOICE_WHERE}
       `, [`^RE-${year}-[0-9]+$`]);
-      return `RE-${year}-${String(parseInt(result.rows[0].next_seq) || 1).padStart(5, '0')}`;
+      return `RE-${year}-${String(parseInt(result.rows[0].next_seq) || 1).padStart(4, '0')}`;
     } catch (error) {
       const year = new Date(date).getFullYear();
-      const countResult = await pool.query("SELECT COUNT(*) FROM invoices WHERE invoice_number LIKE $1", [`RE-${year}-%`]).catch(() => ({ rows: [{ count: 0 }] }));
+      const countResult = await pool.query(`
+        SELECT COUNT(*) FROM invoices
+        WHERE invoice_number LIKE $1
+          AND ${REAL_INVOICE_WHERE}
+      `, [`RE-${year}-%`]).catch(() => ({ rows: [{ count: 0 }] }));
       const seq = parseInt(countResult.rows[0].count) + 1;
-      return `RE-${year}-${String(seq).padStart(5, '0')}`;
+      return `RE-${year}-${String(seq).padStart(4, '0')}`;
     }
+  }
+
+  async renumberRealInvoicesByDate() {
+    const result = {
+      updated: 0,
+      skipped: 0,
+      invoices: [],
+    };
+
+    const realInvoices = await pool.query(`
+      SELECT i.id, i.invoice_number, i.type, i.order_id, i.subscription_payment_id,
+             COALESCE(i.created_at, o.created_at, sp.paid_at, sp.created_at) as invoice_date
+      FROM invoices i
+      LEFT JOIN orders o ON o.id = i.order_id
+      LEFT JOIN subscription_payments sp ON sp.id = i.subscription_payment_id
+      WHERE ${REAL_INVOICE_WHERE.replaceAll('type', 'i.type')
+        .replaceAll('order_id', 'i.order_id')
+        .replaceAll('subscription_payment_id', 'i.subscription_payment_id')}
+      ORDER BY COALESCE(i.created_at, o.created_at, sp.paid_at, sp.created_at) ASC, i.id ASC
+    `);
+
+    for (const invoice of realInvoices.rows) {
+      await pool.query(
+        'UPDATE invoices SET invoice_number = $1 WHERE id = $2',
+        [`TMP-${invoice.id}`, invoice.id]
+      );
+    }
+
+    const countersByYear = new Map();
+    for (const invoice of realInvoices.rows) {
+      const invoiceDate = toDate(invoice.invoice_date);
+      const year = invoiceDate.getFullYear();
+      const next = (countersByYear.get(year) || 0) + 1;
+      countersByYear.set(year, next);
+
+      const invoiceNumber = `RE-${year}-${String(next).padStart(4, '0')}`;
+      await pool.query(
+        `UPDATE invoices
+         SET invoice_number = CONCAT('LEGACY-', LEFT(id::text, 8), '-', invoice_number)
+         WHERE invoice_number = $1
+           AND NOT ${REAL_INVOICE_WHERE}`,
+        [invoiceNumber]
+      );
+
+      if (invoice.invoice_number === invoiceNumber) {
+        await pool.query(
+          'UPDATE invoices SET invoice_number = $1 WHERE id = $2',
+          [invoiceNumber, invoice.id]
+        );
+        result.skipped += 1;
+        continue;
+      }
+
+      await pool.query(
+        'UPDATE invoices SET invoice_number = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+        [invoiceNumber, invoice.id]
+      );
+
+      if (invoice.type === 'customer' && invoice.order_id) {
+        await pool.query(
+          'UPDATE orders SET invoice_number = $1 WHERE id = $2',
+          [invoiceNumber, invoice.order_id]
+        ).catch(() => {});
+      }
+
+      result.updated += 1;
+      result.invoices.push({
+        id: invoice.id,
+        from: invoice.invoice_number,
+        to: invoiceNumber,
+      });
+    }
+
+    return result;
   }
 
   async ensureFeeInvoiceStorage() {
@@ -839,6 +928,7 @@ class InvoiceService {
 
     result.generated = result.customerGenerated + result.feeGenerated;
     result.updated = result.customerUpdated + result.feeUpdated;
+    result.renumbered = await this.renumberRealInvoicesByDate();
     return result;
   }
 
@@ -852,7 +942,7 @@ class InvoiceService {
         if (type === 'customer') whereClause += ' AND i.order_id IS NOT NULL';
         if (type === 'fee') whereClause += ' AND i.subscription_payment_id IS NOT NULL';
       } else {
-        whereClause = "WHERE ((i.type = 'customer' AND i.order_id IS NOT NULL) OR (i.type = 'fee' AND i.subscription_payment_id IS NOT NULL) OR i.type IN ('commission', 'commission_statement'))";
+        whereClause = "WHERE ((i.type = 'customer' AND i.order_id IS NOT NULL) OR (i.type = 'fee' AND i.subscription_payment_id IS NOT NULL))";
       }
       const result = await pool.query(`
         SELECT i.*,
@@ -1007,6 +1097,7 @@ export const generateInvoicePDF = (orderData, invoiceNumber) => invoiceService.g
 export const generateCommissionStatement = (a, b, c, d) => invoiceService.generateCommissionStatement(a, b, c, d);
 export const createOrGetPartnerFeeInvoice = (payment) => invoiceService.createOrGetPartnerFeeInvoice(payment);
 export const generateMissingInvoices = () => invoiceService.generateMissingInvoices();
+export const renumberRealInvoicesByDate = () => invoiceService.renumberRealInvoicesByDate();
 export const getAllInvoices = (type) => invoiceService.getAllInvoices(type);
 export const getInvoiceById = (invoiceId) => invoiceService.getInvoiceById(invoiceId);
 export const getInvoiceByOrderId = (orderId) => invoiceService.getInvoiceByOrderId(orderId);

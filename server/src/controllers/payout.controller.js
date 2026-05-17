@@ -91,7 +91,8 @@ export const getPayoutDetails = async (req, res) => {
 
     // Get linked commissions
     const commissionsResult = await query(
-      `SELECT c.*, o.order_number
+      `SELECT c.*, o.order_number,
+              NULLIF(TRIM(CONCAT(COALESCE(o.customer_first_name, ''), ' ', COALESCE(o.customer_last_name, ''))), '') as customer_name
        FROM commissions c
        LEFT JOIN orders o ON c.order_id = o.id
        WHERE c.payout_id = $1

@@ -76,7 +76,8 @@ const AdminInvoicesPage = () => {
   const handleGenerateMissing = async () => {
     try {
       const response = await api.post('/admin/invoices/generate-missing');
-      toast.success(`${response.data.generated || 0} Rechnungen erstellt, ${response.data.updated || 0} aktualisiert`);
+      const renumbered = response.data.renumbered?.updated || 0;
+      toast.success(`${response.data.generated || 0} Rechnungen erstellt, ${response.data.updated || 0} aktualisiert, ${renumbered} neu nummeriert`);
       if (filter === 'fees') fetchFeePayments();
       else fetchInvoices();
     } catch (err) {

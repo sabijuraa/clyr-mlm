@@ -423,7 +423,7 @@ const AdminCommissionsPage = () => {
                         {formatCommissionType(commission.type)}
                       </td>
                       <td className="px-6 py-4 text-sm text-secondary-500 hidden md:table-cell">
-                        {commission.order_number || '-'}
+                        {commission.customer_name || commission.order_number || '-'}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getStatusStyle(commission.status)}`}>

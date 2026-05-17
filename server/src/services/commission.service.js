@@ -8,6 +8,31 @@ export const isCommissionBlockedUser = (user = {}) => {
   return user.role === 'admin' || NON_COMMISSION_EMAILS.has(email);
 };
 
+export const cleanupDuplicateOrderCommissions = async (db = { query }) => {
+  const result = await db.query(`
+    WITH ranked AS (
+      SELECT id,
+             ROW_NUMBER() OVER (
+               PARTITION BY user_id, order_id, type, COALESCE(source_user_id::text, ''), COALESCE(rate, 0), COALESCE(base_amount, 0)
+               ORDER BY created_at ASC, id ASC
+             ) as rn
+      FROM commissions
+      WHERE order_id IS NOT NULL
+        AND status IN ('pending', 'held', 'released')
+    )
+    UPDATE commissions c
+    SET status = 'cancelled',
+        cancelled_at = CURRENT_TIMESTAMP,
+        description = LEFT(COALESCE(c.description, '') || ' (duplicate auto-cancelled)', 500)
+    FROM ranked r
+    WHERE c.id = r.id
+      AND r.rn > 1
+    RETURNING c.id
+  `);
+
+  return result.rows;
+};
+
 /**
  * CLYR Commission Service — Correct Vergütungsplan Implementation
  * 
@@ -44,6 +69,19 @@ export const isCommissionBlockedUser = (user = {}) => {
 // MAIN: Calculate all commissions for an order
 // ============================================
 export const calculateCommissions = async (client, orderId, partnerId, orderSubtotal) => {
+  const existingCommissions = await client.query(
+    `SELECT *
+     FROM commissions
+     WHERE order_id = $1
+       AND status NOT IN ('cancelled', 'reversed')
+     ORDER BY created_at ASC`,
+    [orderId]
+  );
+
+  if (existingCommissions.rows.length > 0) {
+    return existingCommissions.rows;
+  }
+
   // Get settings
   const settingsResult = await client.query(
     "SELECT key, value FROM settings WHERE key = 'commission_hold_days'"
