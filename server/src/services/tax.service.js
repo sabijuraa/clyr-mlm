@@ -6,7 +6,7 @@ const VAT_RATES_AFTER_CUTOFF = {
   CH: 8.1,
 };
 
-const normalizeCountry = (country) => String(country || '').trim().toUpperCase();
+export const normalizeCountry = (country) => String(country || '').trim().toUpperCase();
 
 export const normalizeVatId = (vatId) => String(vatId || '').replace(/[\s.\-]/g, '').toUpperCase();
 
@@ -57,6 +57,19 @@ export const validateVatId = async (vatId, country) => {
   } catch {
     return { valid: true, normalized, source: 'format_vies_unavailable' };
   }
+};
+
+export const getVatIdValidation = async (vatId, country) => {
+  const normalized = normalizeVatId(vatId);
+  if (!normalized) {
+    return { valid: false, normalized, source: 'empty', usableForReverseCharge: false };
+  }
+
+  const validation = await validateVatId(normalized, country);
+  return {
+    ...validation,
+    usableForReverseCharge: validation.valid === true,
+  };
 };
 
 export const calculateVatRule = ({ country, vatId, date = new Date(), vatIdValid = null } = {}) => {

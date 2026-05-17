@@ -97,9 +97,6 @@ const getVatRate = async (country, vatId = null, date = new Date()) => {
   let vatIdValid = null;
   if (vatId) {
     const validation = await validateVatId(vatId, country);
-    if (!validation.valid && validation.source !== 'format_vies_unavailable') {
-      throw new AppError('Die angegebene USt-IdNr. konnte nicht validiert werden.', 400);
-    }
     vatIdValid = validation.valid;
   }
 
@@ -203,7 +200,7 @@ export const calculateOrderTotals = asyncHandler(async (req, res) => {
 
   const vatRule = vatId
     ? await getVatRate(country, vatId)
-    : calculateVatRule({ country, vatId: hasVatId ? `${country}VALID` : null, vatIdValid: !!hasVatId });
+    : calculateVatRule({ country });
   const vatRate = vatRule.vatRate;
 
   // Calculate VAT (on subtotal + shipping)

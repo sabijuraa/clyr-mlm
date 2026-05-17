@@ -1,6 +1,13 @@
 import { query, transaction } from '../config/database.js';
 import { isVatIdFormatValid } from './tax.service.js';
 
+const NON_COMMISSION_EMAILS = new Set(['technik@clyr.shop']);
+
+export const isCommissionBlockedUser = (user = {}) => {
+  const email = String(user.email || '').trim().toLowerCase();
+  return user.role === 'admin' || NON_COMMISSION_EMAILS.has(email);
+};
+
 /**
  * CLYR Commission Service — Correct Vergütungsplan Implementation
  * 
@@ -72,7 +79,7 @@ export const calculateCommissions = async (client, orderId, partnerId, orderSubt
   if (partnerResult.rows.length === 0) return [];
 
   const partner = partnerResult.rows[0];
-  if (partner.role === 'admin') {
+  if (isCommissionBlockedUser(partner)) {
     return [];
   }
   const partnerCommissionRate = partner.commission_rate;
@@ -154,7 +161,7 @@ const calculateDifferenceCommissions = async (client, orderId, partnerId, seller
   while (depth < maxDepth) {
     // Get upline
     const uplineResult = await client.query(
-      `SELECT u.id, u.upline_id, u.status, u.role, u.first_name, u.last_name,
+      `SELECT u.id, u.upline_id, u.status, u.role, u.email, u.first_name, u.last_name,
               r.commission_rate, r.level
        FROM users u
        JOIN ranks r ON u.rank_id = r.id
@@ -165,7 +172,7 @@ const calculateDifferenceCommissions = async (client, orderId, partnerId, seller
     if (uplineResult.rows.length === 0) break;
 
     const upline = uplineResult.rows[0];
-    if (upline.role === 'admin') {
+    if (isCommissionBlockedUser(upline)) {
       currentUserId = upline.id;
       depth++;
       continue;
@@ -504,6 +511,12 @@ const checkLeadershipCashBonus = async (userId, rankLevel, bonusAmount) => {
 // LEADERSHIP BONUS: 1% if 3+ active direct partners
 // ============================================
 const checkLeadershipBonus = async (client, userId) => {
+  const userResult = await client.query(
+    'SELECT role, email FROM users WHERE id = $1',
+    [userId]
+  );
+  if (isCommissionBlockedUser(userResult.rows[0])) return;
+
   const quarterStart = new Date();
   quarterStart.setMonth(quarterStart.getMonth() - quarterStart.getMonth() % 3, 1);
   quarterStart.setHours(0, 0, 0, 0);
@@ -665,7 +678,7 @@ export const distributeBonusPool = async (triggeredByUserId) => {
     const quarterStart = new Date(year, Math.floor((month - 1) / 3) * 3, 1);
 
     const leadersResult = await client.query(
-      `SELECT u.id, u.first_name, u.last_name, r.level, r.name as rank_name
+      `SELECT u.id, u.first_name, u.last_name, u.email, u.role, r.level, r.name as rank_name
        FROM users u
        JOIN ranks r ON u.rank_id = r.id
        WHERE u.role = 'partner'
@@ -681,7 +694,7 @@ export const distributeBonusPool = async (triggeredByUserId) => {
       [quarterStart]
     );
 
-    const eligibleLeaders = leadersResult.rows;
+    const eligibleLeaders = leadersResult.rows.filter((leader) => !isCommissionBlockedUser(leader));
     if (eligibleLeaders.length === 0) {
       return { error: 'Keine berechtigten aktiven Leader', totalRevenue, poolAmount };
     }
@@ -793,7 +806,13 @@ export const releaseHeldCommissions = async () => {
     `UPDATE commissions
      SET status = 'released', released_at = CURRENT_TIMESTAMP
      WHERE status = 'held' AND held_until <= CURRENT_TIMESTAMP
+       AND NOT EXISTS (
+         SELECT 1 FROM users u
+         WHERE u.id = commissions.user_id
+           AND (u.role = 'admin' OR LOWER(u.email) = ANY($1))
+       )
      RETURNING *`
+    , [[...NON_COMMISSION_EMAILS]]
   );
 
   console.log(`Released ${result.rows.length} commissions`);

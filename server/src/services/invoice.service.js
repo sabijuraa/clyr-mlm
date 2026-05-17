@@ -6,7 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import pool from '../config/database.js';
-import { calculateVatRule, isVatIdFormatValid, splitGrossAmount } from './tax.service.js';
+import { calculateVatRule, getVatIdValidation, splitGrossAmount } from './tax.service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -68,33 +68,14 @@ const formatVariantDescription = (item = {}) => {
 
 const toDate = (value) => (value ? new Date(value) : new Date());
 
-const calculateAffiliateFeeVatRule = ({ country, vatId } = {}) => {
-  const normalizedCountry = String(country || '').trim().toUpperCase();
-  const hasValidVatId = vatId && isVatIdFormatValid(vatId, normalizedCountry);
-
-  if (normalizedCountry === 'DE' && hasValidVatId) {
-    return {
-      country: normalizedCountry,
-      vatRate: 0,
-      vatType: 'reverse_charge',
-      isReverseCharge: true,
-      vatNote: 'Reverse Charge - Steuerschuldnerschaft des Leistungsempfaengers',
-    };
+const calculateAffiliateFeeVatRule = async ({ country, vatId, date = new Date() } = {}) => {
+  let vatIdValid = null;
+  if (vatId) {
+    const validation = await getVatIdValidation(vatId, country);
+    vatIdValid = validation.usableForReverseCharge;
   }
 
-  if (normalizedCountry === 'DE') {
-    return { country: normalizedCountry, vatRate: 19, vatType: 'standard', isReverseCharge: false, vatNote: '' };
-  }
-
-  if (normalizedCountry === 'AT') {
-    return { country: normalizedCountry, vatRate: 20, vatType: 'standard', isReverseCharge: false, vatNote: '' };
-  }
-
-  if (normalizedCountry === 'CH') {
-    return { country: normalizedCountry, vatRate: 0, vatType: 'zero_rated', isReverseCharge: false, vatNote: '' };
-  }
-
-  return { country: normalizedCountry, vatRate: 20, vatType: 'standard', isReverseCharge: false, vatNote: '' };
+  return calculateVatRule({ country, vatId, date, vatIdValid });
 };
 
 class InvoiceService {
@@ -376,7 +357,8 @@ class InvoiceService {
     const netTotal = commissions.reduce((s, c) => s + parseFloat(c.amount || 0), 0);
     const country  = (partner.country || 'AT').toUpperCase();
     const hasUid   = !!partner.vat_id;
-    const hasValidUid = hasUid && isVatIdFormatValid(partner.vat_id, country);
+    const uidValidation = hasUid ? await getVatIdValidation(partner.vat_id, country) : null;
+    const hasValidUid = uidValidation?.usableForReverseCharge === true;
 
     let vatRate = 0, vatLabel = '', vatNote = '';
     if      (country === 'AT')            { vatRate = 20; vatLabel = 'USt. 20% (AT)';    vatNote = 'Umsatzsteuer 20 % gemaess oesterreichischem UStG.'; }
@@ -542,10 +524,15 @@ class InvoiceService {
       const discount = parseFloat(order.discount_amount || 0);
       const shipping = parseFloat(order.shipping_cost || 0);
       const customerCountry = order.billing_country || 'AT';
+      const customerVatId = order.customer_vat_id || order.vat_id;
+      const vatValidation = customerVatId
+        ? await getVatIdValidation(customerVatId, customerCountry)
+        : null;
       const taxRule = calculateVatRule({
         country: customerCountry,
-        vatId: order.customer_vat_id || order.vat_id,
+        vatId: customerVatId,
         date: order.created_at || new Date(),
+        vatIdValid: vatValidation ? vatValidation.usableForReverseCharge : null,
       });
       const taxRate = taxRule.vatRate;
       const isReverseCharge = taxRule.isReverseCharge;
@@ -731,9 +718,10 @@ class InvoiceService {
     ).catch(() => ({ rows: [] }));
 
     const paidAt = toDate(payment.paid_at || payment.created_at);
-    const vatRule = calculateAffiliateFeeVatRule({
+    const vatRule = await calculateAffiliateFeeVatRule({
       country: payment.country,
       vatId: payment.vat_id,
+      date: paidAt,
     });
     const amounts = splitGrossAmount(payment.amount, vatRule.vatRate);
 
@@ -829,6 +817,8 @@ class InvoiceService {
       FROM subscription_payments sp
       JOIN users u ON u.id = sp.user_id
       WHERE sp.status = 'paid'
+        AND u.role = 'partner'
+        AND LOWER(u.email) <> 'technik@clyr.shop'
       ORDER BY sp.paid_at ASC, sp.created_at ASC
     `);
 
@@ -856,7 +846,14 @@ class InvoiceService {
     try {
       let whereClause = '';
       const params = [];
-      if (type && type !== 'all') { whereClause = 'WHERE i.type = $1'; params.push(type); }
+      if (type && type !== 'all') {
+        whereClause = 'WHERE i.type = $1';
+        params.push(type);
+        if (type === 'customer') whereClause += ' AND i.order_id IS NOT NULL';
+        if (type === 'fee') whereClause += ' AND i.subscription_payment_id IS NOT NULL';
+      } else {
+        whereClause = "WHERE ((i.type = 'customer' AND i.order_id IS NOT NULL) OR (i.type = 'fee' AND i.subscription_payment_id IS NOT NULL) OR i.type IN ('commission', 'commission_statement'))";
+      }
       const result = await pool.query(`
         SELECT i.*,
           COALESCE(c.first_name || ' ' || c.last_name, '') as customer_name,
@@ -904,9 +901,10 @@ export const generatePartnerFeeInvoicePDF = async (partner, amount, options = {}
   const company = await invoiceService.getCompanyInfo();
   const invoiceNumber = options.invoiceNumber || await invoiceService.getNextInvoiceNumber();
   const invoiceDate = toDate(options.invoiceDate || options.paidAt);
-  const vatRule = calculateAffiliateFeeVatRule({
+  const vatRule = await calculateAffiliateFeeVatRule({
     country: partner.country,
     vatId: partner.vat_id,
+    date: invoiceDate,
   });
   const totals = splitGrossAmount(amount, vatRule.vatRate);
 

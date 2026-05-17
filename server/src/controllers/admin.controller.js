@@ -979,7 +979,9 @@ export const getInvoices = asyncHandler(async (req, res) => {
 
   if (type === 'all' || type === 'customer') {
     // Customer invoices from invoices table
-    const whereClause = type === 'customer' ? "WHERE i.type = 'customer'" : "WHERE i.type IN ('customer','fee')";
+    const whereClause = type === 'customer'
+      ? "WHERE i.type = 'customer' AND i.order_id IS NOT NULL"
+      : "WHERE ((i.type = 'customer' AND i.order_id IS NOT NULL) OR (i.type = 'fee' AND i.subscription_payment_id IS NOT NULL))";
     const countRes = await query(`SELECT COUNT(*) FROM invoices i ${whereClause}`);
     const res2 = await query(
       `SELECT i.*, o.order_number,
@@ -1058,6 +1060,7 @@ export const getFeePayments = asyncHandler(async (req, res) => {
      JOIN users u ON sp.user_id = u.id
      LEFT JOIN ranks r ON u.rank_id = r.id
      LEFT JOIN invoices i ON i.subscription_payment_id = sp.id
+     WHERE u.role = 'partner' AND LOWER(u.email) <> 'technik@clyr.shop'
      ORDER BY sp.created_at DESC`
   );
 
@@ -1269,7 +1272,9 @@ export const getFeePaymentInvoice = asyncHandler(async (req, res) => {
             u.street, u.zip, u.city, u.country, u.vat_id, u.email
      FROM subscription_payments sp
      JOIN users u ON sp.user_id = u.id
-     WHERE sp.id = $1`,
+     WHERE sp.id = $1
+       AND u.role = 'partner'
+       AND LOWER(u.email) <> 'technik@clyr.shop'`,
     [id]
   );
 

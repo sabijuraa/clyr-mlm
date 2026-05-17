@@ -1,6 +1,6 @@
 import { query, transaction } from '../config/database.js';
 import { asyncHandler, AppError } from '../middleware/error.middleware.js';
-import { releaseHeldCommissions, getCommissionSummary as getCommSummary, distributeBonusPool, checkRankDecay } from '../services/commission.service.js';
+import { releaseHeldCommissions, getCommissionSummary as getCommSummary, distributeBonusPool, checkRankDecay, isCommissionBlockedUser } from '../services/commission.service.js';
 import { generateCommissionStatement } from '../services/invoice.service.js';
 import { isVatIdFormatValid } from '../services/tax.service.js';
 
@@ -350,11 +350,11 @@ export const processPayouts = asyncHandler(async (req, res) => {
 
   // Use actual released commissions sum (not cached wallet_balance which may be stale)
   // Note: IBAN not required - admin can process manually even without IBAN on file
-  const eligiblePartners = partnersResult.rows.filter(p => 
-    parseFloat(p.pending_amount) >= minPayoutAmount
+  const eligiblePartners = partnersResult.rows.filter(p =>
+    !isCommissionBlockedUser(p) && parseFloat(p.pending_amount) >= minPayoutAmount
   );
   const missingIban = partnersResult.rows.filter(p =>
-    parseFloat(p.pending_amount) >= minPayoutAmount && !p.iban
+    !isCommissionBlockedUser(p) && parseFloat(p.pending_amount) >= minPayoutAmount && !p.iban
   );
 
   if (dryRun) {
