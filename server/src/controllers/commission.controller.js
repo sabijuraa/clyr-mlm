@@ -22,12 +22,15 @@ export const getMyCommissions = asyncHandler(async (req, res) => {
     paramIndex++;
   }
 
+  // Always exclude bonus_pool — these are internal accounting entries not shown to partners
+  whereClause += " AND c.type <> 'bonus_pool'";
+
   if (status) {
     whereClause += ` AND c.status = $${paramIndex}`;
     params.push(status);
     paramIndex++;
   } else {
-    whereClause += " AND c.status NOT IN ('cancelled', 'reversed') AND c.type <> 'bonus_pool'";
+    whereClause += " AND c.status NOT IN ('cancelled', 'reversed')";
   }
 
   if (startDate) {
@@ -430,12 +433,24 @@ export const processPayouts = asyncHandler(async (req, res) => {
   for (const partner of eligiblePartners) {
     try {
       await transaction(async (client) => {
-        // Create payout record
+        // Calculate VAT on the net commission amount
+        const netAmount = parseFloat(partner.pending_amount);
+        const country = String(partner.country || 'AT').toUpperCase();
+        const hasValidVatId = partner.vat_id && isVatIdFormatValid
+          ? (() => { try { return isVatIdFormatValid(partner.vat_id, country); } catch { return false; } })()
+          : false;
+        let vatRate = 0;
+        if (country === 'AT') vatRate = 20;
+        else if (country === 'DE' && !hasValidVatId) vatRate = 19;
+        const vatAmount = Math.round(netAmount * vatRate / 100 * 100) / 100;
+        const grossAmount = Math.round((netAmount + vatAmount) * 100) / 100;
+
+        // Create payout record — net_amount and gross_amount are NOT NULL in schema
         const payoutResult = await client.query(
-          `INSERT INTO payouts (user_id, amount, method, iban, bic, status, reference)
-           VALUES ($1, $2, 'sepa', $3, $4, 'processing', $5)
+          `INSERT INTO payouts (user_id, net_amount, vat_amount, gross_amount, method, iban, bic, status, reference)
+           VALUES ($1, $2, $3, $4, 'sepa', $5, $6, 'processing', $7)
            RETURNING id`,
-          [partner.id, parseFloat(partner.pending_amount), partner.iban, partner.bic, `PAYOUT-${Date.now()}`]
+          [partner.id, netAmount, vatAmount, grossAmount, partner.iban || '', partner.bic || '', `PAYOUT-${Date.now()}`]
         );
 
         // Update commissions to paid
@@ -445,16 +460,22 @@ export const processPayouts = asyncHandler(async (req, res) => {
           [payoutResult.rows[0].id, partner.id]
         );
 
-        // Reset wallet balance
+        // Mark payout as completed so commissions are correctly shown as paid
+        await client.query(
+          `UPDATE payouts SET status = 'completed', completed_at = CURRENT_TIMESTAMP WHERE id = $1`,
+          [payoutResult.rows[0].id]
+        );
+
+        // Reset wallet balance — use pending_amount (actual released sum), not cached wallet_balance
         await client.query(
           'UPDATE users SET wallet_balance = GREATEST(0, wallet_balance - $2) WHERE id = $1',
-          [partner.id]
+          [partner.id, parseFloat(partner.pending_amount)]
         );
 
         processed.push({
           partnerId: partner.id,
           name: `${partner.first_name} ${partner.last_name}`,
-          amount: partner.wallet_balance,
+          amount: parseFloat(partner.pending_amount),
           payoutId: payoutResult.rows[0].id
         });
       });

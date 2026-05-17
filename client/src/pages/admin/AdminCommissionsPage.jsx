@@ -285,8 +285,8 @@ const AdminCommissionsPage = () => {
               </div>
             </div>
             <p className="text-sm text-secondary-500">Freigegeben</p>
-            <p className="text-xl font-bold text-secondary-700">{formatCurrency((totals.total_released || 0) * 1.20)}</p>
-            <p className="text-xs text-gray-400 mt-1">Netto: {formatCurrency(totals.total_released || 0)} + 20% USt.</p>
+            <p className="text-xl font-bold text-secondary-700">{formatCurrency(totals.total_released || 0)}</p>
+            <p className="text-xs text-gray-400 mt-1">Netto (VAT added per partner country on payout)</p>
           </div>
           <div className="bg-white rounded-xl p-4 border border-gray-100">
             <div className="flex items-center gap-3 mb-2">
@@ -295,8 +295,8 @@ const AdminCommissionsPage = () => {
               </div>
             </div>
             <p className="text-sm text-secondary-500">Ausgezahlt</p>
-            <p className="text-xl font-bold text-secondary-700">{formatCurrency((totals.total_paid || 0) * 1.20)}</p>
-            <p className="text-xs text-gray-400 mt-1">Netto: {formatCurrency(totals.total_paid || 0)} + 20% USt.</p>
+            <p className="text-xl font-bold text-secondary-700">{formatCurrency(totals.total_paid || 0)}</p>
+            <p className="text-xs text-gray-400 mt-1">Netto (VAT added per partner country on payout)</p>
           </div>
           <div className="bg-white rounded-xl p-4 border border-gray-100">
             <div className="flex items-center gap-3 mb-2">

@@ -57,4 +57,7 @@ router.put('/company', settingsController.updateCompanySettings);
 // Create admin account
 router.post('/create-admin', adminController.createAdmin);
 
+// One-time historical data fix (safe to run multiple times)
+router.post('/fix-historical-commissions', adminController.fixHistoricalCommissions);
+
 export default router;

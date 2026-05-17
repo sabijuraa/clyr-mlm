@@ -155,10 +155,10 @@ const PayoutsPage = () => {
                   return (
                     <tr key={p.id || idx} className="hover:bg-gray-50">
                       <td className="py-3 text-secondary-700">
-                        {new Date(p.created_at || p.createdAt).toLocaleDateString('de-DE')}
+                        {new Date(p.completed_at || p.created_at || p.createdAt).toLocaleDateString('de-DE')}
                       </td>
                       <td className="py-3 font-semibold text-secondary-700">
-                        {formatCurrency(parseFloat(p.amount || p.total_amount || 0))}
+                        {formatCurrency(parseFloat(p.gross_amount || p.amount || p.net_amount || p.total_amount || 0))}
                       </td>
                       <td className="py-3">
                         <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${status.color}`}>

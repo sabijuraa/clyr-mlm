@@ -89,7 +89,7 @@ const INVOICEABLE_ORDER_WHERE = `
   o.status NOT IN ('cancelled', 'refunded', 'disputed')
   AND (
     o.payment_status IN ('paid', 'partially_refunded')
-    OR o.status IN ('processing', 'shipped', 'delivered', 'completed')
+    OR o.status IN ('processing', 'shipped', 'delivered', 'completed', 'pending')
   )
 `;
 
@@ -358,19 +358,23 @@ class InvoiceService {
     const labelYear  = parseInt(labelParts[1]) || now.getFullYear();
     const yr         = labelYear;
     // Payout date = 1st of the month FOLLOWING the period
-    // (March commissions → paid 1st April)
-    const payoutDate = new Date(yr, labelMonth, 1); // labelMonth is 1-indexed, so this gives 1st of next month
+    // (April commissions → paid out 1st May)
+    const payoutDate = new Date(yr, labelMonth, 1); // labelMonth is 1-indexed -> 1st of next month
     let stmtNr = payoutRecord?.statement_number;
     if (!stmtNr) {
       const sequenceDate = payoutRecord?.created_at ? new Date(payoutRecord.created_at) : payoutDate;
+      const seqYear = sequenceDate.getFullYear();
       const seqResult = await pool.query(
         `SELECT COUNT(*)::int + 1 as seq
-         FROM payouts
-         WHERE created_at >= date_trunc('year', $1::timestamp)
-           AND created_at < $1::timestamp`,
+         FROM payouts p
+         JOIN users u ON u.id = p.user_id
+         WHERE p.created_at >= date_trunc('year', $1::timestamp)
+           AND p.created_at <= $1::timestamp
+           AND p.status NOT IN ('cancelled')
+           AND LOWER(u.email) <> 'technik@clyr.shop'`,
         [sequenceDate]
       ).catch(() => ({ rows: [{ seq: 1 }] }));
-      stmtNr = `PG-${sequenceDate.getFullYear()}-${String(seqResult.rows[0]?.seq || 1).padStart(3, '0')}`;
+      stmtNr = `PG-${seqYear}-${String(seqResult.rows[0]?.seq || 1).padStart(3, '0')}`;
     }
 
     const netTotal = commissions.reduce((s, c) => s + parseFloat(c.amount || 0), 0);
@@ -443,7 +447,7 @@ class InvoiceService {
         const cols = { date:50, order:112, type:200, basis:340, rate:415, amt:455 };
         doc.font('Helvetica-Bold').fontSize(8).fillColor(COLORS.primary);
         doc.text('Datum',             cols.date,  y, { width: 60 });
-        doc.text('Bestellung',        cols.order, y, { width: 86 });
+        doc.text('Kunde',             cols.order, y, { width: 86 });
         doc.text('Art der Provision', cols.type,  y, { width: 138 });
         doc.text('Basis (€)',         cols.basis, y, { width: 73, align: 'right' });
         doc.text('Satz',              cols.rate,  y, { width: 38, align: 'right' });
@@ -460,7 +464,12 @@ class InvoiceService {
           const basis = comm.base_amount ? parseFloat(comm.base_amount).toFixed(2) : (comm.order_total ? parseFloat(comm.order_total).toFixed(2) : '—');
           const rate  = comm.rate ? `${parseFloat(comm.rate).toFixed(0)}%` : comm.type === 'difference' ? '—' : '—';
           doc.text(new Date(comm.order_date || comm.created_at).toLocaleDateString('de-DE'), cols.date,  y, { width: 60 });
-          doc.text(comm.customer_name || comm.order_number || '—',          cols.order, y, { width: 86 });
+          // Show customer name in the Bestellung column (not order number)
+          const customerDisplay = comm.customer_name ||
+            (comm.customer_first_name && comm.customer_last_name
+              ? `${comm.customer_first_name} ${comm.customer_last_name}`.trim()
+              : comm.order_number || '—');
+          doc.text(customerDisplay, cols.order, y, { width: 86 });
           doc.text(typeLabels[comm.type] || comm.type,                     cols.type,  y, { width: 138 });
           doc.text(basis,                                                   cols.basis, y, { width: 73, align: 'right' });
           doc.text(rate,                                                    cols.rate,  y, { width: 38, align: 'right' });

@@ -1007,6 +1007,8 @@ export const getInvoices = asyncHandler(async (req, res) => {
 
   if (type === 'commission') {
     // Commission invoices from payouts table
+    // Only show payouts that have at least one commission actually marked as 'paid' linked to them.
+    // This prevents showing payouts from buggy orders where commissions were not legitimately earned.
     const payoutsRes = await query(
       `SELECT p.*, 
               u.email as partner_email, u.first_name, u.last_name,
@@ -1016,9 +1018,15 @@ export const getInvoices = asyncHandler(async (req, res) => {
               p.gross_amount as total_amount
        FROM payouts p
        JOIN users u ON p.user_id = u.id
-       WHERE p.status <> 'cancelled'
+       WHERE p.status NOT IN ('cancelled', 'pending')
          AND COALESCE(p.gross_amount, p.net_amount, 0) > 0
          AND LOWER(u.email) <> 'technik@clyr.shop'
+         AND EXISTS (
+           SELECT 1 FROM commissions c
+           WHERE c.payout_id = p.id
+             AND c.status = 'paid'
+             AND c.type <> 'bonus_pool'
+         )
        ORDER BY p.created_at DESC
        LIMIT $1 OFFSET $2`,
       [parseInt(limit), offset]
@@ -1027,7 +1035,7 @@ export const getInvoices = asyncHandler(async (req, res) => {
       ...p,
       type: 'commission',
       partner_name: `${p.first_name} ${p.last_name}`,
-      invoice_number: `PG-${new Date(p.created_at).getFullYear()}-${String(new Date(p.created_at).getMonth()+1).padStart(2,'0')}-${p.id.slice(0,8).toUpperCase()}`,
+      invoice_number: p.statement_number || `PG-${new Date(p.created_at).getFullYear()}-${String(new Date(p.created_at).getMonth()+1).padStart(2,'0')}-${p.id.slice(0,8).toUpperCase()}`,
     }));
     
     invoices = commInvoices;
@@ -1035,9 +1043,15 @@ export const getInvoices = asyncHandler(async (req, res) => {
       SELECT COUNT(*)
       FROM payouts p
       JOIN users u ON p.user_id = u.id
-      WHERE p.status <> 'cancelled'
+      WHERE p.status NOT IN ('cancelled', 'pending')
         AND COALESCE(p.gross_amount, p.net_amount, 0) > 0
         AND LOWER(u.email) <> 'technik@clyr.shop'
+        AND EXISTS (
+          SELECT 1 FROM commissions c
+          WHERE c.payout_id = p.id
+            AND c.status = 'paid'
+            AND c.type <> 'bonus_pool'
+        )
     `);
     total = parseInt(countRes.rows[0].count);
   }
@@ -1474,4 +1488,211 @@ export const getCustomerDetails = asyncHandler(async (req, res) => {
     orders: ordersResult.rows,
     stats,
   });
+});
+
+/**
+ * ONE-TIME DATA FIX: Correct historical commission and payout records
+ * - Cancels Baumeister's incorrectly created commission (order had a bug, he earned nothing)
+ * - Creates the real May 1st 2026 payout record for Theresa Struger (€1333.38, completed)
+ * - Links Franke + Baumeister order commissions to that payout as status='paid'
+ * - Leaves June commissions (Piber, Kandlhofer, Weixler, Kittl, Reischl, Trauner, Petritsch) as 'released'
+ */
+export const fixHistoricalCommissions = asyncHandler(async (req, res) => {
+  const { transaction: runTransaction } = await import('../config/database.js');
+
+  const log = [];
+
+  await runTransaction(async (client) => {
+
+    // ── STEP 1: Find Theresa Struger (the affiliate, NOT the admin) ──
+    const theresaResult = await client.query(
+      `SELECT u.id, u.email, u.first_name, u.last_name, u.country, u.vat_id, u.iban, u.bic, u.wallet_balance
+       FROM users u
+       WHERE u.role = 'partner'
+         AND LOWER(u.first_name) LIKE '%theresa%'
+         AND LOWER(u.last_name) LIKE '%struger%'
+       LIMIT 1`
+    );
+
+    if (theresaResult.rows.length === 0) {
+      throw new Error('Theresa Struger (partner) not found. Check name spelling in DB.');
+    }
+    const theresa = theresaResult.rows[0];
+    log.push(`Found Theresa Struger: ${theresa.email} (id: ${theresa.id})`);
+
+    // ── STEP 2: Cancel Baumeister's OWN incorrectly created commission ──
+    // Baumeister's order had a bug — he earned no commission himself
+    // Find commission rows where user_id = Baumeister AND order is Baumeister's own order
+    const baumeisterUserResult = await client.query(
+      `SELECT u.id, u.email FROM users u
+       WHERE u.role = 'partner'
+         AND LOWER(u.last_name) LIKE '%baumeister%'
+       LIMIT 1`
+    );
+
+    if (baumeisterUserResult.rows.length > 0) {
+      const baumeister = baumeisterUserResult.rows[0];
+
+      // Cancel commissions where Baumeister earns FROM his own order (direct commission on his own purchase)
+      const cancelResult = await client.query(
+        `UPDATE commissions c
+         SET status = 'cancelled',
+             cancelled_at = CURRENT_TIMESTAMP,
+             description = COALESCE(description, '') || ' (cancelled: order bug - partner earned no commission)'
+         FROM orders o
+         WHERE c.order_id = o.id
+           AND c.user_id = $1
+           AND o.partner_id = $1
+           AND c.status NOT IN ('cancelled', 'reversed', 'paid')
+         RETURNING c.id`,
+        [baumeister.id]
+      );
+      log.push(`Cancelled ${cancelResult.rows.length} incorrect Baumeister self-commission(s)`);
+
+      // Recalculate Baumeister's wallet balance
+      await client.query(
+        `UPDATE users SET wallet_balance = COALESCE((
+           SELECT SUM(c.amount) FROM commissions c
+           WHERE c.user_id = $1
+             AND c.status = 'released'
+             AND c.type <> 'bonus_pool'
+         ), 0) WHERE id = $1`,
+        [baumeister.id]
+      );
+    }
+
+    // ── STEP 3: Find commissions from Franke + Baumeister orders that Theresa earned ──
+    const theresaAprilCommissions = await client.query(
+      `SELECT c.id, c.amount, c.status, c.payout_id, o.order_number,
+              o.customer_first_name, o.customer_last_name
+       FROM commissions c
+       JOIN orders o ON o.id = c.order_id
+       WHERE c.user_id = $1
+         AND c.status IN ('released', 'paid')
+         AND c.type NOT IN ('bonus_pool', 'cancelled')
+         AND (
+           LOWER(o.customer_last_name) IN ('franke', 'baumeister')
+           OR LOWER(o.customer_first_name || ' ' || o.customer_last_name) IN ('franke', 'baumeister')
+         )
+       ORDER BY o.created_at ASC`,
+      [theresa.id]
+    );
+
+    log.push(`Found ${theresaAprilCommissions.rows.length} April commission(s) for Theresa (Franke + Baumeister orders)`);
+
+    // If already paid and linked to a payout, skip
+    const alreadyPaid = theresaAprilCommissions.rows.filter(c => c.status === 'paid' && c.payout_id);
+    if (alreadyPaid.length > 0) {
+      log.push('April commissions already linked to a payout — skipping payout creation');
+    } else {
+      // ── STEP 4: Create the historical May 1st payout record ──
+      const NET_AMOUNT = 1111.15; // €1333.38 gross / 1.20 = net (AT 20% VAT)
+      const VAT_AMOUNT = 222.23;
+      const GROSS_AMOUNT = 1333.38;
+      const PAYOUT_DATE = new Date('2026-05-01T00:00:00.000Z');
+
+      // Check if a payout record already exists for this date/amount
+      const existingPayout = await client.query(
+        `SELECT id FROM payouts
+         WHERE user_id = $1
+           AND status = 'completed'
+           AND ABS(gross_amount - $2) < 1.00
+           AND completed_at >= '2026-05-01'
+           AND completed_at < '2026-05-03'
+         LIMIT 1`,
+        [theresa.id, GROSS_AMOUNT]
+      );
+
+      let payoutId;
+      if (existingPayout.rows.length > 0) {
+        payoutId = existingPayout.rows[0].id;
+        log.push(`Existing May payout found (id: ${payoutId}) — reusing`);
+      } else {
+        const payoutInsert = await client.query(
+          `INSERT INTO payouts (
+             user_id, net_amount, vat_amount, gross_amount,
+             method, iban, bic,
+             status, completed_at, created_at,
+             period_start, period_end,
+             reference, statement_number
+           ) VALUES ($1, $2, $3, $4, 'sepa', $5, $6, 'completed', $7, $7, '2026-04-01', '2026-04-30', 'PAYOUT-MAY2026-THERESA', 'PG-2026-001')
+           RETURNING id`,
+          [
+            theresa.id,
+            NET_AMOUNT,
+            VAT_AMOUNT,
+            GROSS_AMOUNT,
+            theresa.iban || '',
+            theresa.bic || '',
+            PAYOUT_DATE,
+          ]
+        );
+        payoutId = payoutInsert.rows[0].id;
+        log.push(`Created historical May 1st payout record (id: ${payoutId}, gross: €${GROSS_AMOUNT})`);
+      }
+
+      // ── STEP 5: Link Theresa's April commissions to the payout ──
+      if (theresaAprilCommissions.rows.length > 0) {
+        const commissionIds = theresaAprilCommissions.rows.map(c => c.id);
+        await client.query(
+          `UPDATE commissions
+           SET status = 'paid',
+               paid_at = '2026-05-01T00:00:00.000Z',
+               payout_id = $1
+           WHERE id = ANY($2)`,
+          [payoutId, commissionIds]
+        );
+        log.push(`Linked ${commissionIds.length} commission(s) to payout as 'paid'`);
+      } else {
+        // Fallback: find all of Theresa's released commissions from April orders
+        const aprilFallback = await client.query(
+          `SELECT c.id FROM commissions c
+           JOIN orders o ON o.id = c.order_id
+           WHERE c.user_id = $1
+             AND c.status = 'released'
+             AND o.created_at >= '2026-04-01'
+             AND o.created_at < '2026-05-01'
+             AND c.type <> 'bonus_pool'`,
+          [theresa.id]
+        );
+        if (aprilFallback.rows.length > 0) {
+          const ids = aprilFallback.rows.map(c => c.id);
+          await client.query(
+            `UPDATE commissions SET status = 'paid', paid_at = '2026-05-01T00:00:00.000Z', payout_id = $1
+             WHERE id = ANY($2)`,
+            [payoutId, ids]
+          );
+          log.push(`Fallback: linked ${ids.length} April commission(s) to payout`);
+        }
+      }
+
+      // ── STEP 6: Reset Theresa's wallet balance to only unpaid released commissions ──
+      await client.query(
+        `UPDATE users SET wallet_balance = COALESCE((
+           SELECT SUM(c.amount) FROM commissions c
+           WHERE c.user_id = $1
+             AND c.status = 'released'
+             AND c.type <> 'bonus_pool'
+         ), 0) WHERE id = $1`,
+        [theresa.id]
+      );
+      log.push(`Recalculated Theresa's wallet balance`);
+    }
+
+    // ── STEP 7: Confirm June commissions are visible (Piber, Kandlhofer, Weixler, Kittl, Reischl, Trauner, Petritsch) ──
+    const juneCommissions = await client.query(
+      `SELECT c.id, c.amount, c.status, o.customer_last_name
+       FROM commissions c
+       JOIN orders o ON o.id = c.order_id
+       WHERE c.user_id = $1
+         AND c.status = 'released'
+         AND c.type <> 'bonus_pool'
+       ORDER BY o.created_at ASC`,
+      [theresa.id]
+    );
+    log.push(`June commissions visible (released, not yet paid): ${juneCommissions.rows.length} row(s)`);
+    juneCommissions.rows.forEach(c => log.push(`  → ${c.customer_last_name}: €${c.amount} [${c.status}]`));
+  });
+
+  res.json({ success: true, log });
 });
