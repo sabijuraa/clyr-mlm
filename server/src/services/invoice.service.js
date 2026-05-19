@@ -1,4 +1,4 @@
-// server/src/services/invoice.service.js
+﻿// server/src/services/invoice.service.js
 // GROUP 4: Invoice & Commission Statement PDFs
 // #1: Customer invoices, #29: CLYR branding, #30: Provisionsgutschrift, #31: Download as PDF
 import PDFDocument from 'pdfkit';
@@ -1009,11 +1009,19 @@ export const generatePartnerFeeInvoicePDF = async (partner, amount, options = {}
   const company = await invoiceService.getCompanyInfo();
   const invoiceNumber = options.invoiceNumber || await invoiceService.getNextInvoiceNumber();
   const invoiceDate = toDate(options.invoiceDate || options.paidAt);
-  const vatRule = await calculateAffiliateFeeVatRule({
-    country: partner.country,
-    vatId: partner.vat_id,
-    date: invoiceDate,
-  });
+  const vatRateFromDB = options.vatRate != null ? parseFloat(options.vatRate) : null;
+  const vatTypeFromDB = options.vatType || null;
+  const vatRule = vatTypeFromDB
+    ? {
+        vatRate: vatRateFromDB ?? 0,
+        vatType: vatTypeFromDB,
+        vatNote: vatTypeFromDB === 'reverse_charge'
+          ? 'Gem. §19 UStg. Uebergang der Steuerschuld beim Leistungsempfaenger / Reverse Charge'
+          : vatTypeFromDB === 'standard' && vatRateFromDB === 20
+          ? 'Umsatzsteuerbefreit - Kleinunternehmer gem. � 6 Abs. 1 Z 27 UStG 1994'
+          : '',
+      }
+    : await calculateAffiliateFeeVatRule({ country: partner.country, vatId: partner.vat_id, date: invoiceDate });
   const totals = splitGrossAmount(amount, vatRule.vatRate);
 
   return new Promise((resolve, reject) => {
