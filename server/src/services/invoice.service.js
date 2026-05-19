@@ -181,7 +181,7 @@ class InvoiceService {
       invoiceNumber = await this.getNextInvoiceNumber();
       await pool.query('UPDATE orders SET invoice_number = $1, invoice_generated_at = CURRENT_TIMESTAMP WHERE id = $2', [invoiceNumber, order.id]).catch(() => {});
     }
-    const invoiceDate = order.invoice_generated_at || order.created_at || new Date();
+    const invoiceDate = order.created_at || order.invoice_generated_at || new Date();
 
     return new Promise((resolve, reject) => {
       try {
