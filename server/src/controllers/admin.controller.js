@@ -1321,6 +1321,8 @@ export const getFeePaymentInvoice = asyncHandler(async (req, res) => {
   const { buffer, invoiceNumber } = await generatePartnerFeeInvoicePDF(partner, parseFloat(payment.amount), {
     invoiceNumber: invoice.invoice_number,
     paidAt: payment.paid_at || payment.created_at,
+    vatType: invoice.vat_type,
+    vatRate: invoice.vat_rate,
   });
 
   res.setHeader('Content-Type', 'application/pdf');
