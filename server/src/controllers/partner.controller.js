@@ -122,25 +122,32 @@ export const getTeam = asyncHandler(async (req, res) => {
   const offset = (page - 1) * limit;
   const userId = req.user.id;
 
+  // FIX: Use separate param arrays for main query vs count query
+  // FIX: Status filter uses CTE alias 't' not 'u' in recursive query
+  // FIX: Direct count queried separately so it's always accurate
+  const baseParams = [userId];
+  const statusParams = status ? [userId, status] : [userId];
+
   let teamQuery;
   let countQuery;
-  const params = [userId];
 
   if (level === 'direct' || level === '1') {
-    // Direct team only
     teamQuery = `
       SELECT u.id, u.first_name, u.last_name, u.email, u.phone, u.status, u.created_at,
              u.street, u.zip, u.city, u.country, u.birth_date, u.company, u.vat_id,
-             u.own_sales_count, u.direct_partners_count,
+             u.own_sales_count, u.direct_partners_count, 1 as level,
              r.name as rank_name, r.color as rank_color, r.commission_rate,
              (SELECT COALESCE(SUM(amount), 0) FROM commissions WHERE user_id = u.id AND status IN ('released', 'paid')) as total_earned
       FROM users u
       JOIN ranks r ON u.rank_id = r.id
       WHERE u.upline_id = $1
+      ${status ? 'AND u.status = $2' : ''}
+      ORDER BY u.created_at DESC
+      LIMIT $${status ? 3 : 2} OFFSET $${status ? 4 : 3}
     `;
-    countQuery = `SELECT COUNT(*) FROM users WHERE upline_id = $1`;
+    countQuery = `SELECT COUNT(*) FROM users WHERE upline_id = $1 ${status ? 'AND status = $2' : ''}`;
   } else {
-    // Full team tree
+    // Full recursive team — status filter uses CTE alias 't'
     teamQuery = `
       WITH RECURSIVE team AS (
         SELECT id, first_name, last_name, email, phone, status, created_at,
@@ -155,56 +162,75 @@ export const getTeam = asyncHandler(async (req, res) => {
         WHERE t.level < 10
       )
       SELECT t.*, r.name as rank_name, r.color as rank_color, r.commission_rate,
-             (SELECT COALESCE(SUM(amount), 0) FROM commissions WHERE user_id = t.id AND status IN ('released', 'paid')) as total_earned
+             (SELECT COALESCE(SUM(c.amount), 0) FROM commissions c WHERE c.user_id = t.id AND c.status IN ('released', 'paid')) as total_earned
       FROM team t
       JOIN ranks r ON t.rank_id = r.id
+      ${status ? 'WHERE t.status = $2' : ''}
+      ORDER BY t.created_at DESC
+      LIMIT $${status ? 3 : 2} OFFSET $${status ? 4 : 3}
     `;
     countQuery = `
       WITH RECURSIVE team AS (
-        SELECT id FROM users WHERE upline_id = $1
+        SELECT id, status FROM users WHERE upline_id = $1
         UNION ALL
-        SELECT u.id FROM users u JOIN team t ON u.upline_id = t.id
+        SELECT u.id, u.status FROM users u JOIN team t ON u.upline_id = t.id
       )
-      SELECT COUNT(*) FROM team
+      SELECT COUNT(*) FROM team ${status ? 'WHERE status = $2' : ''}
     `;
   }
 
-  // Add status filter
-  if (status) {
-    teamQuery += ` AND u.status = $${params.length + 1}`;
-    countQuery += ` AND status = $${params.length + 1}`;
-    params.push(status);
-  }
+  // Separate direct count query — always accurate regardless of level filter
+  const directCountResult = await query(
+    `SELECT COUNT(*) FROM users WHERE upline_id = $1`,
+    baseParams
+  );
 
-  // Add ordering and pagination
-  teamQuery += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-  params.push(parseInt(limit), offset);
+  const paginationParams = status
+    ? [userId, status, parseInt(limit), offset]
+    : [userId, parseInt(limit), offset];
 
   const [teamResult, countResult] = await Promise.all([
-    query(teamQuery, params),
-    query(countQuery, params.slice(0, status ? 2 : 1))
+    query(teamQuery, paginationParams),
+    query(countQuery, statusParams)
   ]);
 
   const members = teamResult.rows;
-  const directCount = members.filter(m => m.level === 1).length;
+  const directCount = parseInt(directCountResult.rows[0].count) || 0;
+  const totalCount = parseInt(countResult.rows[0].count) || 0;
   const activeCount = members.filter(m => m.status === 'active').length;
+
+  // For accurate active/inactive totals across full team
+  const activeCountResult = await query(
+    `WITH RECURSIVE team AS (
+       SELECT id, status FROM users WHERE upline_id = $1
+       UNION ALL
+       SELECT u.id, u.status FROM users u JOIN team t ON u.upline_id = t.id
+     )
+     SELECT
+       COUNT(*) FILTER (WHERE status = 'active') as active_count,
+       COUNT(*) FILTER (WHERE status != 'active') as inactive_count
+     FROM team`,
+    baseParams
+  );
+  const totalActive = parseInt(activeCountResult.rows[0]?.active_count) || 0;
+  const totalInactive = parseInt(activeCountResult.rows[0]?.inactive_count) || 0;
 
   res.json({
     team: members,
     members,
     stats: {
       directPartners: directCount,
-      totalTeam: parseInt(countResult.rows[0].count),
-      activePartners: activeCount,
-      inactivePartners: parseInt(countResult.rows[0].count) - activeCount
+      totalTeam: totalCount,
+      activePartners: totalActive,
+      inactivePartners: totalInactive
     },
     directCount,
-    totalCount: parseInt(countResult.rows[0].count),
+    totalCount,
     pagination: {
       page: parseInt(page),
       limit: parseInt(limit),
-      total: parseInt(countResult.rows[0].count),
-      totalPages: Math.ceil(parseInt(countResult.rows[0].count) / limit)
+      total: totalCount,
+      totalPages: Math.ceil(totalCount / parseInt(limit))
     }
   });
 });
