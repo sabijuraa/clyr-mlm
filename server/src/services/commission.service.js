@@ -221,13 +221,21 @@ export const calculateCommissions = async (client, orderId, partnerId, orderSubt
 
 // ============================================
 // DIFFERENCE COMMISSION CALCULATION
+//
+// CHAIN RULES (confirmed with Theresa, Jun 2026):
+// - Chain ALWAYS walks upward regardless of active/inactive status
+// - Inactive upline = skipped (receives €0), chain NEVER stops
+// - €50 flat bonus = ONLY for machine purchases (orderSubtotal >= 2500 net)
 // ============================================
+const MACHINE_PURCHASE_THRESHOLD = 2500;
+
 const calculateDifferenceCommissions = async (client, orderId, partnerId, sellerRate, orderSubtotal, heldUntil) => {
   let currentUserId = partnerId;
   let previousRate = sellerRate;
   let depth = 0;
   const maxDepth = 10;
   const commissions = [];
+  const isMachinePurchase = orderSubtotal >= MACHINE_PURCHASE_THRESHOLD;
 
   while (depth < maxDepth) {
     // Get upline
@@ -243,6 +251,7 @@ const calculateDifferenceCommissions = async (client, orderId, partnerId, seller
     if (uplineResult.rows.length === 0) break;
 
     const upline = uplineResult.rows[0];
+    // Blocked users — skip but continue chain upward
     if (isCommissionBlockedUser(upline)) {
       currentUserId = upline.id;
       depth++;
@@ -273,20 +282,20 @@ const calculateDifferenceCommissions = async (client, orderId, partnerId, seller
         // Update previousRate to this upline's rate for next iteration
         previousRate = upline.commission_rate;
       }
-    } else if (isActive && upline.commission_rate === previousRate && depth === 0) {
-      // SAME RANK RULE: Direct upline (1st line), active, same rank → flat €50 bonus
+    } else if (isActive && upline.commission_rate === previousRate && depth === 0 && isMachinePurchase) {
+      // MACHINE BONUS: ONLY triggered by machine purchase (~€3,000), direct upline, active, same rank
       const result = await client.query(
         `INSERT INTO commissions (user_id, order_id, type, amount, rate, base_amount, source_user_id, status, held_until, description)
          VALUES ($1, $2, 'difference', 50, 0, $3, $4, 'held', $5, $6)
          RETURNING *`,
         [upline.id, orderId, orderSubtotal, partnerId, heldUntil,
-         `Gleicher-Rang Bonus (direkter Partner, €50 Pauschale)`]
+         `Maschinen-Bonus (direkter Partner, €50 Pauschale bei Maschinenverkauf)`]
       );
       commissions.push(result.rows[0]);
-      previousRate = upline.commission_rate; // advance so we don't double-pay above
+      previousRate = upline.commission_rate;
     }
-    // If upline is INACTIVE → they get €0, DO NOT update previousRate
-    // This means the next active upline above gets the full difference
+    // INACTIVE upline → gets €0, previousRate NOT updated so next active upline
+    // gets the full accumulated difference. Chain CONTINUES UPWARD (never stops).
 
     currentUserId = upline.id;
     depth++;

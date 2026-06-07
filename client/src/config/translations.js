@@ -115,7 +115,11 @@ const translations = {
         contract: 'Vertrag'
       },
       teamTree: {
-        title: 'Team-Hierarchie'
+        title: 'Team-Hierarchie',
+        directPartners: 'Direkte Partner',
+        totalTeam: 'Gesamt Team',
+        active: 'Aktive Partner',
+        inactive: 'Inaktive Partner'
       },
       referral: {
         title: 'Ihre Empfehlungslinks',
@@ -285,7 +289,11 @@ const translations = {
         contract: 'Contract'
       },
       teamTree: {
-        title: 'Team Hierarchy'
+        title: 'Team Hierarchy',
+        directPartners: 'Direct Partners',
+        totalTeam: 'Total Team',
+        active: 'Active Partners',
+        inactive: 'Inactive Partners'
       },
       referral: {
         title: 'Your Referral Links',

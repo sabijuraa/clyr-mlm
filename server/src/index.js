@@ -441,9 +441,32 @@ cron.schedule('0 2 1 * *', async () => {
 // If any partner fails → commissions stay 'released' → retried next month
 // ─────────────────────────────────────────────────────────────
 cron.schedule('0 3 1 * *', async () => {
+  // IDEMPOTENCY LOCK: prevent double-run if server restarts during payout window
+  const now = new Date();
+  const cycleKey = `payout_cycle_${now.getFullYear()}_${now.getMonth() + 1}`;
+  try {
+    const { query: dbQ } = await import('./config/database.js');
+    const lockCheck = await dbQ(
+      `SELECT id FROM activity_log WHERE action = 'payout_cycle_started' AND details->>'cycleKey' = $1 LIMIT 1`,
+      [cycleKey]
+    );
+    if (lockCheck.rows.length > 0) {
+      console.log(`[PAYOUT CRON] ⚠️  Skipped — cycle ${cycleKey} already ran this month`);
+      return;
+    }
+    // Record cycle start as idempotency lock
+    await dbQ(
+      `INSERT INTO activity_log (action, entity_type, details) VALUES ('payout_cycle_started', 'system', $1)`,
+      [JSON.stringify({ cycleKey, startedAt: now.toISOString() })]
+    );
+  } catch (lockErr) {
+    console.error('[PAYOUT CRON] Lock check failed, proceeding with caution:', lockErr.message);
+  }
+
   console.log('========================================');
   console.log('⏰ AUTOMATIC PAYOUT CYCLE - 1st of month');
-  console.log(`   Time: ${new Date().toISOString()}`);
+  console.log(`   Time: ${now.toISOString()}`);
+  console.log(`   CycleKey: ${cycleKey}`);
   console.log('========================================');
   try {
     // Step 1: Release any held commissions that are overdue (safety net)
