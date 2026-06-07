@@ -131,6 +131,7 @@ export const runStripePayouts = async () => {
         COUNT(c.id) as commission_count
       FROM users u
       JOIN commissions c ON c.user_id = u.id AND c.status = 'released' AND c.type <> 'bonus_pool'
+        AND (c.held_until IS NULL OR c.held_until < NOW() - INTERVAL '1 hour')
       WHERE u.role IN ('partner', 'admin')
         AND u.status = 'active'
         AND LOWER(u.email) <> 'technik@clyr.shop'
@@ -361,6 +362,7 @@ export const runStripePayouts = async () => {
             SET status = 'paid', paid_at = CURRENT_TIMESTAMP
                 ${payoutId ? `, payout_id = '${payoutId}'` : ''}
             WHERE user_id = $1 AND status = 'released' AND type <> 'bonus_pool'
+              AND (held_until IS NULL OR held_until < NOW() - INTERVAL '1 hour')
             RETURNING id
           `, [p.id]);
           L(`  Marked ${updateResult.rowCount} commissions as paid`);
