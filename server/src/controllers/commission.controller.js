@@ -165,22 +165,70 @@ export const getStatement = asyncHandler(async (req, res) => {
   const startDate = new Date(year, month - 1, 1);
   const endDate = new Date(year, month, 0, 23, 59, 59);
 
-  const commissionsResult = await query(
-    `SELECT c.*, o.order_number, o.subtotal as order_total, o.created_at as order_date,
-            NULLIF(TRIM(CONCAT(COALESCE(o.customer_first_name, ''), ' ', COALESCE(o.customer_last_name, ''))), '') as customer_name
-     FROM commissions c
-     LEFT JOIN orders o ON c.order_id = o.id
-     WHERE c.user_id = $1 
-     AND c.status IN ('held', 'released', 'paid', 'pending')
-     AND c.type <> 'bonus_pool'
-     AND (
-       (o.created_at >= $2 AND o.created_at <= $3)
-       OR (o.created_at IS NULL AND c.created_at >= $2 AND c.created_at <= $3)
-     )
-     ORDER BY COALESCE(o.created_at, c.created_at) ASC`,
-    [userId, startDate, endDate]
+  // First: look for a completed payout for this period.
+  // A completed payout was triggered on the 1st of the FOLLOWING month,
+  // so we search by created_at in (month+1) as well as period_start/end fields.
+  const payoutRes2 = await query(
+    `SELECT *
+     FROM payouts
+     WHERE user_id = $1
+       AND status = 'completed'
+       AND (
+         (period_start <= $3 AND period_end >= $2)
+         OR (period_start IS NULL AND period_end IS NULL
+             AND created_at >= $4 AND created_at <= $5)
+       )
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [
+      userId,
+      startDate,
+      endDate,
+      new Date(year, month, 1),          // 1st of following month
+      new Date(year, month + 1, 0, 23, 59, 59) // end of following month
+    ]
   );
-  console.log('[STATEMENT] Found', commissionsResult.rows.length, 'total commissions for partner');
+
+  const completedPayout = payoutRes2.rows[0] || null;
+
+  let commissionsResult;
+  if (completedPayout) {
+    // CORRECT PATH: pull exactly the commissions that were paid in this payout.
+    // This avoids including future held/released commissions whose orders
+    // happen to fall in the same calendar month.
+    console.log('[STATEMENT] Found completed payout', completedPayout.id, '— using payout_id filter');
+    commissionsResult = await query(
+      `SELECT c.*, o.order_number, o.subtotal as order_total, o.created_at as order_date,
+              NULLIF(TRIM(CONCAT(COALESCE(o.customer_first_name, ''), ' ', COALESCE(o.customer_last_name, ''))), '') as customer_name
+       FROM commissions c
+       LEFT JOIN orders o ON c.order_id = o.id
+       WHERE c.payout_id = $1
+         AND c.type <> 'bonus_pool'
+       ORDER BY COALESCE(o.created_at, c.created_at) ASC`,
+      [completedPayout.id]
+    );
+  } else {
+    // FALLBACK: no completed payout yet — show all commissions in the period
+    // (useful for the current/future month preview).
+    console.log('[STATEMENT] No completed payout found — using order-date range filter');
+    commissionsResult = await query(
+      `SELECT c.*, o.order_number, o.subtotal as order_total, o.created_at as order_date,
+              NULLIF(TRIM(CONCAT(COALESCE(o.customer_first_name, ''), ' ', COALESCE(o.customer_last_name, ''))), '') as customer_name
+       FROM commissions c
+       LEFT JOIN orders o ON c.order_id = o.id
+       WHERE c.user_id = $1
+         AND c.status IN ('held', 'released', 'paid', 'pending')
+         AND c.type <> 'bonus_pool'
+         AND (
+           (o.created_at >= $2 AND o.created_at <= $3)
+           OR (o.created_at IS NULL AND c.created_at >= $2 AND c.created_at <= $3)
+         )
+       ORDER BY COALESCE(o.created_at, c.created_at) ASC`,
+      [userId, startDate, endDate]
+    );
+  }
+
+  console.log('[STATEMENT] Found', commissionsResult.rows.length, 'commissions for statement');
 
   const finalCommissions = commissionsResult.rows;
 
@@ -195,27 +243,6 @@ export const getStatement = asyncHandler(async (req, res) => {
   );
 
   const periodFormatted = new Date(year, month - 1).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
-  console.log('[STATEMENT] Period resolved from request param:', periodFormatted);
-
-  const payoutRes2 = await query(
-    `SELECT *
-     FROM payouts
-     WHERE user_id = $1
-       AND status <> 'cancelled'
-       AND (
-         (period_start <= $3 AND period_end >= $2)
-         OR (period_start IS NULL AND period_end IS NULL AND created_at >= $4 AND created_at <= $5)
-       )
-     ORDER BY created_at DESC
-     LIMIT 1`,
-    [
-      userId,
-      startDate,
-      endDate,
-      new Date(year, month, 1),
-      new Date(year, month + 1, 0, 23, 59, 59)
-    ]
-  );
   console.log('[STATEMENT] Generating PDF for', userResult.rows[0].email, 'period:', periodFormatted, 'commissions:', finalCommissions.length);
   let pdfBuffer;
   try {
