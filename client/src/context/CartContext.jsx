@@ -2,6 +2,12 @@ import { createContext, useContext, useState, useEffect, useCallback, useMemo } 
 import appConfig, { calculateShipping, calculateVAT, formatCurrency } from '../config/app.config';
 import { referralAPI } from '../services/api';
 
+// EU countries eligible for Reverse Charge (excludes AT = home country)
+const EU_RC_COUNTRIES = new Set([
+  'BE','BG','CY','CZ','DE','DK','EE','EL','ES','FI','FR','HR',
+  'HU','IE','IT','LT','LU','LV','MT','NL','PL','PT','RO','SE','SI','SK'
+]);
+
 const CartContext = createContext(null);
 
 export const useCart = () => {
@@ -114,15 +120,16 @@ export const CartProvider = ({ children }) => {
   }, [subtotal, shipping, vat]);
 
   // VAT rate for display
+  // - Any EU country (not AT) with VAT ID → Reverse Charge (0%)
+  // - Otherwise use country-specific rate from config
   const vatRate = useMemo(() => {
-    if (country === 'DE' && hasVatId) return 0;
-    if (new Date() < new Date('2026-07-01T00:00:00.000Z')) return 0.20;
+    if (EU_RC_COUNTRIES.has(country) && hasVatId) return 0;
     return appConfig.countries[country]?.vatRate || 0.20;
   }, [country, hasVatId]);
 
-  // Is reverse charge applicable
+  // Is reverse charge applicable: any EU country except AT, with VAT ID
   const isReverseCharge = useMemo(() => {
-    return country === 'DE' && hasVatId;
+    return EU_RC_COUNTRIES.has(country) && hasVatId;
   }, [country, hasVatId]);
 
   // Formatted totals for display

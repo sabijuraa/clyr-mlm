@@ -672,10 +672,16 @@ export const downloadCommissionZip = asyncHandler(async (req, res) => {
     'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
   ];
 
-  // Get all active affiliates who had commissions in this period
   const period = `${y}-${String(m).padStart(2, '0')}`;
+  const startDate = new Date(y, m - 1, 1);
+  const endDate = new Date(y, m, 0, 23, 59, 59);
+
+  // Get all active affiliates who had commissions in this period
   const affiliatesResult = await query(
-    `SELECT DISTINCT u.id, u.first_name, u.last_name, u.email
+    `SELECT DISTINCT u.id, u.first_name, u.last_name, u.email,
+            u.company, u.street, u.zip, u.city, u.country,
+            u.vat_id, u.iban, u.bic, u.bank_name, u.account_holder,
+            u.is_kleinunternehmer, u.rank_id
      FROM users u
      INNER JOIN commissions c ON c.user_id = u.id
      WHERE TO_CHAR(c.created_at, 'YYYY-MM') = $1
@@ -689,7 +695,7 @@ export const downloadCommissionZip = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: `Keine Provisionsabrechnungen für ${MONTH_NAMES_DE[m]} ${y} gefunden.` });
   }
 
-  // Dynamically import archiver (bundled with most Node installs via npm)
+  // Dynamically import archiver
   let archiver;
   try {
     const archiverModule = await import('archiver');
@@ -709,16 +715,67 @@ export const downloadCommissionZip = asyncHandler(async (req, res) => {
 
   // Date string for filenames: 01062026 (first of the requested month)
   const dateStr = `01${String(m).padStart(2, '0')}${y}`;
+  const periodFormatted = new Date(y, m - 1).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
 
   for (const affiliate of affiliatesResult.rows) {
     try {
-      const pdfBuffer = await generateCommissionStatement(affiliate.id, period);
-      const lastName = (affiliate.last_name || affiliate.email || affiliate.id)
+      // Fetch this affiliate's commissions for the period
+      const commissionsResult = await query(
+        `SELECT c.*, o.order_number, o.subtotal as order_total, o.created_at as order_date,
+                NULLIF(TRIM(CONCAT(COALESCE(o.customer_first_name, ''), ' ', COALESCE(o.customer_last_name, ''))), '') as customer_name
+         FROM commissions c
+         LEFT JOIN orders o ON c.order_id = o.id
+         WHERE c.user_id = $1
+           AND c.type <> 'bonus_pool'
+           AND c.status NOT IN ('cancelled', 'reversed')
+           AND (
+             (o.created_at >= $2 AND o.created_at <= $3)
+             OR (o.created_at IS NULL AND c.created_at >= $2 AND c.created_at <= $3)
+           )
+         ORDER BY COALESCE(o.created_at, c.created_at) ASC`,
+        [affiliate.id, startDate, endDate]
+      );
+
+      if (commissionsResult.rows.length === 0) {
+        console.log(`[ZIP] Skipping ${affiliate.last_name} — no commissions in period`);
+        continue;
+      }
+
+      // Get payout record for this period if one exists
+      const payoutResult = await query(
+        `SELECT * FROM payouts
+         WHERE user_id = $1
+           AND status <> 'cancelled'
+           AND (
+             (period_start <= $3 AND period_end >= $2)
+             OR (period_start IS NULL AND period_end IS NULL
+                 AND created_at >= $4 AND created_at <= $5)
+           )
+         ORDER BY created_at DESC LIMIT 1`,
+        [
+          affiliate.id,
+          startDate,
+          endDate,
+          new Date(y, m, 1),
+          new Date(y, m + 1, 0, 23, 59, 59)
+        ]
+      );
+
+      // generateCommissionStatement expects (partnerObject, commissionsArray, periodLabel, payoutRecord)
+      const pdfBuffer = await generateCommissionStatement(
+        affiliate,
+        commissionsResult.rows,
+        periodFormatted,
+        payoutResult.rows[0] || null
+      );
+
+      const lastName = (affiliate.last_name || affiliate.email || String(affiliate.id))
         .replace(/[^a-zA-Z0-9]/g, '_');
       const filename = `${dateStr}_Commission_${lastName}.pdf`;
       archive.append(pdfBuffer, { name: filename });
+      console.log(`[ZIP] Added: ${filename}`);
     } catch (err) {
-      console.error(`Statement for affiliate ${affiliate.id} failed:`, err.message);
+      console.error(`[ZIP] Statement for affiliate ${affiliate.id} (${affiliate.last_name}) failed:`, err.message);
     }
   }
 

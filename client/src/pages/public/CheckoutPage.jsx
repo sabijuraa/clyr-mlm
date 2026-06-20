@@ -211,9 +211,11 @@ export default function CheckoutPage() {
   const shippingRates = {
     DE: { large: 70, small: 14.90 },
     AT: { large: 55, small: 9.90 },
-    CH: { large: 180, small: 35 }
+    CH: { large: 180, small: 35 },
+    IT: { large: 198, small: 198 },
+    DEFAULT_EU: { large: 198, small: 198 }
   };
-  const countryShipping = shippingRates[formData.country] || shippingRates.AT;
+  const countryShipping = shippingRates[formData.country] || shippingRates.DEFAULT_EU;
   const effectiveShipping = !hasPhysicalItem ? 0 : (hasLargeItem ? countryShipping.large : countryShipping.small);
   
   // EU countries eligible for reverse charge (not AT = home country)
@@ -479,7 +481,7 @@ export default function CheckoutPage() {
                         USt-IdNr. / UID-Nr. (optional)
                         {formData.vatId && (
                           <span className="text-xs text-green-600 ml-2">
-                            {formData.country === 'DE' ? 'Reverse Charge' : 'UID erfasst'}
+                            {isReverseCharge ? 'Reverse Charge' : 'UID erfasst'}
                           </span>
                         )}
                       </label>
@@ -489,7 +491,13 @@ export default function CheckoutPage() {
                         value={formData.vatId}
                         onChange={handleChange}
                         className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
-                        placeholder={formData.country === 'DE' ? 'DE123456789' : formData.country === 'AT' ? 'ATU12345678' : 'CHE-123.456.789'}
+                        placeholder={
+                          formData.country === 'DE' ? 'DE123456789' :
+                          formData.country === 'AT' ? 'ATU12345678' :
+                          formData.country === 'CH' ? 'CHE-123.456.789' :
+                          formData.country === 'IT' ? 'IT12345678901' :
+                          `${formData.country || 'XX'}123456789`
+                        }
                       />
                     </div>
                   </div>
@@ -796,7 +804,13 @@ export default function CheckoutPage() {
                   <span>{'\u20AC'}{effectiveSubtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Versand ({formData.country === 'DE' ? 'Deutschland' : formData.country === 'AT' ? 'Oesterreich' : 'Schweiz'})</span>
+                  <span>Versand ({
+                    formData.country === 'DE' ? 'Deutschland' :
+                    formData.country === 'AT' ? 'Österreich' :
+                    formData.country === 'CH' ? 'Schweiz' :
+                    formData.country === 'IT' ? 'Italien' :
+                    (formData.country || 'EU')
+                  })</span>
                   <span>{'\u20AC'}{effectiveShipping.toFixed(2)}</span>
                 </div>
                 {discountApplied && (
