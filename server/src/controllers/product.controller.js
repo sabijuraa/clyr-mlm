@@ -177,7 +177,25 @@ export const getProductBySlug = async (req, res) => {
     } catch (variantErr) {
       console.log('No variants or variant tables not set up:', variantErr.message);
     }
-    
+
+    // Load bundle components (for CLYR Sets) — shown as "included items", priced as one product
+    if (product.is_bundle) {
+      try {
+        const bundleResult = await pool.query(`
+          SELECT bi.product_id, bi.quantity, p.name, p.name_en, p.images, p.stock
+          FROM bundle_items bi
+          JOIN products p ON p.id = bi.product_id
+          WHERE bi.bundle_id = $1
+        `, [product.id]);
+        product.bundle_items = bundleResult.rows;
+        product.computed_bundle_stock = bundleResult.rows.length
+          ? Math.min(...bundleResult.rows.map(r => Math.floor((r.stock || 0) / (r.quantity || 1))))
+          : 0;
+      } catch (bundleErr) {
+        console.log('Bundle items load failed:', bundleErr.message);
+      }
+    }
+
     res.json(product);
   } catch (error) {
     console.error('Get product by slug error:', error);
@@ -224,7 +242,42 @@ export const getAllProductsAdmin = async (req, res) => {
       LEFT JOIN categories c ON p.category_id = c.id
       ORDER BY p.created_at DESC
     `);
-    res.json(result.rows);
+
+    const products = result.rows;
+    const bundleIds = products.filter(p => p.is_bundle).map(p => p.id);
+
+    if (bundleIds.length > 0) {
+      const bundleItemsResult = await pool.query(
+        `SELECT bi.bundle_id, bi.product_id, bi.quantity, p.name as product_name, p.stock as product_stock
+         FROM bundle_items bi
+         JOIN products p ON p.id = bi.product_id
+         WHERE bi.bundle_id = ANY($1::int[])`,
+        [bundleIds]
+      );
+
+      const itemsByBundle = {};
+      for (const row of bundleItemsResult.rows) {
+        if (!itemsByBundle[row.bundle_id]) itemsByBundle[row.bundle_id] = [];
+        itemsByBundle[row.bundle_id].push({
+          product_id: row.product_id,
+          quantity: row.quantity,
+          product_name: row.product_name,
+          product_stock: row.product_stock
+        });
+      }
+
+      for (const p of products) {
+        if (p.is_bundle) {
+          p.bundle_items = itemsByBundle[p.id] || [];
+          // Computed available stock = min(component_stock / qty) across components
+          p.computed_bundle_stock = p.bundle_items.length
+            ? Math.min(...p.bundle_items.map(bi => Math.floor((bi.product_stock || 0) / (bi.quantity || 1))))
+            : 0;
+        }
+      }
+    }
+
+    res.json(products);
   } catch (error) {
     console.error('Get all products admin error:', error);
     res.status(500).json({ error: 'Failed to fetch products' });
@@ -259,7 +312,9 @@ export const createProduct = async (req, res) => {
       price, original_price, cost_price,
       category_id, stock, sku,
       product_type, is_featured, is_new, is_active,
-      meta_title, meta_description
+      meta_title, meta_description,
+      partner_price, exclude_from_partner_discount,
+      is_bundle, bundle_items: bundleItemsRaw
     } = req.body;
 
     // Helper: parse FormData booleans
@@ -288,14 +343,17 @@ export const createProduct = async (req, res) => {
       req.files.forEach(f => images.push(`/images/products/${f.filename}`));
     }
 
+    const isBundleFlag = parseBool(is_bundle, false);
+
     const result = await pool.query(`
       INSERT INTO products (
         name, name_en, slug, sku, description, description_en, short_description,
         price, original_price, cost_price,
         category_id, product_type, stock, images,
         is_active, is_new, is_featured,
-        meta_title, meta_description
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+        meta_title, meta_description,
+        partner_price, exclude_from_partner_discount, is_bundle
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
       RETURNING *
     `, [
       name, name_en || null, slug, sku || null,
@@ -303,10 +361,26 @@ export const createProduct = async (req, res) => {
       parseNum(price), parseNum(original_price), parseNum(cost_price),
       parseNum(category_id), product_type || 'physical', parseNum(stock) || 0, JSON.stringify(images),
       parseBool(is_active, true), parseBool(is_new, false), parseBool(is_featured, false),
-      meta_title || name, meta_description || ''
+      meta_title || name, meta_description || '',
+      parseNum(partner_price), parseBool(exclude_from_partner_discount, false), isBundleFlag
     ]);
 
-    res.status(201).json(result.rows[0]);
+    const newProduct = result.rows[0];
+
+    // If bundle, save bundle_items
+    if (isBundleFlag && bundleItemsRaw) {
+      const items = typeof bundleItemsRaw === 'string' ? JSON.parse(bundleItemsRaw) : bundleItemsRaw;
+      if (Array.isArray(items)) {
+        for (const item of items) {
+          await pool.query(
+            'INSERT INTO bundle_items (bundle_id, product_id, quantity) VALUES ($1, $2, $3) ON CONFLICT (bundle_id, product_id) DO UPDATE SET quantity = $3',
+            [newProduct.id, item.product_id, item.quantity || 1]
+          );
+        }
+      }
+    }
+
+    res.status(201).json(newProduct);
   } catch (error) {
     console.error('Create product error:', error);
     res.status(500).json({ error: 'Failed to create product', details: error.message });
@@ -322,7 +396,9 @@ export const updateProduct = async (req, res) => {
       price, original_price, cost_price,
       category_id, stock, sku,
       product_type, is_featured, is_new, is_active,
-      meta_title, meta_description, sort_order
+      meta_title, meta_description, sort_order,
+      partner_price, exclude_from_partner_discount,
+      is_bundle, bundle_items: bundleItemsRaw
     } = req.body;
 
     const checkResult = await pool.query('SELECT * FROM products WHERE id = $1', [id]);
@@ -394,8 +470,11 @@ export const updateProduct = async (req, res) => {
         meta_title = COALESCE($17, meta_title),
         meta_description = COALESCE($18, meta_description),
         sort_order = $19,
+        partner_price = $20,
+        exclude_from_partner_discount = $21,
+        is_bundle = $22,
         updated_at = NOW()
-      WHERE id = $20
+      WHERE id = $23
       RETURNING *
     `, [
       name || null,
@@ -417,10 +496,30 @@ export const updateProduct = async (req, res) => {
       meta_title || null,
       meta_description || null,
       parseNum(sort_order),
+      parseNum(partner_price),
+      parseBool(exclude_from_partner_discount, existing.exclude_from_partner_discount || false),
+      parseBool(is_bundle, existing.is_bundle || false),
       id
     ]);
 
-    res.json(result.rows[0]);
+    const updatedProduct = result.rows[0];
+
+    // Update bundle_items if this is a bundle
+    if (parseBool(is_bundle, existing.is_bundle || false) && bundleItemsRaw !== undefined) {
+      const items = typeof bundleItemsRaw === 'string' ? JSON.parse(bundleItemsRaw) : bundleItemsRaw;
+      // Clear existing items and re-insert
+      await pool.query('DELETE FROM bundle_items WHERE bundle_id = $1', [id]);
+      if (Array.isArray(items)) {
+        for (const item of items) {
+          await pool.query(
+            'INSERT INTO bundle_items (bundle_id, product_id, quantity) VALUES ($1, $2, $3)',
+            [id, item.product_id, item.quantity || 1]
+          );
+        }
+      }
+    }
+
+    res.json(updatedProduct);
   } catch (error) {
     console.error('Update product error:', error);
     res.status(500).json({ error: 'Failed to update product', details: error.message });

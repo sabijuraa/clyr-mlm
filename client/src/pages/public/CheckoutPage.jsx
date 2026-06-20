@@ -171,7 +171,8 @@ export default function CheckoutPage() {
     addressLine2: '',
     city: '',
     postalCode: '',
-    country: 'AT'
+    country: 'AT',
+    customerNotes: ''
   });
   const [acceptTerms, setAcceptTerms] = useState(false);
 
@@ -215,22 +216,28 @@ export default function CheckoutPage() {
   const countryShipping = shippingRates[formData.country] || shippingRates.AT;
   const effectiveShipping = !hasPhysicalItem ? 0 : (hasLargeItem ? countryShipping.large : countryShipping.small);
   
+  // EU countries eligible for reverse charge (not AT = home country)
+  const EU_RC_COUNTRIES = ['BE','BG','CY','CZ','DE','DK','EE','EL','ES','FI','FR','HR',
+    'HU','IE','IT','LT','LU','LV','MT','NL','PL','PT','RO','SE','SI','SK'];
+  
   // VAT calculation based on country and VAT ID
   const getClientVatRate = () => {
     const { country, vatId } = formData;
-    if (country === 'DE' && vatId && isValidVatId(vatId, country)) return 0; // Reverse charge
-    if (new Date() < new Date('2026-07-01T00:00:00.000Z')) return 20;
-    if (country === 'DE') return 19;
+    // EU country (not AT) with valid VAT ID → reverse charge 0%
+    if (EU_RC_COUNTRIES.includes(country) && vatId && isValidVatId(vatId, country)) return 0;
     if (country === 'AT') return 20;
+    if (country === 'DE') return 19;
     if (country === 'CH') return 8.1;
-    return 0;
+    if (country === 'IT') return 22;
+    // Other EU: standard 20% before cutoff, else 20%
+    return 20;
   };
   const vatRate = getClientVatRate();
   const discountAmount = discountApplied ? discountApplied.amount : 0;
   const taxableAmount = effectiveSubtotal + effectiveShipping - discountAmount;
   const vatAmount = Math.round(taxableAmount * (vatRate / 100) * 100) / 100;
   const effectiveTotal = Math.round((taxableAmount + vatAmount) * 100) / 100;
-  const isReverseCharge = formData.country === 'DE' && !!formData.vatId && isValidVatId(formData.vatId, formData.country);
+  const isReverseCharge = EU_RC_COUNTRIES.includes(formData.country) && !!formData.vatId && isValidVatId(formData.vatId, formData.country);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -328,7 +335,8 @@ export default function CheckoutPage() {
         referralCode: referralValid ? referralCode : null,
         discountCode: discountApplied ? discountApplied.code : null,
         acceptTerms,
-        paymentMethod: 'stripe'
+        paymentMethod: 'stripe',
+        customerNotes: formData.customerNotes?.trim() || null
       };
 
       console.log('Submitting order:', JSON.stringify(orderData, null, 2));
@@ -543,9 +551,37 @@ export default function CheckoutPage() {
                         required
                         className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
                       >
-                        <option value="AT">Österreich</option>
-                        <option value="DE">Deutschland</option>
-                        <option value="CH">Schweiz</option>
+                        <optgroup label="Hauptmärkte">
+                          <option value="AT">Österreich</option>
+                          <option value="DE">Deutschland</option>
+                          <option value="CH">Schweiz</option>
+                          <option value="IT">Italien</option>
+                        </optgroup>
+                        <optgroup label="EU-Länder">
+                          <option value="BE">Belgien</option>
+                          <option value="BG">Bulgarien</option>
+                          <option value="CY">Zypern</option>
+                          <option value="CZ">Tschechien</option>
+                          <option value="DK">Dänemark</option>
+                          <option value="EE">Estland</option>
+                          <option value="ES">Spanien</option>
+                          <option value="FI">Finnland</option>
+                          <option value="FR">Frankreich</option>
+                          <option value="HR">Kroatien</option>
+                          <option value="HU">Ungarn</option>
+                          <option value="IE">Irland</option>
+                          <option value="LT">Litauen</option>
+                          <option value="LU">Luxemburg</option>
+                          <option value="LV">Lettland</option>
+                          <option value="MT">Malta</option>
+                          <option value="NL">Niederlande</option>
+                          <option value="PL">Polen</option>
+                          <option value="PT">Portugal</option>
+                          <option value="RO">Rumänien</option>
+                          <option value="SE">Schweden</option>
+                          <option value="SI">Slowenien</option>
+                          <option value="SK">Slowakei</option>
+                        </optgroup>
                       </select>
                     </div>
                   </div>
@@ -612,6 +648,19 @@ export default function CheckoutPage() {
                      Tipp: Empfehlungscodes sind normalerweise 6-10 Zeichen lang
                   </p>
                 )}
+              </div>
+
+              {/* Bemerkungen / Customer Notes */}
+              <div className="bg-white p-6 rounded-lg shadow">
+                <h2 className="text-xl font-semibold mb-4">Bemerkungen zur Bestellung</h2>
+                <textarea
+                  name="customerNotes"
+                  value={formData.customerNotes || ''}
+                  onChange={handleChange}
+                  rows={3}
+                  placeholder="Haben Sie besondere Wünsche oder Anmerkungen zu Ihrer Bestellung? (optional)"
+                  className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 resize-y"
+                />
               </div>
 
               {/* Terms & Conditions */}

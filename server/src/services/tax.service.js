@@ -1,9 +1,25 @@
+// All EU country VAT IDs supported for reverse charge (except Austria - company home country)
+const EU_COUNTRIES = [
+  'BE','BG','CY','CZ','DE','DK','EE','EL','ES','FI','FR','HR',
+  'HU','IE','IT','LT','LU','LV','MT','NL','PL','PT','RO','SE',
+  'SI','SK'
+];
+
 const VAT_CUTOFF_DATE = new Date('2026-07-01T00:00:00.000Z');
 
 const VAT_RATES_AFTER_CUTOFF = {
   AT: 20,
   DE: 19,
   CH: 8.1,
+  IT: 22,
+};
+
+// Standard country VAT rates before cutoff (for display/calculation)
+const COUNTRY_VAT_RATES = {
+  AT: 20,
+  DE: 19,
+  CH: 8.1,
+  IT: 22,
 };
 
 export const normalizeCountry = (country) => String(country || '').trim().toUpperCase();
@@ -20,6 +36,8 @@ export const isVatIdFormatValid = (vatId, country) => {
   if (c === 'DE') return /^DE[0-9]{9}$/.test(id);
   if (c === 'AT') return /^ATU[0-9]{8}$/.test(id);
   if (c === 'CH') return /^CHE[0-9]{9}(MWST|TVA|IVA)?$/.test(id);
+  if (c === 'IT') return /^IT[0-9]{11}$/.test(id);
+  // Generic EU format for other countries
   return /^[A-Z]{2}[A-Z0-9]{2,14}$/.test(id);
 };
 
@@ -35,7 +53,9 @@ export const validateVatId = async (vatId, country) => {
     return { valid: false, normalized, source: 'format' };
   }
 
-  if (!['AT', 'DE'].includes(c)) {
+  // For EU countries (not AT which is home country), try VIES
+  const isEu = EU_COUNTRIES.includes(c);
+  if (!isEu && c !== 'AT') {
     return { valid: true, normalized, source: 'format' };
   }
 
@@ -78,7 +98,9 @@ export const calculateVatRule = ({ country, vatId, date = new Date(), vatIdValid
   const hasVatId = !!normalizedVatId;
   const hasValidVatId = vatIdValid === null ? hasVatId && isVatIdFormatValid(normalizedVatId, c) : !!vatIdValid;
 
-  if (c === 'DE' && hasValidVatId) {
+  // Reverse charge for ANY EU country (except AT = home country) with valid VAT ID
+  const isEuCountry = EU_COUNTRIES.includes(c);
+  if (isEuCountry && hasValidVatId) {
     return {
       country: c,
       vatRate: 0,
@@ -88,6 +110,41 @@ export const calculateVatRule = ({ country, vatId, date = new Date(), vatIdValid
     };
   }
 
+  // Austria is the home country - always standard AT VAT rate (no reverse charge for AT)
+  if (c === 'AT') {
+    return {
+      country: c,
+      vatRate: 20,
+      vatType: 'standard',
+      isReverseCharge: false,
+      vatNote: '',
+    };
+  }
+
+  // Switzerland - not EU, fixed rate
+  if (c === 'CH') {
+    return {
+      country: c,
+      vatRate: 8.1,
+      vatType: 'standard',
+      isReverseCharge: false,
+      vatNote: '',
+    };
+  }
+
+  // For non-EU, non-AT countries: use country-specific rate if known
+  const knownRate = COUNTRY_VAT_RATES[c];
+  if (knownRate !== undefined) {
+    return {
+      country: c,
+      vatRate: knownRate,
+      vatType: 'standard',
+      isReverseCharge: false,
+      vatNote: '',
+    };
+  }
+
+  // Before cutoff: standard 20%
   if (isBeforeVatCutoff(date)) {
     return {
       country: c,

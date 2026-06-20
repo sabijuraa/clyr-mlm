@@ -488,9 +488,49 @@ cron.schedule('0 3 1 * *', async () => {
   }
 });
 
-// Reset quarterly sales counts on 1st of Jan, Apr, Jul, Oct at 1:00 AM
-cron.schedule('0 1 1 1,4,7,10 *', async () => {
+// ─────────────────────────────────────────────────────────────
+// AUTOMATIC PAYOUTS: 15th of every month at 3:00 AM
+// Second payout cycle per month (same logic as 1st, independent lock)
+// ─────────────────────────────────────────────────────────────
+cron.schedule('0 3 15 * *', async () => {
+  const now = new Date();
+  const cycleKey = `payout_cycle_${now.getFullYear()}_${now.getMonth() + 1}_15th`;
   try {
+    const { query: dbQ } = await import('./config/database.js');
+    const lockCheck = await dbQ(
+      `SELECT id FROM activity_log WHERE action = 'payout_cycle_started' AND details->>'cycleKey' = $1 LIMIT 1`,
+      [cycleKey]
+    );
+    if (lockCheck.rows.length > 0) {
+      console.log(`[PAYOUT CRON 15th] ⚠️  Skipped — cycle ${cycleKey} already ran`);
+      return;
+    }
+    await dbQ(
+      `INSERT INTO activity_log (action, entity_type, entity_id, details) VALUES ('payout_cycle_started', 'system', $1, $2)`,
+      [cycleKey, JSON.stringify({ cycleKey, startedAt: now.toISOString() })]
+    );
+  } catch (lockErr) {
+    console.error('[PAYOUT CRON 15th] Lock check failed, proceeding:', lockErr.message);
+  }
+
+  console.log('========================================');
+  console.log('⏰ AUTOMATIC PAYOUT CYCLE - 15th of month');
+  console.log(`   Time: ${now.toISOString()}`);
+  console.log('========================================');
+  try {
+    const { releaseHeldCommissions } = await import('./services/commission.service.js');
+    const released = await releaseHeldCommissions();
+    console.log(`[PAYOUT CRON 15th] Released ${released.length} commissions`);
+    const { runStripePayouts } = await import('./controllers/stripe-connect.controller.js');
+    const result = await runStripePayouts();
+    console.log(`✅ 15th PAYOUT DONE: ${result.processed} Stripe, ${result.pending} pending, ${result.failed} errors`);
+  } catch (err) {
+    console.error('❌ 15th Payout cycle threw:', err.message);
+  }
+});
+
+// Reset quarterly sales counts on 1st of Jan, Apr, Jul, Oct at 1:00 AM
+cron.schedule('0 1 1 1,4,7,10 *', async () => {  try {
     console.log('⏰ Cron: Resetting quarterly sales counts...');
     const result = await resetQuarterlySales();
     console.log(`✅ Reset quarterly sales for ${result.length} partners`);

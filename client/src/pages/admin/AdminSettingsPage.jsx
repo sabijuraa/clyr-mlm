@@ -143,7 +143,8 @@ const AdminSettingsPage = () => {
   const [shipping, setShipping] = useState({
     AT: { large: 55, small: 9.90 },
     DE: { large: 70, small: 14.90 },
-    CH: { large: 180, small: 35 }
+    CH: { large: 180, small: 35 },
+    IT: { large: 198, small: 198 }
   });
 
   // Load settings: DB is authoritative for colors, BrandContext for company info
@@ -178,7 +179,8 @@ const AdminSettingsPage = () => {
               setShipping({
                 AT: parsed.AT,
                 DE: parsed.DE,
-                CH: parsed.CH
+                CH: parsed.CH,
+                IT: parsed.IT || { large: 198, small: 198 }
               });
             }
           }
@@ -676,7 +678,8 @@ const AdminSettingsPage = () => {
                 {[
                   { code: 'AT', name: 'Österreich' },
                   { code: 'DE', name: 'Deutschland' },
-                  { code: 'CH', name: 'Schweiz' }
+                  { code: 'CH', name: 'Schweiz' },
+                  { code: 'IT', name: 'Italien' }
                 ].map(c => (
                   <div key={c.code} className="bg-gray-50 rounded-xl p-3 sm:p-4">
                     <label className="block text-sm font-semibold text-secondary-700 mb-3">{c.name} ({c.code})</label>

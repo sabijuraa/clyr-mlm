@@ -52,10 +52,12 @@ const getShippingCost = async (country, items, products) => {
   const shippingCosts = settingsResult.rows[0]?.value || {
     DE: { large: 70.00, small: 14.90 },
     AT: { large: 55.00, small: 9.90 },
-    CH: { large: 180.00, small: 35.00 }
+    CH: { large: 180.00, small: 35.00 },
+    IT: { large: 198.00, small: 198.00 },
+    DEFAULT_EU: { large: 198.00, small: 198.00 },
   };
 
-  const countryConfig = shippingCosts[country];
+  const countryConfig = shippingCosts[country] || shippingCosts['DEFAULT_EU'];
   if (!countryConfig) {
     throw new AppError(`Versand nach ${country} nicht verfuegbar`, 400);
   }
@@ -170,10 +172,14 @@ export const calculateOrderTotals = asyncHandler(async (req, res) => {
     throw new AppError('Keine Artikel angegeben', 400);
   }
 
-  // Territory restriction: only DE/AT/CH allowed (#49)
-  const allowedCountries = ['DE', 'AT', 'CH'];
+  // Territory restriction: AT, DE, CH + all EU countries + IT
+  const allowedCountries = [
+    'AT','DE','CH','IT','BE','BG','CY','CZ','DK','EE','EL','ES',
+    'FI','FR','HR','HU','IE','LT','LU','LV','MT','NL','PL','PT',
+    'RO','SE','SI','SK'
+  ];
   if (!allowedCountries.includes(country)) {
-    throw new AppError('Versand ist nur nach Deutschland, Oesterreich und in die Schweiz moeglich.', 400);
+    throw new AppError('Versand in dieses Land ist derzeit nicht verfuegbar.', 400);
   }
 
   // Get products
@@ -742,7 +748,17 @@ export const createOrder = asyncHandler(async (req, res) => {
   // Check stock
   for (const item of items) {
     const product = products.find(p => p.id === item.productId);
-    if (product.track_stock && product.stock < item.quantity) {
+    if (product.is_bundle) {
+      const componentsResult = await query(
+        'SELECT bi.product_id, bi.quantity, p.name, p.stock, p.track_stock FROM bundle_items bi JOIN products p ON p.id = bi.product_id WHERE bi.bundle_id = $1',
+        [product.id]
+      );
+      for (const component of componentsResult.rows) {
+        if (component.track_stock && component.stock < component.quantity * item.quantity) {
+          throw new AppError(`${product.name} ist nicht in ausreichender Menge verfügbar (${component.name} fehlt)`, 400);
+        }
+      }
+    } else if (product.track_stock && product.stock < item.quantity) {
       throw new AppError(`${product.name} ist nicht in ausreichender Menge verfügbar`, 400);
     }
   }
@@ -783,10 +799,14 @@ export const createOrder = asyncHandler(async (req, res) => {
   const country = billing.country;
   const customerVatId = customer.vatId || null;
 
-  // Territory restriction: only DE/AT/CH allowed (#49)
-  const allowedCountries = ['DE', 'AT', 'CH'];
+  // Territory restriction: AT, DE, CH + all EU countries
+  const allowedCountries = [
+    'AT','DE','CH','IT','BE','BG','CY','CZ','DK','EE','EL','ES',
+    'FI','FR','HR','HU','IE','LT','LU','LV','MT','NL','PL','PT',
+    'RO','SE','SI','SK'
+  ];
   if (!allowedCountries.includes(country)) {
-    throw new AppError('Versand ist nur nach Deutschland, Oesterreich und in die Schweiz moeglich.', 400);
+    throw new AppError('Versand in dieses Land ist derzeit nicht verfuegbar.', 400);
   }
   
   const subtotal = items.reduce((sum, item) => {
@@ -975,7 +995,20 @@ export const createOrder = asyncHandler(async (req, res) => {
       );
 
       // Reduce stock
-      if (product.track_stock) {
+      if (product.is_bundle) {
+        // Bundle: deduct stock from each component product, not the bundle itself
+        const componentsResult = await client.query(
+          'SELECT product_id, quantity FROM bundle_items WHERE bundle_id = $1',
+          [product.id]
+        );
+        for (const component of componentsResult.rows) {
+          await client.query(
+            `UPDATE products SET stock = stock - $1
+             WHERE id = $2 AND track_stock = true`,
+            [component.quantity * item.quantity, component.product_id]
+          );
+        }
+      } else if (product.track_stock) {
         await client.query(
           'UPDATE products SET stock = stock - $1 WHERE id = $2',
           [item.quantity, product.id]
@@ -1561,15 +1594,28 @@ export const refundOrder = asyncHandler(async (req, res) => {
 
     // Restore stock
     const itemsResult = await client.query(
-      'SELECT product_id, quantity FROM order_items WHERE order_id = $1',
+      'SELECT oi.product_id, oi.quantity, p.is_bundle FROM order_items oi JOIN products p ON p.id = oi.product_id WHERE oi.order_id = $1',
       [id]
     );
 
     for (const item of itemsResult.rows) {
-      await client.query(
-        'UPDATE products SET stock = stock + $1 WHERE id = $2 AND track_stock = true',
-        [item.quantity, item.product_id]
-      );
+      if (item.is_bundle) {
+        const componentsResult = await client.query(
+          'SELECT product_id, quantity FROM bundle_items WHERE bundle_id = $1',
+          [item.product_id]
+        );
+        for (const component of componentsResult.rows) {
+          await client.query(
+            'UPDATE products SET stock = stock + $1 WHERE id = $2 AND track_stock = true',
+            [component.quantity * item.quantity, component.product_id]
+          );
+        }
+      } else {
+        await client.query(
+          'UPDATE products SET stock = stock + $1 WHERE id = $2 AND track_stock = true',
+          [item.quantity, item.product_id]
+        );
+      }
     }
 
     // Update partner sales count

@@ -37,6 +37,32 @@ const AdminCommissionsPage = () => {
   const [diagnosing, setDiagnosing] = useState(false);
   const [diagnoseData, setDiagnoseData] = useState(null);
   const [releasingAndPaying, setReleasingAndPaying] = useState(false);
+  const [downloadingZip, setDownloadingZip] = useState(false);
+  const [zipYear, setZipYear] = useState(new Date().getFullYear());
+  const [zipMonth, setZipMonth] = useState(new Date().getMonth() + 1);
+
+  const MONTHS_DE = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+
+  const handleDownloadZip = async () => {
+    setDownloadingZip(true);
+    try {
+      const response = await api.get(`/commissions/admin-zip?year=${zipYear}&month=${zipMonth}`, { responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([response.data], { type: 'application/zip' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ZIP_${MONTHS_DE[zipMonth - 1]}_${zipYear}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('ZIP heruntergeladen');
+    } catch (err) {
+      const msg = err.response?.status === 404 ? 'Keine Abrechnungen für diesen Monat gefunden.' : 'ZIP-Download fehlgeschlagen.';
+      toast.error(msg);
+    } finally {
+      setDownloadingZip(false);
+    }
+  };
 
   useEffect(() => {
     fetchCommissions();
@@ -227,6 +253,22 @@ const AdminCommissionsPage = () => {
           <p className="text-secondary-500">Übersicht aller Provisionen im System</p>
         </div>
         <div className="flex flex-wrap gap-3">
+          {/* Commission ZIP Download */}
+          <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5">
+            <select value={zipMonth} onChange={e => setZipMonth(Number(e.target.value))}
+              className="text-sm border-0 bg-transparent text-blue-700 font-medium focus:ring-0 cursor-pointer">
+              {MONTHS_DE.map((name, i) => <option key={i+1} value={i+1}>{name}</option>)}
+            </select>
+            <select value={zipYear} onChange={e => setZipYear(Number(e.target.value))}
+              className="text-sm border-0 bg-transparent text-blue-700 font-medium focus:ring-0 cursor-pointer">
+              {[2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+            <button onClick={handleDownloadZip} disabled={downloadingZip}
+              className="flex items-center gap-1.5 px-3 py-1 bg-blue-600 text-white text-sm font-semibold rounded-md hover:bg-blue-700 disabled:opacity-50 transition">
+              <Download className="w-3.5 h-3.5" />
+              {downloadingZip ? 'ZIP...' : 'ZIP'}
+            </button>
+          </div>
           <Button variant="outline" onClick={handleExport} icon={Download}>
             Export
           </Button>

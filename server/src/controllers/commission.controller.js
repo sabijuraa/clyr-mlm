@@ -627,3 +627,73 @@ export const runRankDecay = asyncHandler(async (req, res) => {
     decayed
   });
 });
+
+/**
+ * Download monthly commission statements as a ZIP (Admin only)
+ * GET /api/commissions/admin-zip?year=2026&month=6
+ * Returns: ZIP_Juni_2026.zip containing DDMMYYYY_Commission_Lastname.pdf per affiliate
+ */
+export const downloadCommissionZip = asyncHandler(async (req, res) => {
+  const { year, month } = req.query;
+  const now = new Date();
+  const y = parseInt(year) || now.getFullYear();
+  const m = parseInt(month) || now.getMonth() + 1;
+
+  // German month names
+  const MONTH_NAMES_DE = [
+    '', 'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+    'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
+  ];
+
+  // Get all active affiliates who had commissions in this period
+  const period = `${y}-${String(m).padStart(2, '0')}`;
+  const affiliatesResult = await query(
+    `SELECT DISTINCT u.id, u.first_name, u.last_name, u.email
+     FROM users u
+     INNER JOIN commissions c ON c.user_id = u.id
+     WHERE TO_CHAR(c.created_at, 'YYYY-MM') = $1
+       AND c.type <> 'bonus_pool'
+       AND c.status NOT IN ('cancelled', 'reversed')
+     ORDER BY u.last_name, u.first_name`,
+    [period]
+  );
+
+  if (affiliatesResult.rows.length === 0) {
+    return res.status(404).json({ message: `Keine Provisionsabrechnungen für ${MONTH_NAMES_DE[m]} ${y} gefunden.` });
+  }
+
+  // Dynamically import archiver (bundled with most Node installs via npm)
+  let archiver;
+  try {
+    const archiverModule = await import('archiver');
+    archiver = archiverModule.default;
+  } catch {
+    return res.status(500).json({ message: 'ZIP-Bibliothek nicht installiert. Bitte "npm install archiver" ausführen.' });
+  }
+
+  const { generateCommissionStatement } = await import('../services/invoice.service.js');
+
+  const zipName = `ZIP_${MONTH_NAMES_DE[m]}_${y}.zip`;
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader('Content-Disposition', `attachment; filename="${zipName}"`);
+
+  const archive = archiver('zip', { zlib: { level: 6 } });
+  archive.pipe(res);
+
+  // Date string for filenames: 01062026 (first of the requested month)
+  const dateStr = `01${String(m).padStart(2, '0')}${y}`;
+
+  for (const affiliate of affiliatesResult.rows) {
+    try {
+      const pdfBuffer = await generateCommissionStatement(affiliate.id, period);
+      const lastName = (affiliate.last_name || affiliate.email || affiliate.id)
+        .replace(/[^a-zA-Z0-9]/g, '_');
+      const filename = `${dateStr}_Commission_${lastName}.pdf`;
+      archive.append(pdfBuffer, { name: filename });
+    } catch (err) {
+      console.error(`Statement for affiliate ${affiliate.id} failed:`, err.message);
+    }
+  }
+
+  await archive.finalize();
+});

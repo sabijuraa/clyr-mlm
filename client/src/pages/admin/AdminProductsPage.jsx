@@ -29,8 +29,12 @@ const AdminProductsPage = () => {
     name: '', name_en: '', description: '', description_en: '',
     short_description: '', price: '', original_price: '', cost_price: '',
     category_id: '', stock: '0', sku: '',
-    product_type: 'physical', is_featured: false, is_new: false, is_active: true, sort_order: null
+    product_type: 'physical', is_featured: false, is_new: false, is_active: true, sort_order: null,
+    partner_price: '', exclude_from_partner_discount: false,
+    is_bundle: false
   });
+  const [bundleItems, setBundleItems] = useState([]); // [{ product_id, quantity }]
+  const [bundleProductPicker, setBundleProductPicker] = useState('');
   const [imageFiles, setImageFiles] = useState([]);
   const [imagePreview, setImagePreview] = useState([]);
 
@@ -77,8 +81,14 @@ const AdminProductsPage = () => {
       sku: product.sku || '', product_type: product.product_type || 'physical',
       is_featured: product.is_featured || false, is_new: product.is_new || false,
       sort_order: product.sort_order || null,
-      is_active: product.is_active !== false
+      is_active: product.is_active !== false,
+      partner_price: product.partner_price || '',
+      exclude_from_partner_discount: product.exclude_from_partner_discount || false,
+      is_bundle: product.is_bundle || false
     });
+    setBundleItems(
+      (product.bundle_items || []).map(bi => ({ product_id: bi.product_id, quantity: bi.quantity || 1 }))
+    );
     setImagePreview(product.images || []);
     setImageFiles([]);
     setEditingProduct(product);
@@ -90,13 +100,43 @@ const AdminProductsPage = () => {
       name: '', name_en: '', description: '', description_en: '',
       short_description: '', price: '', original_price: '', cost_price: '',
       category_id: '', stock: '0', sku: '',
-      product_type: 'physical', is_featured: false, is_new: false, is_active: true, sort_order: null
+      product_type: 'physical', is_featured: false, is_new: false, is_active: true, sort_order: null,
+      partner_price: '', exclude_from_partner_discount: false, is_bundle: false
     });
+    setBundleItems([]);
     setImageFiles([]);
     setImagePreview([]);
     setEditingProduct(null);
     setShowCreateModal(true);
     setError('');
+  };
+
+  // Bundle component management
+  const addBundleItem = (productId) => {
+    if (!productId) return;
+    const id = parseInt(productId, 10);
+    if (bundleItems.some(bi => bi.product_id === id)) return;
+    setBundleItems(prev => [...prev, { product_id: id, quantity: 1 }]);
+    setBundleProductPicker('');
+  };
+
+  const updateBundleItemQty = (productId, qty) => {
+    const q = Math.max(1, parseInt(qty, 10) || 1);
+    setBundleItems(prev => prev.map(bi => bi.product_id === productId ? { ...bi, quantity: q } : bi));
+  };
+
+  const removeBundleItem = (productId) => {
+    setBundleItems(prev => prev.filter(bi => bi.product_id !== productId));
+  };
+
+  // Compute the minimum buildable quantity of a bundle from current component stock
+  const computeBundleStock = (items) => {
+    if (!items.length) return 0;
+    return Math.min(...items.map(bi => {
+      const p = products.find(prod => prod.id === bi.product_id);
+      const available = p?.stock ?? 0;
+      return Math.floor(available / (bi.quantity || 1));
+    }));
   };
 
   // Handle image selection
@@ -135,6 +175,9 @@ const AdminProductsPage = () => {
           formData.append(key, val);
         }
       });
+      if (form.is_bundle) {
+        formData.append('bundle_items', JSON.stringify(bundleItems));
+      }
       imageFiles.forEach(file => formData.append('images', file));
 
       // When editing, send the kept existing image URLs so backend can preserve them
@@ -281,6 +324,7 @@ const AdminProductsPage = () => {
                 </div>
               )}
               <div className="absolute top-3 left-3 flex flex-col gap-2">
+                {product.is_bundle && <span className="px-2 py-1 bg-amber-500 text-white text-xs font-bold rounded-lg">SET</span>}
                 {product.is_new && <span className="px-2 py-1 bg-secondary-700 text-white text-xs font-bold rounded-lg">NEU</span>}
                 {!product.is_active && <span className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-lg">Inaktiv</span>}
                 {product.stock === 0 && <span className="px-2 py-1 bg-gray-600 text-white text-xs font-bold rounded-lg">Ausverkauft</span>}
@@ -409,6 +453,84 @@ const AdminProductsPage = () => {
                 <option value="subscription">Abonnement</option>
               </select>
             </div>
+          </div>
+
+          {/* Affiliate / Partner pricing */}
+          <div className="grid md:grid-cols-2 gap-4 p-4 bg-amber-50 border border-amber-100 rounded-xl">
+            <div>
+              <label className="block text-sm font-medium text-secondary-700 mb-1">Partnerpreis (€ netto)</label>
+              <input type="number" step="0.01" value={form.partner_price}
+                onChange={e => setForm({...form, partner_price: e.target.value})}
+                placeholder="Leer = kein Rabatt"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-secondary-500" />
+              <p className="text-xs text-secondary-500 mt-1">Sonderpreis für eingeloggte Affiliates/Partner.</p>
+            </div>
+            <div className="flex items-end pb-1">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={form.exclude_from_partner_discount}
+                  onChange={e => setForm({...form, exclude_from_partner_discount: e.target.checked})}
+                  className="w-5 h-5 rounded border-gray-300 text-primary-400" />
+                <span className="text-secondary-700 text-sm">Vom Partnerrabatt ausschließen (z.B. Wasserfiltersysteme)</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Bundle / CLYR Sets builder */}
+          <div className="p-4 bg-secondary-50 border border-secondary-100 rounded-xl space-y-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={form.is_bundle}
+                onChange={e => setForm({...form, is_bundle: e.target.checked})}
+                className="w-5 h-5 rounded border-gray-300 text-primary-400" />
+              <span className="text-secondary-700 font-medium">Dies ist ein Set / Bundle (mehrere Produkte zu einem Preis)</span>
+            </label>
+
+            {form.is_bundle && (
+              <div className="space-y-3 pl-7">
+                <p className="text-xs text-secondary-500">
+                  Wähle die Produkte, die in diesem Set enthalten sind. Der oben festgelegte Preis gilt für das gesamte Set (Einzelpreise der Komponenten werden nicht addiert). Provision wird auf den Netto-Set-Preis berechnet.
+                </p>
+
+                <div className="flex gap-2">
+                  <select value={bundleProductPicker} onChange={e => setBundleProductPicker(e.target.value)}
+                    className="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:outline-none focus:border-secondary-500">
+                    <option value="">Produkt zum Set hinzufügen...</option>
+                    {products
+                      .filter(p => !p.is_bundle && p.id !== editingProduct?.id && !bundleItems.some(bi => bi.product_id === p.id))
+                      .map(p => (
+                        <option key={p.id} value={p.id}>{p.name} (Lager: {p.stock ?? 0})</option>
+                      ))}
+                  </select>
+                  <Button type="button" variant="outline" onClick={() => addBundleItem(bundleProductPicker)}>
+                    Hinzufügen
+                  </Button>
+                </div>
+
+                {bundleItems.length > 0 && (
+                  <div className="space-y-2">
+                    {bundleItems.map(bi => {
+                      const p = products.find(prod => prod.id === bi.product_id);
+                      return (
+                        <div key={bi.product_id} className="flex items-center gap-3 bg-white rounded-lg border border-gray-200 px-3 py-2">
+                          <span className="flex-1 text-sm text-secondary-700">{p?.name || `Produkt #${bi.product_id}`}</span>
+                          <span className="text-xs text-secondary-400">Lager: {p?.stock ?? '?'}</span>
+                          <label className="text-xs text-secondary-500">Menge:</label>
+                          <input type="number" min="1" value={bi.quantity}
+                            onChange={e => updateBundleItemQty(bi.product_id, e.target.value)}
+                            className="w-16 px-2 py-1 border border-gray-200 rounded text-sm" />
+                          <button type="button" onClick={() => removeBundleItem(bi.product_id)}
+                            className="p-1 text-red-500 hover:bg-red-50 rounded">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                    <div className="bg-secondary-100 rounded-lg px-3 py-2 text-sm font-medium text-secondary-700">
+                      Verfügbare Sets (berechnet aus Komponenten-Lagerbestand): {computeBundleStock(bundleItems)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div>

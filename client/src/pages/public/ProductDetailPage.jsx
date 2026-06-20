@@ -309,6 +309,27 @@ const ProductDetailPage = () => {
             {activeTab === 'description' && (
               <div className="prose max-w-none">
                 <p className="text-secondary-600 leading-relaxed whitespace-pre-line">{product.description}</p>
+
+                {product.is_bundle && product.bundle_items?.length > 0 && (
+                  <div className="mt-6 not-prose">
+                    <h3 className="text-sm font-semibold text-secondary-700 mb-3">
+                      {lang === 'de' ? 'Dieses Set enthält:' : 'This set includes:'}
+                    </h3>
+                    <ul className="space-y-2">
+                      {product.bundle_items.map((item) => (
+                        <li key={item.product_id} className="flex items-center gap-3 text-sm text-secondary-600">
+                          <Check className="w-4 h-4 text-secondary-700 flex-shrink-0" />
+                          <span>{item.quantity > 1 ? `${item.quantity}x ` : ''}{lang === 'de' ? item.name : (item.name_en || item.name)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="text-xs text-secondary-400 mt-3">
+                      {lang === 'de'
+                        ? 'Einzelpreis gilt nicht – das Set wird zum oben genannten Gesamtpreis verkauft.'
+                        : 'Individual prices do not apply — this set is sold at the single price shown above.'}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 

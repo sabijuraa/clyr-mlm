@@ -20,5 +20,6 @@ router.post('/process-payouts', requireRole('admin'), commissionController.proce
 router.post('/generate-statement', requireRole('admin'), commissionController.generateStatementForPartner);
 router.post('/bonus-pool',     requireRole('admin'), commissionController.distributeBonusPoolHandler);
 router.post('/rank-decay',     requireRole('admin'), commissionController.runRankDecay);
+router.get('/admin-zip',       requireRole('admin'), commissionController.downloadCommissionZip);
 
 export default router;
