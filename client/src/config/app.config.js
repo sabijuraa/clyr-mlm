@@ -263,14 +263,29 @@ const appConfig = {
 
 // ============ HELPER FUNCTIONS ============
 
+export const normalizeCountryCode = (value) => {
+  if (!value) return 'AT';
+  const raw = String(value).trim();
+  const upper = raw.toUpperCase();
+
+  if (appConfig.countries[upper]) return upper;
+  if (upper.includes('ÖSTERREICH') || upper.includes('OESTERREICH') || upper.includes('AUSTRIA')) return 'AT';
+  if (upper.includes('DEUTSCHLAND') || upper.includes('GERMANY')) return 'DE';
+  if (upper.includes('SCHWEIZ') || upper.includes('SWITZERLAND') || upper.includes('SUISSE')) return 'CH';
+  if (upper.includes('ITALIEN') || upper.includes('ITALY') || upper.includes('ITALIA')) return 'IT';
+
+  return upper.slice(0, 2);
+};
+
 /**
  * Calculate shipping cost for a country
  * Soda System = large shipping, small products = small shipping
  * Montage/services = 0€, Mixed = large rate only
  */
 export const calculateShipping = (country, items = []) => {
+  const countryCode = normalizeCountryCode(country);
   // Use country-specific rate, fall back to DEFAULT_EU for unlisted EU countries, then DE
-  const config = appConfig.shipping[country]
+  const config = appConfig.shipping[countryCode]
     || appConfig.shipping.DEFAULT_EU
     || appConfig.shipping.DE;
 
@@ -304,6 +319,7 @@ const EU_RC_COUNTRIES = new Set([
  * @returns {number} - VAT amount
  */
 export const calculateVAT = (amount, country, hasVatId = false) => {
+  country = normalizeCountryCode(country);
   // Reverse Charge: any EU country (not AT) with VAT ID → 0%
   if (EU_RC_COUNTRIES.has(country) && hasVatId) return 0;
 
@@ -329,6 +345,7 @@ export const calculateVAT = (amount, country, hasVatId = false) => {
  * @returns {object} - Order totals
  */
 export const calculateOrderTotals = (subtotal, country, hasVatId = false) => {
+  country = normalizeCountryCode(country);
   const shipping = calculateShipping(country);
   const vat = calculateVAT(subtotal + shipping, country, hasVatId);
   const total = subtotal + shipping + vat;
@@ -410,6 +427,7 @@ export const getNextRank = (currentId) => {
  * @returns {string} - VAT label
  */
 export const getVatLabel = (country, hasVatId = false) => {
+  country = normalizeCountryCode(country);
   if (EU_RC_COUNTRIES.has(country) && hasVatId) return 'Reverse Charge (0%)';
   return appConfig.countries[country]?.vatLabel || '20% MwSt.';
 };

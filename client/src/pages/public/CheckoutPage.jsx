@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { referralAPI, ordersAPI } from '../../services/api';
 import api from '../../services/api';
 import { isValidVatId } from '../../utils/validators';
+import appConfig, { calculateShipping, normalizeCountryCode } from '../../config/app.config';
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
@@ -203,20 +204,8 @@ export default function CheckoutPage() {
   // Product-based shipping: Soda = large, others = small, Montage = 0
   // Mixed order: large rate only (not both added)
   // Fallback: price > 500 = large item, name contains montage/installation = service
-  const hasLargeItem = effectiveCartItems.some(item => item.is_large_item || item.isLargeItem || parseFloat(item.price) > 500);
-  const hasPhysicalItem = effectiveCartItems.some(item => {
-    const isService = item.is_service || item.isService || /montage|installation|einbau/i.test(item.name);
-    return !isService;
-  });
-  const shippingRates = {
-    DE: { large: 70, small: 14.90 },
-    AT: { large: 55, small: 9.90 },
-    CH: { large: 180, small: 35 },
-    IT: { large: 198, small: 198 },
-    DEFAULT_EU: { large: 198, small: 198 }
-  };
-  const countryShipping = shippingRates[formData.country] || shippingRates.DEFAULT_EU;
-  const effectiveShipping = !hasPhysicalItem ? 0 : (hasLargeItem ? countryShipping.large : countryShipping.small);
+  const normalizedCountry = normalizeCountryCode(formData.country);
+  const effectiveShipping = calculateShipping(normalizedCountry, effectiveCartItems);
   
   // EU countries eligible for reverse charge (not AT = home country)
   const EU_RC_COUNTRIES = ['BE','BG','CY','CZ','DE','DK','EE','EL','ES','FI','FR','HR',
@@ -224,7 +213,8 @@ export default function CheckoutPage() {
   
   // VAT calculation based on country and VAT ID
   const getClientVatRate = () => {
-    const { country, vatId } = formData;
+    const { vatId } = formData;
+    const country = normalizedCountry;
     // EU country (not AT) with valid VAT ID → reverse charge 0%
     if (EU_RC_COUNTRIES.includes(country) && vatId && isValidVatId(vatId, country)) return 0;
     if (country === 'AT') return 20;
@@ -239,10 +229,11 @@ export default function CheckoutPage() {
   const taxableAmount = effectiveSubtotal + effectiveShipping - discountAmount;
   const vatAmount = Math.round(taxableAmount * (vatRate / 100) * 100) / 100;
   const effectiveTotal = Math.round((taxableAmount + vatAmount) * 100) / 100;
-  const isReverseCharge = EU_RC_COUNTRIES.includes(formData.country) && !!formData.vatId && isValidVatId(formData.vatId, formData.country);
+  const isReverseCharge = EU_RC_COUNTRIES.includes(normalizedCountry) && !!formData.vatId && isValidVatId(formData.vatId, normalizedCountry);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const value = e.target.name === 'country' ? normalizeCountryCode(e.target.value) : e.target.value;
+    setFormData({ ...formData, [e.target.name]: value });
   };
 
   const verifyReferralCodeFn = async (code) => {
@@ -331,7 +322,7 @@ export default function CheckoutPage() {
           street: (formData.addressLine1 + (formData.addressLine2 ? ', ' + formData.addressLine2 : '')).trim(),
           zip: formData.postalCode.trim(),
           city: formData.city.trim(),
-          country: formData.country
+          country: normalizedCountry
         },
         items: orderItems,
         referralCode: referralValid ? referralCode : null,
@@ -492,11 +483,11 @@ export default function CheckoutPage() {
                         onChange={handleChange}
                         className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
                         placeholder={
-                          formData.country === 'DE' ? 'DE123456789' :
-                          formData.country === 'AT' ? 'ATU12345678' :
-                          formData.country === 'CH' ? 'CHE-123.456.789' :
-                          formData.country === 'IT' ? 'IT12345678901' :
-                          `${formData.country || 'XX'}123456789`
+                          normalizedCountry === 'DE' ? 'DE123456789' :
+                          normalizedCountry === 'AT' ? 'ATU12345678' :
+                          normalizedCountry === 'CH' ? 'CHE-123.456.789' :
+                          normalizedCountry === 'IT' ? 'IT12345678901' :
+                          `${normalizedCountry || 'XX'}123456789`
                         }
                       />
                     </div>
@@ -554,7 +545,7 @@ export default function CheckoutPage() {
                       <label className="block text-sm font-medium mb-2">Land *</label>
                       <select
                         name="country"
-                        value={formData.country}
+                        value={normalizedCountry}
                         onChange={handleChange}
                         required
                         className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
@@ -804,13 +795,7 @@ export default function CheckoutPage() {
                   <span>{'\u20AC'}{effectiveSubtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Versand ({
-                    formData.country === 'DE' ? 'Deutschland' :
-                    formData.country === 'AT' ? 'Österreich' :
-                    formData.country === 'CH' ? 'Schweiz' :
-                    formData.country === 'IT' ? 'Italien' :
-                    (formData.country || 'EU')
-                  })</span>
+                  <span>Versand ({appConfig.countries[normalizedCountry]?.name || 'EU'})</span>
                   <span>{'\u20AC'}{effectiveShipping.toFixed(2)}</span>
                 </div>
                 {discountApplied && (

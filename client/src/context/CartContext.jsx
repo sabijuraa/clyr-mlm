@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import appConfig, { calculateShipping, calculateVAT, formatCurrency } from '../config/app.config';
+import appConfig, { calculateShipping, calculateVAT, formatCurrency, normalizeCountryCode } from '../config/app.config';
 import { referralAPI } from '../services/api';
 
 // EU countries eligible for Reverse Charge (excludes AT = home country)
@@ -44,7 +44,7 @@ export const CartProvider = ({ children }) => {
       try {
         const parsed = JSON.parse(savedCart);
         setItems(parsed.items || []);
-        setCountry(parsed.country || 'AT');
+        setCountry(normalizeCountryCode(parsed.country));
         setHasVatId(parsed.hasVatId || false);
       } catch (err) {
         console.error('Failed to parse cart:', err);

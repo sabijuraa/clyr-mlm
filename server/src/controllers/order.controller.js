@@ -39,6 +39,25 @@ const getOrderCommissionBase = (order) => {
 
 const roundMoney = (value) => Math.round((parseFloat(value) || 0) * 100) / 100;
 
+const normalizeCountryCode = (value) => {
+  if (!value) return 'AT';
+  const raw = String(value).trim();
+  const upper = raw.toUpperCase();
+  const directCodes = new Set([
+    'AT','DE','CH','IT','BE','BG','CY','CZ','DK','EE','EL','ES',
+    'FI','FR','HR','HU','IE','LT','LU','LV','MT','NL','PL','PT',
+    'RO','SE','SI','SK'
+  ]);
+
+  if (directCodes.has(upper)) return upper;
+  if (upper.includes('ÖSTERREICH') || upper.includes('OESTERREICH') || upper.includes('AUSTRIA')) return 'AT';
+  if (upper.includes('DEUTSCHLAND') || upper.includes('GERMANY')) return 'DE';
+  if (upper.includes('SCHWEIZ') || upper.includes('SWITZERLAND') || upper.includes('SUISSE')) return 'CH';
+  if (upper.includes('ITALIEN') || upper.includes('ITALY') || upper.includes('ITALIA')) return 'IT';
+
+  return upper.slice(0, 2);
+};
+
 /**
  * Get shipping cost based on country and items
  * CLYR shipping rules (per Theresa 2026-02-17):
@@ -48,6 +67,7 @@ const roundMoney = (value) => Math.round((parseFloat(value) || 0) * 100) / 100;
  * - Mixed orders: highest rate applies (large overrides small, NOT added)
  */
 const getShippingCost = async (country, items, products) => {
+  country = normalizeCountryCode(country);
   const settingsResult = await query("SELECT value FROM settings WHERE key = 'shipping_costs'");
   const shippingCosts = settingsResult.rows[0]?.value || {
     DE: { large: 70.00, small: 14.90 },
@@ -166,7 +186,8 @@ export const validateDiscountCode = asyncHandler(async (req, res) => {
  * Calculate order totals
  */
 export const calculateOrderTotals = asyncHandler(async (req, res) => {
-  const { items, country, hasVatId = false, vatId = null } = req.body;
+  const { items, hasVatId = false, vatId = null } = req.body;
+  const country = normalizeCountryCode(req.body.country);
 
   if (!items || items.length === 0) {
     throw new AppError('Keine Artikel angegeben', 400);
@@ -796,7 +817,9 @@ export const createOrder = asyncHandler(async (req, res) => {
   }
 
   // Calculate totals
-  const country = billing.country;
+  const country = normalizeCountryCode(billing.country);
+  billing.country = country;
+  if (shipping?.country) shipping.country = normalizeCountryCode(shipping.country);
   const customerVatId = customer.vatId || null;
 
   // Territory restriction: AT, DE, CH + all EU countries
