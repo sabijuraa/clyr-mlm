@@ -19,6 +19,7 @@ const ProductDetailPage = () => {
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState('description');
   const [selectedVariants, setSelectedVariants] = useState({});
+  const [selectedBundleVariants, setSelectedBundleVariants] = useState({});
 
   useEffect(() => {
     const loadProduct = async () => {
@@ -39,6 +40,30 @@ const ProductDetailPage = () => {
             }
           });
           setSelectedVariants(defaults);
+        } else {
+          setSelectedVariants({});
+        }
+
+        if (productData.is_bundle && Array.isArray(productData.bundle_items)) {
+          const bundleDefaults = {};
+          productData.bundle_items.forEach((item) => {
+            Object.entries(item.variants || {}).forEach(([type, options]) => {
+              const defaultOption = options.find(o => o.isDefault) || options[0];
+              if (defaultOption) {
+                bundleDefaults[`${item.product_id}:${type}`] = {
+                  ...defaultOption,
+                  type,
+                  productId: item.product_id,
+                  productName: item.name,
+                  productNameEn: item.name_en || item.name,
+                  bundleComponent: true
+                };
+              }
+            });
+          });
+          setSelectedBundleVariants(bundleDefaults);
+        } else {
+          setSelectedBundleVariants({});
         }
       } catch (error) {
         console.error('Failed to load product:', error);
@@ -67,8 +92,9 @@ const ProductDetailPage = () => {
 
   const images = typeof product.images === 'string' ? JSON.parse(product.images) : product.images || [];
   const features = typeof product.features === 'string' ? JSON.parse(product.features) : product.features || [];
+  const combinedVariants = { ...selectedVariants, ...selectedBundleVariants };
   // For inCart, check based on current variant selection (not just product id)
-  const variantKey = Object.values(selectedVariants).map(v => v?.id || v?.name || '').sort().join('|');
+  const variantKey = Object.entries(combinedVariants).map(([key, v]) => `${key}:${v?.id || v?.name || ''}`).sort().join('|');
   const cartKey = `${product.id}__${variantKey}`;
   const inCart = isInCart(cartKey);
   
@@ -76,6 +102,12 @@ const ProductDetailPage = () => {
   const basePrice = parseFloat(product.price) || 0;
   const variantModifier = Object.values(selectedVariants).reduce((sum, v) => sum + (v?.priceModifier || 0), 0);
   const totalPrice = basePrice + variantModifier;
+  const formatVariantTypeLabel = (type) => (
+    type === 'faucet' || type === 'armatur' ? (lang === 'de' ? 'Armatur wählen' : 'Select Faucet') :
+    type === 'aroma' || type === 'duft' ? (lang === 'de' ? 'Aroma wählen' : 'Select Aroma') :
+    type === 'color' || type === 'farbe' ? (lang === 'de' ? 'Farbe wählen' : 'Select Color') :
+    lang === 'de' ? 'Option wählen' : 'Select Option'
+  );
 
   // Real stock data
   const stock = product.stock !== null && product.stock !== undefined ? parseInt(product.stock) : null;
@@ -84,11 +116,17 @@ const ProductDetailPage = () => {
   const isLowStock = trackStock && stock !== null && stock > 0 && stock <= (product.low_stock_threshold || 5);
 
   const handleAddToCart = () => {
+    const bundleVariantDescription = Object.values(selectedBundleVariants)
+      .map(v => `${lang === 'de' ? v.productName : v.productNameEn}: ${v.name}`)
+      .filter(Boolean)
+      .join(', ');
+    const productVariantDescription = Object.values(selectedVariants).map(v => v?.name).filter(Boolean).join(', ');
+    const variantDescription = [productVariantDescription, bundleVariantDescription].filter(Boolean).join(', ');
     const productWithVariants = {
       ...product,
       price: totalPrice,
-      selectedVariants: selectedVariants,
-      variantDescription: Object.values(selectedVariants).map(v => v?.name).filter(Boolean).join(', ')
+      selectedVariants: combinedVariants,
+      variantDescription
     };
     addItem(productWithVariants, quantity);
   };
@@ -206,6 +244,63 @@ const ProductDetailPage = () => {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* Bundle Component Variant Selectors */}
+              {product.is_bundle && product.bundle_items?.some(item => Object.keys(item.variants || {}).length > 0) && (
+                <div className="space-y-5 py-4 border-t border-b border-gray-100">
+                  <h2 className="text-sm font-semibold text-secondary-700">
+                    {lang === 'de' ? 'Set-Optionen wählen' : 'Choose Set Options'}
+                  </h2>
+                  {product.bundle_items
+                    .filter(item => Object.keys(item.variants || {}).length > 0)
+                    .map((item) => (
+                      <div key={item.product_id} className="space-y-3">
+                        <p className="text-sm font-medium text-secondary-600">
+                          {item.quantity > 1 ? `${item.quantity}x ` : ''}{lang === 'de' ? item.name : (item.name_en || item.name)}
+                        </p>
+                        {Object.entries(item.variants || {}).map(([type, options]) => {
+                          const selectedKey = `${item.product_id}:${type}`;
+                          return (
+                            <div key={selectedKey}>
+                              <label className="block text-xs font-medium text-secondary-500 mb-2">
+                                {formatVariantTypeLabel(type)}
+                              </label>
+                              <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2">
+                                {options.map((option) => {
+                                  const isSelected = selectedBundleVariants[selectedKey]?.id === option.id;
+                                  return (
+                                    <button
+                                      key={option.id}
+                                      type="button"
+                                      onClick={() => setSelectedBundleVariants({
+                                        ...selectedBundleVariants,
+                                        [selectedKey]: {
+                                          ...option,
+                                          type,
+                                          productId: item.product_id,
+                                          productName: item.name,
+                                          productNameEn: item.name_en || item.name,
+                                          bundleComponent: true
+                                        }
+                                      })}
+                                      className={`px-3 sm:px-4 py-2 rounded-lg border-2 transition-all text-left sm:text-center text-sm sm:text-base w-full sm:w-auto ${
+                                        isSelected
+                                          ? 'border-secondary-700 bg-secondary-50 text-secondary-700'
+                                          : 'border-gray-200 hover:border-secondary-300'
+                                      }`}
+                                    >
+                                      <span className="font-medium break-words">{lang === 'de' ? option.name : option.name_en || option.name}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
                 </div>
               )}
 

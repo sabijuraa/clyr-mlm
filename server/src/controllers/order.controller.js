@@ -734,6 +734,7 @@ export const createOrder = asyncHandler(async (req, res) => {
     ...new Set(
       items
         .flatMap((item) => Object.values(item.selectedVariants || {}))
+        .filter((variant) => !variant?.bundleComponent)
         .map((variant) => parseInt(variant?.id, 10))
         .filter((id) => Number.isInteger(id) && id > 0)
     )
@@ -754,7 +755,7 @@ export const createOrder = asyncHandler(async (req, res) => {
   }
 
   const resolveItemUnitPrice = (item, product) => {
-    const selectedVariants = Object.values(item.selectedVariants || {});
+    const selectedVariants = Object.values(item.selectedVariants || {}).filter((variant) => !variant?.bundleComponent);
     const variantModifier = selectedVariants.reduce((sum, variant) => {
       const optionId = parseInt(variant?.id, 10);
       if (Number.isInteger(optionId) && optionId > 0) {

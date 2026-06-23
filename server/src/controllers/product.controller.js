@@ -187,7 +187,39 @@ export const getProductBySlug = async (req, res) => {
           JOIN products p ON p.id = bi.product_id
           WHERE bi.bundle_id = $1
         `, [product.id]);
-        product.bundle_items = bundleResult.rows;
+        const bundleItems = bundleResult.rows;
+        const componentIds = bundleItems.map((item) => item.product_id);
+
+        let variantsByProduct = {};
+        if (componentIds.length > 0) {
+          const componentVariantsResult = await pool.query(`
+            SELECT pv.product_id, pv.id, pv.is_default, pv.price_modifier, pv.sort_order,
+                   vo.name, vo.name_en, vo.type as type_slug,
+                   COALESCE(pv.price_modifier, vo.price_modifier, 0) as effective_price_modifier
+            FROM product_variants pv
+            JOIN variant_options vo ON pv.option_id = vo.id
+            WHERE pv.product_id = ANY($1::int[]) AND pv.is_active = true
+            ORDER BY pv.product_id, vo.type, pv.sort_order, vo.sort_order
+          `, [componentIds]);
+
+          for (const row of componentVariantsResult.rows) {
+            if (!variantsByProduct[row.product_id]) variantsByProduct[row.product_id] = {};
+            const typeKey = row.type_slug || 'default';
+            if (!variantsByProduct[row.product_id][typeKey]) variantsByProduct[row.product_id][typeKey] = [];
+            variantsByProduct[row.product_id][typeKey].push({
+              id: row.id,
+              name: row.name,
+              name_en: row.name_en || row.name,
+              priceModifier: parseFloat(row.effective_price_modifier) || 0,
+              isDefault: row.is_default
+            });
+          }
+        }
+
+        product.bundle_items = bundleItems.map((item) => ({
+          ...item,
+          variants: variantsByProduct[item.product_id] || {}
+        }));
         product.computed_bundle_stock = bundleResult.rows.length
           ? Math.min(...bundleResult.rows.map(r => Math.floor((r.stock || 0) / (r.quantity || 1))))
           : 0;
