@@ -107,12 +107,25 @@ const handleCheckoutSessionCompleted = async (session) => {
     );
   });
 
-  // Auto-generate invoice
+  // Auto-generate invoice (with one retry — invoice creation must succeed before
+  // the confirmation email goes out, otherwise email and billing numbers diverge)
+  let generatedInvoice = null;
   try {
     const { generateInvoice } = await import('../services/invoice.service.js');
-    await generateInvoice(order.id);
+    generatedInvoice = await generateInvoice(order.id);
   } catch (e) {
-    console.error('Invoice generation after payment failed:', e.message);
+    console.error('Invoice generation after payment failed (attempt 1):', order.id, e.message, e.stack);
+    try {
+      const { generateInvoice } = await import('../services/invoice.service.js');
+      generatedInvoice = await generateInvoice(order.id);
+    } catch (e2) {
+      console.error('Invoice generation after payment failed (attempt 2 - giving up):', order.id, e2.message, e2.stack);
+      await query(
+        `INSERT INTO activity_log (action, entity_type, entity_id, details)
+         VALUES ($1, $2, $3, $4)`,
+        ['invoice_generation_failed', 'order', order.id, JSON.stringify({ error: e2.message })]
+      ).catch(() => {});
+    }
   }
 
   // Send confirmation email
@@ -120,9 +133,10 @@ const handleCheckoutSessionCompleted = async (session) => {
     const { sendOrderConfirmation } = await import('../services/email.service.js');
     const itemsResult = await query('SELECT * FROM order_items WHERE order_id = $1', [order.id]);
     const partnerEmail = order.partner_id ? (await query('SELECT email FROM users WHERE id = $1', [order.partner_id])).rows[0]?.email : null;
-    await sendOrderConfirmation({ ...order, payment_status: 'paid', partner_email: partnerEmail }, itemsResult.rows);
+    const invoiceNumber = generatedInvoice?.invoice_number || null;
+    await sendOrderConfirmation({ ...order, payment_status: 'paid', partner_email: partnerEmail, invoice_number: invoiceNumber }, itemsResult.rows);
   } catch (e) {
-    console.error('Confirmation email failed:', e.message);
+    console.error('Confirmation email failed:', order.id, e.message);
   }
 
   console.log('Checkout session completed for order:', order.order_number);

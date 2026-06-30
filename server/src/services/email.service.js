@@ -204,19 +204,35 @@ export const sendOrderConfirmation = async (order, items) => {
       console.error('Invoice number lookup failed:', e.message);
     }
   }
-  invoiceNumber = invoiceNumber || order.order_number;
+  // No real invoice exists yet (the webhook's generateInvoice call must have failed) —
+  // create it now rather than faking the invoice number with order.order_number.
+  // This guarantees the PDF the customer receives always matches a real row in
+  // the `invoices` table that the admin Billings page reads from.
+  if (!invoiceNumber && order.id) {
+    try {
+      const { generateInvoice } = await import('./invoice.service.js');
+      const invoice = await generateInvoice(order.id);
+      invoiceNumber = invoice?.invoice_number || null;
+    } catch (e) {
+      console.error('Invoice creation during email send failed:', order.id, e.message, e.stack);
+    }
+  }
 
   let attachments = [];
-  try {
-    const { generateInvoicePDF } = await import('./invoice.service.js');
-    const pdfBuffer = await generateInvoicePDF({ ...order, invoice_number: invoiceNumber, items }, invoiceNumber);
-    attachments = [{
-      filename: `Rechnung-${invoiceNumber}.pdf`,
-      content: pdfBuffer,
-      contentType: 'application/pdf'
-    }];
-  } catch (e) {
-    console.error('Invoice attachment generation failed:', e.message);
+  if (invoiceNumber) {
+    try {
+      const { generateInvoicePDF } = await import('./invoice.service.js');
+      const pdfBuffer = await generateInvoicePDF({ ...order, invoice_number: invoiceNumber, items }, invoiceNumber);
+      attachments = [{
+        filename: `Rechnung-${invoiceNumber}.pdf`,
+        content: pdfBuffer,
+        contentType: 'application/pdf'
+      }];
+    } catch (e) {
+      console.error('Invoice attachment generation failed:', order.id, e.message);
+    }
+  } else {
+    console.error('No invoice number available — sending confirmation email without invoice PDF for order:', order.id);
   }
 
   const html = `
