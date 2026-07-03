@@ -3,6 +3,8 @@ import Stripe from 'stripe';
 import { query, transaction } from '../config/database.js';
 import { asyncHandler, AppError } from '../middleware/error.middleware.js';
 import { isVatIdFormatValid } from '../services/tax.service.js';
+import { generateStatementNumber } from '../services/payout.service.js';
+import { releaseHeldCommissions } from '../services/commission.service.js';
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY)
@@ -176,35 +178,49 @@ export const runStripePayouts = async () => {
     const vatInfo = calculateAffiliateCommissionVat(p, netAmount);
     const vatAmount = vatInfo.vatAmount;
     const grossAmount = vatInfo.grossAmount;
-    const payoutReference = `AUTO-${new Date().toISOString().slice(0,7)}-${p.id.slice(0,8)}`;
+    // Per-day (not per-month) reference: Theresa runs two legitimate payout
+    // cycles a month (1st and 15th), so the dedupe key must distinguish those
+    // two runs from each other while still blocking any accidental duplicate
+    // execution within the same cycle (e.g. a restart racing the cron).
+    const payoutReference = `AUTO-${new Date().toISOString().slice(0,10)}-${p.id.slice(0,8)}`;
 
     L(`Processing ${name}: net=€${netAmount} vat=€${vatAmount} gross=€${grossAmount}`);
 
-    try {
-      const existingPayout = await query(
-        `SELECT id, status
-         FROM payouts
-         WHERE user_id = $1
-           AND reference = $2
-           AND status IN ('pending', 'processing', 'approved', 'completed')
-         ORDER BY created_at DESC
-         LIMIT 1`,
-        [p.id, payoutReference]
-      );
+    // Declared outside the try block (not just inside it) so the outer
+    // catch below can still see them — `let`/`const` inside a try block
+    // is NOT visible in its catch block in JS.
+    let claimedPayoutId;
+    let capturedTransferId = null; // set the moment a real Stripe transfer is created, so the catch block can flag it even if the DB transaction later rolls back
 
-      if (existingPayout.rows.length > 0) {
-        L(`  Active payout already exists (${existingPayout.rows[0].id}, ${existingPayout.rows[0].status}); skipping duplicate.`);
-        summary.skipped++;
-        summary.details.push({
-          name,
-          email: p.email,
-          netAmount,
-          vatAmount,
-          grossAmount,
-          status: existingPayout.rows[0].status,
-          existingPayoutId: existingPayout.rows[0].id,
-        });
-        continue;
+    try {
+      // ── Claim the payout slot FIRST, before any Stripe call ──
+      // The (user_id, reference) unique index (see
+      // migration_fix_double_payout_july2026.sql) makes this
+      // insert fail if a payout for this partner+month already
+      // exists and is still active. This closes the race where
+      // two concurrent runs (overlapping cron, admin retry, a
+      // server restart mid-cycle) both read the same "released"
+      // commissions before either had committed.
+      const statementNumber = await generateStatementNumber();
+      try {
+        const claim = await query(
+          `INSERT INTO payouts (
+             user_id, net_amount, vat_amount, gross_amount,
+             method, status, reference, statement_number
+           ) VALUES ($1, $2, $3, $4, 'sepa', 'processing', $5, $6)
+           RETURNING id`,
+          [p.id, netAmount, vatAmount, grossAmount, payoutReference, statementNumber]
+        );
+        claimedPayoutId = claim.rows[0].id;
+        L(`  Claimed payout slot ${claimedPayoutId} (reference=${payoutReference})`);
+      } catch (claimErr) {
+        if (claimErr.code === '23505') {
+          L(`  Active payout already exists for this reference; skipping duplicate.`);
+          summary.skipped++;
+          summary.details.push({ name, email: p.email, netAmount, vatAmount, grossAmount, status: 'duplicate_skipped' });
+          continue;
+        }
+        throw claimErr;
       }
 
       await transaction(async (client) => {
@@ -255,6 +271,7 @@ export const runStripePayouts = async () => {
                     metadata: { partner_id: p.id, net: netAmount.toString(), vat: vatAmount.toString() },
                   });
                   transferId = transfer.id;
+                  capturedTransferId = transferId;
                   L(`  Transfer created: ${transferId}`);
 
                   // Payout from connected account to their bank
@@ -285,6 +302,7 @@ export const runStripePayouts = async () => {
                       metadata: { partner_id: p.id, topup: topup.id },
                     });
                     transferId = transfer2.id;
+                    capturedTransferId = transferId;
                     L(`  Transfer after top-up: ${transferId}`);
                     
                     await stripe.payouts.create(
@@ -330,41 +348,30 @@ export const runStripePayouts = async () => {
           summary.pending++;
         }
 
-        // Always record the payout
-        L(`  Inserting payout record: method=${method} status=${status} net=${netAmount} gross=${grossAmount}`);
-        const { rows: payoutRows } = await client.query(`
-          INSERT INTO payouts (
-            user_id, net_amount, vat_amount, gross_amount,
-            method, status, reference
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-          RETURNING id
-        `, [
-          p.id, netAmount, vatAmount, grossAmount,
-          method, status,
-          stripeTransferId
-            ? `STRIPE-${stripeTransferId}`
-            : payoutReference,
-        ]);
-
-        const payoutId = payoutRows[0]?.id;
-        L(`  Payout record created: id=${payoutId}`);
-
-        if (stripeTransferId && payoutId) {
-          try {
-            await client.query(`UPDATE payouts SET stripe_transfer_id = $1 WHERE id = $2`, [stripeTransferId, payoutId]);
-          } catch (_) { L(`  (stripe_transfer_id column not present - ok)`); }
-        }
+        // Update the payout row we already claimed above (before the
+        // Stripe call). We never insert a second payout row here —
+        // that duplicate insert, combined with a reference that
+        // didn't match the dedupe check, was the root cause of
+        // partners being paid twice.
+        L(`  Updating claimed payout ${claimedPayoutId}: method=${method} status=${status} net=${netAmount} gross=${grossAmount}`);
+        await client.query(
+          `UPDATE payouts
+           SET method = $1, status = $2, stripe_transfer_id = $3
+           WHERE id = $4`,
+          [method, status, stripeTransferId, claimedPayoutId]
+        );
 
         if (payoutSucceeded) {
-          // Mark commissions as paid only after a successful Stripe payout flow
+          // Mark commissions as paid only after a successful Stripe payout flow,
+          // and link them to the payout we claimed so they can't be picked up
+          // again by a later run.
           const updateResult = await client.query(`
             UPDATE commissions
-            SET status = 'paid', paid_at = CURRENT_TIMESTAMP
-                ${payoutId ? `, payout_id = '${payoutId}'` : ''}
+            SET status = 'paid', paid_at = CURRENT_TIMESTAMP, payout_id = $2
             WHERE user_id = $1 AND status = 'released' AND type <> 'bonus_pool'
               AND (held_until IS NULL OR held_until < NOW() - INTERVAL '1 hour')
             RETURNING id
-          `, [p.id]);
+          `, [p.id, claimedPayoutId]);
           L(`  Marked ${updateResult.rowCount} commissions as paid`);
 
           // Deduct from wallet after payout succeeds
@@ -383,6 +390,27 @@ export const runStripePayouts = async () => {
       summary.failed++;
       E(`❌ Transaction FAILED for ${name}: ${err.message}`);
       E(err.stack);
+      // The Stripe call (if it happened) is external and cannot be rolled
+      // back, but the claimed payout row is separate from the failed
+      // transaction above and must not be left stuck on 'processing' —
+      // otherwise the unique index would permanently block any retry
+      // this month even though no money actually moved on our side.
+      if (claimedPayoutId) {
+        const failureNote = capturedTransferId
+          ? `⚠️ MANUAL REVIEW NEEDED: a Stripe transfer (${capturedTransferId}) may have already gone out before this error — check the Stripe dashboard before retrying. Error: ${err.message}`
+          : (err.message?.slice(0, 500) || 'unknown error');
+        try {
+          await query(
+            `UPDATE payouts SET status = 'failed', failure_reason = $1, stripe_transfer_id = COALESCE(stripe_transfer_id, $3) WHERE id = $2 AND status = 'processing'`,
+            [failureNote.slice(0, 900), claimedPayoutId, capturedTransferId]
+          );
+          if (capturedTransferId) {
+            E(`  🚨 Transfer ${capturedTransferId} may have succeeded before the DB error — flagged payout ${claimedPayoutId} for manual review.`);
+          }
+        } catch (cleanupErr) {
+          E(`  Failed to mark claimed payout ${claimedPayoutId} as failed: ${cleanupErr.message}`);
+        }
+      }
       summary.details.push({ name, email: p.email, netAmount, grossAmount, status: 'error', error: err.message });
     }
   }
@@ -454,30 +482,42 @@ export const diagnosePayouts = asyncHandler(async (req, res) => {
 export const releaseAndPay = asyncHandler(async (req, res) => {
   console.log('[MANUAL TRIGGER] Admin triggered release-and-pay');
 
-  // Step 1: Release ALL held commissions (ignore 14-day hold for manual trigger)
-  const releaseResult = await query(`
-    UPDATE commissions
-    SET status = 'released', released_at = CURRENT_TIMESTAMP
-    WHERE status = 'held'
-      AND type <> 'bonus_pool'
-    RETURNING id, user_id, amount
-  `);
-  console.log(`[MANUAL TRIGGER] Force-released ${releaseResult.rowCount} held commissions`);
-
-  // Update wallet balances for newly released
-  for (const comm of releaseResult.rows) {
-    await query(
-      `UPDATE users SET wallet_balance = wallet_balance + $1, total_earned = total_earned + $1 WHERE id = $2`,
-      [comm.amount, comm.user_id]
-    );
+  // Step 1: Release commissions whose 14-day hold has actually elapsed.
+  // This previously released ALL held commissions regardless of held_until,
+  // which is why commissions from purchases made just days earlier were
+  // showing up in commission statements before the mandatory 14-day
+  // waiting period had passed. Use the same rule as the daily cron.
+  const forceOverride = req.query?.force === 'true' || req.body?.force === true;
+  let releasedRows;
+  if (forceOverride) {
+    // Explicit opt-in escape hatch only, e.g. ?force=true — still logged clearly.
+    console.warn('[MANUAL TRIGGER] force=true — bypassing 14-day hold as explicitly requested');
+    const releaseResult = await query(`
+      UPDATE commissions
+      SET status = 'released', released_at = CURRENT_TIMESTAMP
+      WHERE status = 'held'
+        AND type <> 'bonus_pool'
+      RETURNING id, user_id, amount
+    `);
+    releasedRows = releaseResult.rows;
+    for (const comm of releasedRows) {
+      await query(
+        `UPDATE users SET wallet_balance = wallet_balance + $1, total_earned = total_earned + $1 WHERE id = $2`,
+        [comm.amount, comm.user_id]
+      );
+    }
+  } else {
+    releasedRows = await releaseHeldCommissions();
   }
+  console.log(`[MANUAL TRIGGER] Released ${releasedRows.length} commissions${forceOverride ? ' (14-day hold bypassed)' : ' (14-day hold respected)'}`);
 
   // Step 2: Run payout cycle
   const payoutResult = await runStripePayouts();
 
   res.json({
-    force_released: releaseResult.rowCount,
+    released: releasedRows.length,
+    hold_bypassed: forceOverride,
     payout_result: payoutResult,
-    message: `Released ${releaseResult.rowCount} commissions and processed payouts`,
+    message: `Released ${releasedRows.length} commissions${forceOverride ? ' (14-day hold bypassed)' : ''} and processed payouts`,
   });
 });

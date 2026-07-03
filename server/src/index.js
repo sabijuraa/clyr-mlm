@@ -490,7 +490,11 @@ cron.schedule('0 3 1 * *', async () => {
 
 // ─────────────────────────────────────────────────────────────
 // AUTOMATIC PAYOUTS: 15th of every month at 3:00 AM
-// Second payout cycle per month (same logic as 1st, independent lock)
+// Second, intentional payout cycle per month (confirmed with Theresa,
+// Jul 2026 — she runs payouts twice monthly: 1st and 15th).
+// Same lock-based idempotency pattern as the 1st-of-month cron, and now
+// backed by the per-day payout reference + DB unique index in
+// stripe-connect.controller.js, so this can't collide with the 1st's run.
 // ─────────────────────────────────────────────────────────────
 cron.schedule('0 3 15 * *', async () => {
   const now = new Date();
@@ -1216,48 +1220,76 @@ app.listen(PORT, '0.0.0.0', async () => {
 
     // Auto-retry: if any partner has pending SEPA payouts AND now has Stripe connected
     // → cancel the pending record, reset commissions to released, trigger Stripe direct payout
-    // NOTE: Only one retry block — duplicates removed to prevent runStripePayouts() firing multiple times on startup
+    //
+    // ⚠️ FIXED (Jul 2026): this block runs on every server start — every deploy,
+    // crash-restart, or platform restart. It used to fire unconditionally, so two
+    // restarts close together (e.g. a redeploy shortly after a crash, or a couple
+    // of quick redeploys while actively developing) could each independently
+    // cancel-and-retry the SAME pending payout and trigger a brand new real Stripe
+    // transfer both times — a duplicate payment with no admin action involved,
+    // which matches what was reported. Two guards added:
+    //   1) Only retry payouts that have been sitting as 'pending' for at least an
+    //      hour, so back-to-back restarts within that window can't reprocess a
+    //      payout that a previous startup just claimed.
+    //   2) A cooldown lock (like the monthly payout_cycle lock) so this whole
+    //      block runs at most once per hour regardless of how many times the
+    //      process restarts in that window.
     try {
-      const pendingPayouts = await dbQuery(`
-        SELECT p.id, p.user_id, p.net_amount, p.gross_amount, p.vat_amount,
-               u.first_name, u.last_name, u.email, u.stripe_account_id
-        FROM payouts p
-        JOIN users u ON p.user_id = u.id
-        WHERE p.status = 'pending'
-          AND p.method = 'sepa'
-          AND u.stripe_account_id IS NOT NULL
-        ORDER BY p.created_at DESC
-      `);
-
-      if (pendingPayouts.rows.length > 0) {
-        console.log(`[AUTO-RETRY] Found ${pendingPayouts.rows.length} pending SEPA payout(s) for partners with Stripe connected`);
-
-        // Deduplicate by user — only process latest payout per user
-        const seen = new Set();
-        for (const p of pendingPayouts.rows) {
-          if (seen.has(p.user_id)) {
-            await dbQuery("UPDATE payouts SET status = 'cancelled' WHERE id = $1", [p.id]);
-            continue;
-          }
-          seen.add(p.user_id);
-
-          console.log(`[AUTO-RETRY]   Resetting ${p.first_name} ${p.last_name} (€${p.gross_amount}) → Stripe direct payout`);
-          await dbQuery("UPDATE payouts SET status = 'cancelled' WHERE id = $1", [p.id]);
-          await dbQuery(
-            "UPDATE commissions SET status = 'released', paid_at = NULL, payout_id = NULL WHERE payout_id = $1",
-            [p.id]
-          );
-          await dbQuery(
-            "UPDATE users SET wallet_balance = wallet_balance + $1 WHERE id = $2",
-            [p.net_amount, p.user_id]
-          );
-        }
-
-        const { runStripePayouts } = await import('./controllers/stripe-connect.controller.js');
-        const result = await runStripePayouts();
-        console.log(`[AUTO-RETRY] Done: ${result.processed} paid via Stripe, ${result.failed} failed, ${result.pending + result.skipped} still pending`);
+      const cooldownKey = `auto_retry_cooldown_${new Date().toISOString().slice(0, 13)}`; // per hour
+      const cooldownCheck = await dbQuery(
+        `SELECT id FROM activity_log WHERE action = 'auto_retry_started' AND details->>'cooldownKey' = $1 LIMIT 1`,
+        [cooldownKey]
+      );
+      if (cooldownCheck.rows.length > 0) {
+        console.log(`[AUTO-RETRY] Skipped — already ran this hour (${cooldownKey}), avoiding duplicate Stripe payouts on repeated restarts`);
       } else {
-        console.log('[AUTO-RETRY] No pending SEPA payouts with Stripe connected — nothing to retry.');
+        await dbQuery(
+          `INSERT INTO activity_log (action, entity_type, entity_id, details) VALUES ('auto_retry_started', 'system', $1, $2)`,
+          [cooldownKey, JSON.stringify({ cooldownKey, startedAt: new Date().toISOString() })]
+        );
+
+        const pendingPayouts = await dbQuery(`
+          SELECT p.id, p.user_id, p.net_amount, p.gross_amount, p.vat_amount,
+                 u.first_name, u.last_name, u.email, u.stripe_account_id
+          FROM payouts p
+          JOIN users u ON p.user_id = u.id
+          WHERE p.status = 'pending'
+            AND p.method = 'sepa'
+            AND u.stripe_account_id IS NOT NULL
+            AND p.created_at < NOW() - INTERVAL '1 hour'
+          ORDER BY p.created_at DESC
+        `);
+
+        if (pendingPayouts.rows.length > 0) {
+          console.log(`[AUTO-RETRY] Found ${pendingPayouts.rows.length} pending SEPA payout(s) (>1h old) for partners with Stripe connected`);
+
+          // Deduplicate by user — only process latest payout per user
+          const seen = new Set();
+          for (const p of pendingPayouts.rows) {
+            if (seen.has(p.user_id)) {
+              await dbQuery("UPDATE payouts SET status = 'cancelled' WHERE id = $1", [p.id]);
+              continue;
+            }
+            seen.add(p.user_id);
+
+            console.log(`[AUTO-RETRY]   Resetting ${p.first_name} ${p.last_name} (€${p.gross_amount}) → Stripe direct payout`);
+            await dbQuery("UPDATE payouts SET status = 'cancelled' WHERE id = $1", [p.id]);
+            await dbQuery(
+              "UPDATE commissions SET status = 'released', paid_at = NULL, payout_id = NULL WHERE payout_id = $1",
+              [p.id]
+            );
+            await dbQuery(
+              "UPDATE users SET wallet_balance = wallet_balance + $1 WHERE id = $2",
+              [p.net_amount, p.user_id]
+            );
+          }
+
+          const { runStripePayouts } = await import('./controllers/stripe-connect.controller.js');
+          const result = await runStripePayouts();
+          console.log(`[AUTO-RETRY] Done: ${result.processed} paid via Stripe, ${result.failed} failed, ${result.pending + result.skipped} still pending`);
+        } else {
+          console.log('[AUTO-RETRY] No pending SEPA payouts (>1h old) with Stripe connected — nothing to retry.');
+        }
       }
     } catch(e) {
       console.error('[AUTO-RETRY] Error:', e.message);

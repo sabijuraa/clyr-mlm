@@ -21,7 +21,7 @@ import { isVatIdFormatValid } from './tax.service.js';
 /**
  * Generate statement number
  */
-const generateStatementNumber = async () => {
+export const generateStatementNumber = async () => {
   const date = new Date();
   const prefix = `CS${date.getFullYear().toString().slice(-2)}${(date.getMonth() + 1).toString().padStart(2, '0')}`;
   

@@ -549,7 +549,7 @@ export const generateStatementForPartner = asyncHandler(async (req, res) => {
      FROM commissions c
      LEFT JOIN orders o ON c.order_id = o.id
      WHERE c.user_id = $1 
-       AND c.status IN ('held', 'released', 'paid', 'pending')
+       AND c.status IN ('released', 'paid')
        AND c.type <> 'bonus_pool'
        AND (
          (o.created_at >= $2 AND o.created_at <= $3)
