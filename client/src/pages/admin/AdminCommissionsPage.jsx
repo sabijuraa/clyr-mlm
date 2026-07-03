@@ -151,12 +151,12 @@ const AdminCommissionsPage = () => {
   };
 
   const handleReleaseAndPay = async () => {
-    if (!confirm('JETZT alle zurückgehaltenen Provisionen freigeben und Auszahlung sofort starten?')) return;
+    if (!confirm('Fällige Provisionen (14-Tage-Frist bereits abgelaufen) jetzt freigeben und Auszahlung starten?')) return;
     setReleasingAndPaying(true);
     try {
       const res = await api.post('/stripe-connect/release-and-pay');
-      const { force_released, payout_result } = res.data;
-      toast.success(`${force_released} Provisionen freigegeben. Stripe: ${payout_result.processed} ausgezahlt, ${payout_result.pending} ausstehend`);
+      const { released, payout_result } = res.data;
+      toast.success(`${released} Provisionen freigegeben. Stripe: ${payout_result.processed} ausgezahlt, ${payout_result.pending} ausstehend`);
       fetchCommissions();
       setDiagnoseData(null);
     } catch (e) {

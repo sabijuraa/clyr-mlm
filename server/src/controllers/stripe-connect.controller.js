@@ -516,6 +516,7 @@ export const releaseAndPay = asyncHandler(async (req, res) => {
 
   res.json({
     released: releasedRows.length,
+    force_released: releasedRows.length, // kept for backward compatibility with existing frontend
     hold_bypassed: forceOverride,
     payout_result: payoutResult,
     message: `Released ${releasedRows.length} commissions${forceOverride ? ' (14-day hold bypassed)' : ''} and processed payouts`,
