@@ -191,6 +191,34 @@ const handlePaymentSucceeded = async (paymentIntent) => {
     );
   });
 
+  // Auto-generate invoice + send confirmation email — mirrors handleCheckoutSessionCompleted.
+  // This was previously missing here, so whenever Stripe delivered 'payment_intent.succeeded'
+  // before 'checkout.session.completed', this handler would mark the order paid and the other
+  // handler would then see payment_status === 'paid' and skip, meaning NEITHER path ever
+  // generated an invoice or sent the confirmation email for that order.
+  let generatedInvoice = null;
+  try {
+    const { generateInvoice } = await import('../services/invoice.service.js');
+    generatedInvoice = await generateInvoice(order.id);
+  } catch (e) {
+    console.error('Invoice generation after payment_intent.succeeded failed:', order.id, e.message, e.stack);
+    await query(
+      `INSERT INTO activity_log (action, entity_type, entity_id, details)
+       VALUES ($1, $2, $3, $4)`,
+      ['invoice_generation_failed', 'order', order.id, JSON.stringify({ error: e.message })]
+    ).catch(() => {});
+  }
+
+  try {
+    const { sendOrderConfirmation } = await import('../services/email.service.js');
+    const itemsResult = await query('SELECT * FROM order_items WHERE order_id = $1', [order.id]);
+    const partnerEmail = order.partner_id ? (await query('SELECT email FROM users WHERE id = $1', [order.partner_id])).rows[0]?.email : null;
+    const invoiceNumber = generatedInvoice?.invoice_number || null;
+    await sendOrderConfirmation({ ...order, payment_status: 'paid', partner_email: partnerEmail, invoice_number: invoiceNumber }, itemsResult.rows);
+  } catch (e) {
+    console.error('Confirmation email failed (payment_intent.succeeded):', order.id, e.message);
+  }
+
   console.log('Payment succeeded for order:', order.order_number);
 };
 

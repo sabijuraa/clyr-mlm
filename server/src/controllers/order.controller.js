@@ -1397,14 +1397,31 @@ export const markOrderPaid = asyncHandler(async (req, res) => {
   });
 
   // Generate invoice if not yet done
+  let generatedInvoice = null;
   try {
     const { generateInvoice } = await import('../services/invoice.service.js');
-    await generateInvoice(id);
+    generatedInvoice = await generateInvoice(id);
   } catch (e) {
     console.error('Invoice generation after manual paid mark failed:', e.message);
   }
 
   const updatedOrder = await query('SELECT * FROM orders WHERE id = $1', [id]);
+
+  // Send confirmation email (with invoice PDF attached) — this was previously
+  // missing, so manually-confirmed orders never reached the customer/admin inbox.
+  try {
+    const { sendOrderConfirmation } = await import('../services/email.service.js');
+    const itemsResult = await query('SELECT * FROM order_items WHERE order_id = $1', [id]);
+    const finalOrder = updatedOrder.rows[0];
+    const partnerEmail = finalOrder.partner_id
+      ? (await query('SELECT email FROM users WHERE id = $1', [finalOrder.partner_id])).rows[0]?.email
+      : null;
+    const invoiceNumber = generatedInvoice?.invoice_number || finalOrder.invoice_number || null;
+    await sendOrderConfirmation({ ...finalOrder, partner_email: partnerEmail, invoice_number: invoiceNumber }, itemsResult.rows);
+  } catch (e) {
+    console.error('Confirmation email after manual paid mark failed:', id, e.message);
+  }
+
   res.json({ message: 'Bestellung erfolgreich als bezahlt markiert', order: updatedOrder.rows[0] });
 });
 
