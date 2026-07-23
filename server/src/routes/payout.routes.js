@@ -17,6 +17,8 @@ router.get('/admin/stats', authenticate, isAdmin, payoutController.getPayoutStat
 router.post('/admin/:id/approve', authenticate, isAdmin, payoutController.approvePayout);
 router.post('/admin/:id/cancel', authenticate, isAdmin, payoutController.cancelPayout);
 router.post('/admin/:id/complete', authenticate, isAdmin, payoutController.completePayout);
+router.post('/admin/:id/prepare-manual', authenticate, isAdmin, payoutController.prepareManualPayout);
+router.post('/admin/:id/complete-manual', authenticate, isAdmin, payoutController.completeManualPayout);
 router.post('/admin/process', authenticate, isAdmin, payoutController.processPayouts);
 router.post('/admin/run-cycle', authenticate, isAdmin, payoutController.runPayoutCycle);
 

@@ -425,8 +425,14 @@ export const payoutsAPI = {
   cancel: (id, reason) => 
     api.post(`/payouts/admin/${id}/cancel`, { reason }),
 
-  complete: (id) => 
-    api.post(`/payouts/admin/${id}/complete`),
+  complete: (id, transactionId) =>
+    api.post(`/payouts/admin/${id}/complete`, { transactionId }),
+
+  completeManual: (id, transactionReference) =>
+    api.post(`/payouts/admin/${id}/complete-manual`, { transactionReference }),
+
+  prepareManual: (id) =>
+    api.post(`/payouts/admin/${id}/prepare-manual`),
 
   process: () => 
     api.post('/payouts/admin/process'),

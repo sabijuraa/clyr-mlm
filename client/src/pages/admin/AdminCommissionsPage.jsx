@@ -14,7 +14,7 @@ import {
   Gift,
   TrendingDown
 } from 'lucide-react';
-import { commissionsAPI, downloadBlob } from '../../services/api';
+import { commissionsAPI, payoutsAPI, downloadBlob } from '../../services/api';
 import api from '../../services/api';
 import { formatDate, formatCurrency, formatCommissionType, formatCommissionStatus, getStatusColor } from '../../utils/formatters';
 import Button from '../../components/common/Button';
@@ -40,6 +40,8 @@ const AdminCommissionsPage = () => {
   const [downloadingZip, setDownloadingZip] = useState(false);
   const [zipYear, setZipYear] = useState(new Date().getFullYear());
   const [zipMonth, setZipMonth] = useState(new Date().getMonth() + 1);
+  const [manualPayouts, setManualPayouts] = useState([]);
+  const [completingManualPayoutId, setCompletingManualPayoutId] = useState(null);
 
   const MONTHS_DE = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 
@@ -67,6 +69,59 @@ const AdminCommissionsPage = () => {
   useEffect(() => {
     fetchCommissions();
   }, [page, statusFilter, typeFilter]);
+
+  useEffect(() => {
+    fetchManualPayouts();
+  }, []);
+
+  const fetchManualPayouts = async () => {
+    try {
+      const response = await payoutsAPI.getPending();
+      const payouts = response.data?.data || [];
+      // AUTO rows need consolidating first; manual rows are already prepared
+      // with their exact commission set reserved.
+      setManualPayouts(payouts.filter((payout) =>
+        payout.status === 'pending' &&
+        !payout.stripe_transfer_id &&
+        (payout.method === 'manual' || String(payout.reference || '').startsWith('AUTO-'))
+      ));
+    } catch (error) {
+      console.error('Failed to load manual payouts:', error);
+    }
+  };
+
+  const handleCompleteManualPayout = async (payout) => {
+    const reference = window.prompt(
+      `Enter the bank or PayPal transaction reference for €${Number(payout.gross_amount).toFixed(2)} paid to ${payout.first_name} ${payout.last_name}.`
+    );
+    if (!reference) return;
+    if (!window.confirm('Confirm that this payment has already been sent externally. This only records it in CLYR and cannot be undone.')) return;
+
+    setCompletingManualPayoutId(payout.id);
+    try {
+      await payoutsAPI.completeManual(payout.id, reference);
+      toast.success('Manual payment recorded and commissions marked paid');
+      await Promise.all([fetchCommissions(), fetchManualPayouts()]);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Manual payment could not be recorded');
+    } finally {
+      setCompletingManualPayoutId(null);
+    }
+  };
+
+  const handlePrepareManualPayout = async (payout) => {
+    if (!window.confirm('Prepare one consolidated manual payout for this affiliate? No money will be sent. Old pending rows will be retained as cancelled for the audit trail.')) return;
+    setCompletingManualPayoutId(payout.id);
+    try {
+      await payoutsAPI.prepareManual(payout.id);
+      toast.success('Manual payout prepared. Send the external payment, then record its reference.');
+      await fetchManualPayouts();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Manual payout could not be prepared');
+    } finally {
+      setCompletingManualPayoutId(null);
+    }
+  };
 
   const fetchCommissions = async () => {
     setLoading(true);
@@ -348,6 +403,61 @@ const AdminCommissionsPage = () => {
             </div>
             <p className="text-sm text-secondary-500">Ausstehend</p>
             <p className="text-xl font-bold text-secondary-700">{formatCurrency(totals.total_pending || 0)}</p>
+          </div>
+        </div>
+      )}
+
+      {manualPayouts.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div>
+              <h2 className="font-semibold text-amber-900">Manual payments required</h2>
+              <p className="text-sm text-amber-800 mt-1">
+                These affiliates have no active Stripe payout account. Send the amount externally first, then record the transfer reference here.
+              </p>
+            </div>
+            <span className="shrink-0 rounded-full bg-amber-200 text-amber-900 px-3 py-1 text-sm font-semibold">
+              {manualPayouts.length}
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-sm">
+              <thead className="text-left text-amber-900">
+                <tr className="border-b border-amber-200">
+                  <th className="py-2 pr-4">Affiliate</th>
+                  <th className="py-2 pr-4">Reference</th>
+                  <th className="py-2 pr-4 text-right">Net</th>
+                  <th className="py-2 pr-4 text-right">Gross to send</th>
+                  <th className="py-2 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-amber-100">
+                {manualPayouts.map((payout) => (
+                  <tr key={payout.id}>
+                    <td className="py-3 pr-4">
+                      <div className="font-medium text-secondary-700">{payout.first_name} {payout.last_name}</div>
+                      <div className="text-xs text-secondary-500">{payout.email}</div>
+                    </td>
+                    <td className="py-3 pr-4 font-mono text-xs text-secondary-600">{payout.reference}</td>
+                    <td className="py-3 pr-4 text-right">{formatCurrency(payout.net_amount)}</td>
+                    <td className="py-3 pr-4 text-right font-semibold">{formatCurrency(payout.gross_amount)}</td>
+                    <td className="py-3 text-right">
+                      <button
+                        onClick={() => payout.method === 'manual'
+                          ? handleCompleteManualPayout(payout)
+                          : handlePrepareManualPayout(payout)}
+                        disabled={completingManualPayoutId === payout.id}
+                        className="px-3 py-1.5 rounded-lg bg-amber-700 text-white font-medium hover:bg-amber-800 disabled:opacity-50"
+                      >
+                        {completingManualPayoutId === payout.id
+                          ? 'Processing…'
+                          : payout.method === 'manual' ? 'Record as paid' : 'Prepare payment'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

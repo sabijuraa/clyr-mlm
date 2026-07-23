@@ -395,6 +395,187 @@ export const completePayout = async (payoutId, transactionId = null) => {
 };
 
 /**
+ * Record a payout that an administrator has paid outside Stripe (for example
+ * by bank transfer or PayPal). Auto-created manual payouts are intentionally
+ * left as `pending` until this action; no commission is marked paid merely
+ * because an affiliate does not have Stripe Connect.
+ */
+export const completeManualPayout = async (payoutId, transactionReference, completedBy) => {
+  const reference = String(transactionReference || '').trim();
+  if (reference.length < 3) {
+    throw new Error('A bank or PayPal transaction reference is required');
+  }
+
+  return transaction(async (client) => {
+    const payoutResult = await client.query(
+      `SELECT p.*, u.wallet_balance
+       FROM payouts p
+       JOIN users u ON u.id = p.user_id
+       WHERE p.id = $1
+       FOR UPDATE`,
+      [payoutId]
+    );
+    if (payoutResult.rows.length === 0) throw new Error('Payout not found');
+
+    const payout = payoutResult.rows[0];
+    if (payout.status !== 'pending') {
+      throw new Error('Only a pending manual payout can be completed here');
+    }
+    if (payout.stripe_transfer_id) {
+      throw new Error('This payout has a Stripe transfer and cannot be completed manually');
+    }
+
+    // A manual payout must be prepared first. Preparing locks the precise
+    // commission set to this payout, so newly earned commissions can never be
+    // accidentally included when the administrator records the bank transfer.
+    const commissionsResult = await client.query(
+      `SELECT id, amount
+       FROM commissions
+       WHERE user_id = $1
+         AND status = 'released'
+         AND payout_id = $2
+         AND type <> 'bonus_pool'
+       ORDER BY created_at ASC
+       FOR UPDATE`,
+      [payout.user_id, payoutId]
+    );
+    const netAmount = commissionsResult.rows.reduce((total, commission) => total + Number(commission.amount), 0);
+    if (Math.abs(netAmount - Number(payout.net_amount)) > 0.01) {
+      throw new Error('The released commission total has changed. Create a new manual payout before recording payment.');
+    }
+    if (commissionsResult.rows.length === 0) {
+      throw new Error('No released commissions are available for this payout');
+    }
+
+    const commissionIds = commissionsResult.rows.map((commission) => commission.id);
+    await client.query(
+      `UPDATE commissions
+       SET status = 'paid', paid_at = CURRENT_TIMESTAMP, payout_id = $1
+       WHERE id = ANY($2)`,
+      [payoutId, commissionIds]
+    );
+    await client.query(
+      `UPDATE payouts
+       SET status = 'completed', method = 'manual', transaction_id = $1,
+           completed_at = CURRENT_TIMESTAMP
+       WHERE id = $2`,
+      [reference, payoutId]
+    );
+    await client.query(
+      `UPDATE users
+       SET wallet_balance = GREATEST(0, wallet_balance - $1),
+           total_paid_out = COALESCE(total_paid_out, 0) + $2
+       WHERE id = $3`,
+      [payout.net_amount, payout.gross_amount, payout.user_id]
+    );
+    await client.query(
+      `INSERT INTO activity_log (user_id, action, entity_type, entity_id, details)
+       VALUES ($1, 'manual_payout_completed', 'payout', $2, $3)`,
+      [completedBy, payoutId, JSON.stringify({
+        netAmount: payout.net_amount,
+        grossAmount: payout.gross_amount,
+        transactionReference: reference,
+        commissionCount: commissionIds.length,
+      })]
+    );
+
+    return { ...payout, status: 'completed', method: 'manual', transaction_id: reference };
+  });
+};
+
+/**
+ * Consolidate stale automatic pending rows into one manual payout and reserve
+ * the exact released commissions. No money is sent by this operation.
+ */
+export const prepareManualPayout = async (payoutId, preparedBy) => {
+  const statementNumber = await generateStatementNumber();
+  return transaction(async (client) => {
+    const sourceResult = await client.query(
+      `SELECT p.*, u.country, u.vat_id, u.first_name, u.last_name, u.iban, u.bic, u.account_holder
+       FROM payouts p
+       JOIN users u ON u.id = p.user_id
+       WHERE p.id = $1
+       FOR UPDATE`,
+      [payoutId]
+    );
+    if (sourceResult.rows.length === 0) throw new Error('Payout not found');
+    const source = sourceResult.rows[0];
+    if (source.status !== 'pending' || source.stripe_transfer_id) {
+      throw new Error('Only a pending payout without a Stripe transfer can be prepared manually');
+    }
+
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`manual-payout-${source.user_id}`]);
+
+    const existingManual = await client.query(
+      `SELECT * FROM payouts
+       WHERE user_id = $1 AND status = 'pending' AND method = 'manual'
+       LIMIT 1
+       FOR UPDATE`,
+      [source.user_id]
+    );
+    if (existingManual.rows.length > 0) return existingManual.rows[0];
+
+    const commissionsResult = await client.query(
+      `SELECT id, amount, created_at
+       FROM commissions
+       WHERE user_id = $1 AND status = 'released' AND payout_id IS NULL
+         AND type <> 'bonus_pool'
+       ORDER BY created_at ASC
+       FOR UPDATE`,
+      [source.user_id]
+    );
+    if (commissionsResult.rows.length === 0) {
+      throw new Error('No released commissions are available for a manual payout');
+    }
+
+    const netAmount = commissionsResult.rows.reduce((total, commission) => total + Number(commission.amount), 0);
+    const vatInfo = calculateCommissionVAT(source, netAmount);
+    const firstCommission = commissionsResult.rows[0].created_at;
+    const lastCommission = commissionsResult.rows[commissionsResult.rows.length - 1].created_at;
+    const reference = `MANUAL-${new Date().toISOString().slice(0, 10)}-${source.user_id.slice(0, 8)}`;
+    const payoutResult = await client.query(
+      `INSERT INTO payouts (
+         user_id, net_amount, vat_amount, gross_amount, method, status,
+         iban, bic, account_holder, reference, statement_number, period_start, period_end
+       ) VALUES ($1, $2, $3, $4, 'manual', 'pending', $5, $6, $7, $8, $9, $10, $11)
+       RETURNING *`,
+      [
+        source.user_id, netAmount, vatInfo.vatAmount, vatInfo.grossAmount,
+        source.iban, source.bic, source.account_holder,
+        reference, statementNumber,
+        new Date(firstCommission).toISOString().slice(0, 10),
+        new Date(lastCommission).toISOString().slice(0, 10),
+      ]
+    );
+    const payout = payoutResult.rows[0];
+    await client.query(
+      `UPDATE commissions SET payout_id = $1 WHERE id = ANY($2)`,
+      [payout.id, commissionsResult.rows.map((commission) => commission.id)]
+    );
+    // These rows never moved money and never reserved a wallet balance. They
+    // are superseded only to keep the audit trail and avoid showing duplicates.
+    await client.query(
+      `UPDATE payouts
+       SET status = 'cancelled', failure_reason = 'Superseded by consolidated manual payout ' || $2
+       WHERE user_id = $1 AND status = 'pending' AND method = 'sepa'
+         AND stripe_transfer_id IS NULL`,
+      [source.user_id, payout.reference]
+    );
+    await client.query(
+      `INSERT INTO activity_log (user_id, action, entity_type, entity_id, details)
+       VALUES ($1, 'manual_payout_prepared', 'payout', $2, $3)`,
+      [preparedBy, payout.id, JSON.stringify({
+        netAmount,
+        grossAmount: vatInfo.grossAmount,
+        commissionCount: commissionsResult.rows.length,
+        sourcePayoutId: source.id,
+      })]
+    );
+    return payout;
+  });
+};
+
+/**
  * Get payout history for partner
  */
 export const getPartnerPayoutHistory = async (userId, page = 1, limit = 20) => {
@@ -532,6 +713,15 @@ export const cancelPayout = async (payoutId, reason, cancelledBy) => {
       [reason, payoutId]
     );
 
+    // A partner-requested payout reserves commissions and removes the wallet
+    // balance. Auto-created manual pending payouts do neither, so restoring
+    // the balance unconditionally would inflate it when an admin cancels one.
+    const linkedCommissionsResult = await client.query(
+      `SELECT COUNT(*)::int AS count FROM commissions WHERE payout_id = $1`,
+      [payoutId]
+    );
+    const hasLinkedCommissions = linkedCommissionsResult.rows[0].count > 0;
+
     // Unlink commissions
     await client.query(
       `UPDATE commissions 
@@ -541,12 +731,14 @@ export const cancelPayout = async (payoutId, reason, cancelledBy) => {
     );
 
     // Restore wallet balance
-    await client.query(
-      `UPDATE users 
-       SET wallet_balance = wallet_balance + $1
-       WHERE id = $2`,
-      [payout.gross_amount, payout.user_id]
-    );
+    if (hasLinkedCommissions) {
+      await client.query(
+        `UPDATE users
+         SET wallet_balance = wallet_balance + $1
+         WHERE id = $2`,
+        [payout.net_amount, payout.user_id]
+      );
+    }
 
     // Log activity
     await client.query(

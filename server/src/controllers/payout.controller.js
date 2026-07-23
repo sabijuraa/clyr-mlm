@@ -295,6 +295,53 @@ export const completePayout = async (req, res) => {
 };
 
 /**
+ * Record a completed offline payout (bank transfer / PayPal). This endpoint
+ * never sends money; it only finalises a pending, non-Stripe payout after the
+ * administrator has made the transfer externally.
+ */
+export const completeManualPayout = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { transactionReference } = req.body;
+    const payout = await payoutService.completeManualPayout(
+      id,
+      transactionReference,
+      req.user.id
+    );
+
+    res.json({
+      success: true,
+      message: 'Manual payout recorded as completed',
+      data: payout
+    });
+  } catch (error) {
+    console.error('Error completing manual payout:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Unable to complete manual payout'
+    });
+  }
+};
+
+/** Reserve released commissions in one manual payout. No money is sent. */
+export const prepareManualPayout = async (req, res) => {
+  try {
+    const payout = await payoutService.prepareManualPayout(req.params.id, req.user.id);
+    res.json({
+      success: true,
+      message: 'Manual payout prepared. Send the external payment before recording it as paid.',
+      data: payout
+    });
+  } catch (error) {
+    console.error('Error preparing manual payout:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Unable to prepare manual payout'
+    });
+  }
+};
+
+/**
  * Get payout statistics (admin)
  */
 export const getPayoutStats = async (req, res) => {
