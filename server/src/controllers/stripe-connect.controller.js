@@ -273,6 +273,11 @@ export const runStripePayouts = async () => {
                     destination: p.stripe_account_id,
                     description: `CLYR Provision ${monthLabel}`,
                     metadata: { partner_id: p.id, net: netAmount.toString(), vat: vatAmount.toString() },
+                  }, {
+                    // The database claim prevents concurrent runs. This key also
+                    // protects the small window where Stripe succeeds but the
+                    // process stops before the payout row is updated.
+                    idempotencyKey: `clyr-transfer-${claimedPayoutId}`,
                   });
                   transferId = transfer.id;
                   capturedTransferId = transferId;
@@ -281,7 +286,10 @@ export const runStripePayouts = async () => {
                   // Payout from connected account to their bank
                   await stripe.payouts.create(
                     { amount: cents, currency: 'eur', method: 'standard' },
-                    { stripeAccount: p.stripe_account_id }
+                    {
+                      stripeAccount: p.stripe_account_id,
+                      idempotencyKey: `clyr-connected-payout-${claimedPayoutId}`,
+                    }
                   );
                   L(`  ✅ Stripe transfer + payout created for ${name}`);
                 } catch (transferErr) {
@@ -294,6 +302,8 @@ export const runStripePayouts = async () => {
                       currency: 'eur',
                       description: `Top-up for CLYR Provision ${monthLabel} — ${name}`,
                       statement_descriptor: 'CLYR Provision',
+                    }, {
+                      idempotencyKey: `clyr-topup-${claimedPayoutId}`,
                     });
                     L(`  Top-up created: ${topup.id} status=${topup.status}`);
                     
@@ -304,6 +314,8 @@ export const runStripePayouts = async () => {
                       destination: p.stripe_account_id,
                       description: `CLYR Provision ${monthLabel}`,
                       metadata: { partner_id: p.id, topup: topup.id },
+                    }, {
+                      idempotencyKey: `clyr-transfer-${claimedPayoutId}`,
                     });
                     transferId = transfer2.id;
                     capturedTransferId = transferId;
