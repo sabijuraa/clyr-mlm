@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
-import { referralAPI, ordersAPI } from '../../services/api';
+import { referralAPI, ordersAPI, customerPortalAPI } from '../../services/api';
 import api from '../../services/api';
 import { isValidVatId } from '../../utils/validators';
 import appConfig, { calculateShipping, normalizeCountryCode } from '../../config/app.config';
@@ -184,6 +184,8 @@ export default function CheckoutPage() {
     city: '',
     postalCode: '',
     country: 'AT',
+    accountPassword: '',
+    accountPasswordConfirm: '',
     customerNotes: ''
   });
   const [acceptTerms, setAcceptTerms] = useState(false);
@@ -319,6 +321,33 @@ export default function CheckoutPage() {
         setLoading(false);
         return;
       }
+
+      if (formData.accountPassword.length < 8) {
+        alert('Bitte wählen Sie ein Passwort mit mindestens 8 Zeichen für Ihren Kundenbereich.');
+        setLoading(false);
+        return;
+      }
+      if (formData.accountPassword !== formData.accountPasswordConfirm) {
+        alert('Die Passwörter stimmen nicht überein.');
+        setLoading(false);
+        return;
+      }
+
+      // A checkout customer already exists (or is created) in the database.
+      // Register it before payment so the account is ready immediately after
+      // Stripe returns and the customer stays logged into the portal.
+      const accountResponse = await customerPortalAPI.register({
+        first_name: formData.firstName.trim(),
+        last_name: formData.lastName.trim(),
+        email: formData.email.trim().toLowerCase(),
+        password: formData.accountPassword,
+        phone: formData.phone.trim(),
+        street: (formData.addressLine1 + (formData.addressLine2 ? ', ' + formData.addressLine2 : '')).trim(),
+        zip: formData.postalCode.trim(),
+        city: formData.city.trim(),
+        country: normalizedCountry,
+      });
+      if (accountResponse.data?.token) localStorage.setItem('customerToken', accountResponse.data.token);
 
       const orderData = {
         customer: {
@@ -456,6 +485,21 @@ export default function CheckoutPage() {
                       onChange={handleChange}
                       className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
                     />
+                  </div>
+                </div>
+
+                <div className="mt-5 rounded-lg border border-blue-200 bg-blue-50 p-4">
+                  <h3 className="font-semibold text-blue-950">Kundenkonto erstellen</h3>
+                  <p className="mt-1 text-sm text-blue-800">Wählen Sie ein Passwort, damit Sie Ihre Bestellung, Rechnung und spätere Filter-Nachkäufe im Kundenbereich sehen können.</p>
+                  <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Passwort *</label>
+                      <input type="password" name="accountPassword" value={formData.accountPassword} onChange={handleChange} minLength={8} required autoComplete="new-password" className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Passwort wiederholen *</label>
+                      <input type="password" name="accountPasswordConfirm" value={formData.accountPasswordConfirm} onChange={handleChange} minLength={8} required autoComplete="new-password" className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500" />
+                    </div>
                   </div>
                 </div>
               </div>
