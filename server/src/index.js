@@ -396,16 +396,21 @@ app.use(errorHandler);
 // CRON JOBS
 // ========================================
 
-// Clean up unpaid pending orders every 30 minutes (only orders older than 2 hours)
-// NOTE: Stripe Checkout sessions (especially Klarna/EPS bank redirects) can take 30-60+ minutes.
-// Deleting too early causes paid orders to disappear. 2 hours is safe for all payment methods.
+// Clean up unpaid pending orders every 30 minutes (only orders older than 24 hours)
+// ⚠️ FIXED (Jul 2026): this used to delete anything still 'pending' after only 2 hours.
+// Klarna (and other async/redirect methods) confirm via 'checkout.session.async_payment_succeeded',
+// which can legitimately arrive well after 2 hours — this cron was deleting the order (and its
+// items/commissions) before that confirmation ever landed, so a genuinely paid Klarna order would
+// vanish from the app entirely even though Stripe had the money. 24 hours matches Stripe's own
+// guidance for how long an async payment method can take to settle before treating a session as
+// truly abandoned.
 cron.schedule('*/30 * * * *', async () => {
   try {
     const { query: dbQ } = await import('./config/database.js');
-    await dbQ("DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE payment_status = 'pending' AND created_at < NOW() - INTERVAL '2 hours')");
-    await dbQ("DELETE FROM commissions WHERE order_id IN (SELECT id FROM orders WHERE payment_status = 'pending' AND created_at < NOW() - INTERVAL '2 hours')");
-    const r = await dbQ("DELETE FROM orders WHERE payment_status = 'pending' AND created_at < NOW() - INTERVAL '2 hours' RETURNING id");
-    if (r.rowCount > 0) console.log(`Cron: Deleted ${r.rowCount} abandoned unpaid orders (>2h old)`);
+    await dbQ("DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE payment_status = 'pending' AND created_at < NOW() - INTERVAL '24 hours')");
+    await dbQ("DELETE FROM commissions WHERE order_id IN (SELECT id FROM orders WHERE payment_status = 'pending' AND created_at < NOW() - INTERVAL '24 hours')");
+    const r = await dbQ("DELETE FROM orders WHERE payment_status = 'pending' AND created_at < NOW() - INTERVAL '24 hours' RETURNING id");
+    if (r.rowCount > 0) console.log(`Cron: Deleted ${r.rowCount} abandoned unpaid orders (>24h old)`);
   } catch(e) {}
 });
 
@@ -1301,14 +1306,18 @@ app.listen(PORT, '0.0.0.0', async () => {
     }
 
 
+    // ⚠️ FIXED (Jul 2026): widened from 2h to 24h — same reason as the cron job above.
+    // This copy runs on every server start/restart/deploy, so with the old 2h window a
+    // redeploy shortly after a Klarna checkout could delete the order before Stripe's
+    // async confirmation webhook had a chance to arrive.
     try {
-      await dbQuery("DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE payment_status = 'pending' AND created_at < NOW() - INTERVAL '2 hours')");
-      await dbQuery("DELETE FROM commissions WHERE order_id IN (SELECT id FROM orders WHERE payment_status = 'pending' AND created_at < NOW() - INTERVAL '2 hours')");
+      await dbQuery("DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE payment_status = 'pending' AND created_at < NOW() - INTERVAL '24 hours')");
+      await dbQuery("DELETE FROM commissions WHERE order_id IN (SELECT id FROM orders WHERE payment_status = 'pending' AND created_at < NOW() - INTERVAL '24 hours')");
       const cancelled = await dbQuery(
-        "DELETE FROM orders WHERE payment_status = 'pending' AND created_at < NOW() - INTERVAL '2 hours' RETURNING id"
+        "DELETE FROM orders WHERE payment_status = 'pending' AND created_at < NOW() - INTERVAL '24 hours' RETURNING id"
       );
       if (cancelled.rowCount > 0) {
-        console.log(`Auto-deleted ${cancelled.rowCount} unpaid orders older than 2 hours`);
+        console.log(`Auto-deleted ${cancelled.rowCount} unpaid orders older than 24 hours`);
       }
     } catch(e) { console.error('Auto-cancel error:', e.message); }
   } catch (err) {

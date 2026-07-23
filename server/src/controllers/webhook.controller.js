@@ -38,6 +38,26 @@ export const handleStripeWebhook = async (req, res) => {
         await handleCheckoutSessionCompleted(event.data.object);
         break;
 
+      // Klarna (and other delayed/redirect methods like SEPA Direct Debit)
+      // confirm in TWO steps. 'checkout.session.completed' fires as soon as
+      // the customer finishes the Klarna flow, but payment_status on that
+      // session is still 'unpaid' — the money hasn't landed yet. Stripe then
+      // sends this second event once Klarna actually settles the payment.
+      // Previously this event type was not handled at all (fell through to
+      // 'default' and was just logged), so the app never learned the money
+      // had arrived even though Stripe had it.
+      case 'checkout.session.async_payment_succeeded':
+        await handleCheckoutSessionCompleted(event.data.object);
+        break;
+
+      // Symmetric case: Klarna/SEPA can also fail asynchronously after
+      // 'checkout.session.completed' already fired. Without this, a
+      // declined async payment would leave the order stuck as 'pending'
+      // forever instead of being marked failed (and stock restored).
+      case 'checkout.session.async_payment_failed':
+        await handleAsyncCheckoutSessionFailed(event.data.object);
+        break;
+
       case 'payment_intent.payment_failed':
         await handlePaymentFailed(event.data.object);
         break;
@@ -84,6 +104,18 @@ const handleCheckoutSessionCompleted = async (session) => {
   const order = orderResult.rows[0];
 
   if (order.payment_status === 'paid') return;
+
+  // For instant methods (card) session.payment_status is already 'paid' here.
+  // For async methods (Klarna, SEPA Direct Debit) it's still 'unpaid' on the
+  // initial 'checkout.session.completed' event — that just means the customer
+  // finished the Klarna flow, not that the money has arrived. In that case we
+  // deliberately do nothing yet and wait for 'checkout.session.async_payment_succeeded'
+  // (handled above), which re-invokes this same function once Stripe confirms
+  // payment_status is truly 'paid'.
+  if (session.payment_status !== 'paid') {
+    console.log(`Checkout session ${session.id} completed but payment_status='${session.payment_status}' (async method pending settlement) — order ${order.order_number} left as-is.`);
+    return;
+  }
 
   await transaction(async (client) => {
     await client.query(
@@ -220,6 +252,57 @@ const handlePaymentSucceeded = async (paymentIntent) => {
   }
 
   console.log('Payment succeeded for order:', order.order_number);
+};
+
+/**
+ * Handle an async payment method (Klarna, SEPA Direct Debit, etc.) that
+ * ultimately failed/was declined after 'checkout.session.completed' had
+ * already fired. Without this, those orders were left as 'pending' forever
+ * with no stock restored and no record of why.
+ */
+const handleAsyncCheckoutSessionFailed = async (session) => {
+  const orderId = session.metadata?.orderId;
+
+  const orderResult = await query(
+    'SELECT * FROM orders WHERE id = $1 OR stripe_payment_intent_id = $2',
+    [orderId, session.id]
+  );
+
+  if (orderResult.rows.length === 0) {
+    console.log('No order found for failed async checkout session:', session.id);
+    return;
+  }
+
+  const order = orderResult.rows[0];
+  if (order.payment_status === 'paid') return;
+
+  await query(
+    `UPDATE orders SET 
+      payment_status = 'failed',
+      admin_notes = COALESCE(admin_notes, '') || $1,
+      updated_at = CURRENT_TIMESTAMP
+     WHERE id = $2`,
+    [`\nAsync-Zahlung fehlgeschlagen (${session.payment_method_types?.join(', ') || 'Klarna/SEPA'})`, order.id]
+  );
+
+  const itemsResult = await query(
+    'SELECT product_id, quantity FROM order_items WHERE order_id = $1',
+    [order.id]
+  );
+  for (const item of itemsResult.rows) {
+    await query(
+      'UPDATE products SET stock = stock + $1 WHERE id = $2 AND track_stock = true',
+      [item.quantity, item.product_id]
+    );
+  }
+
+  await query(
+    `INSERT INTO activity_log (action, entity_type, entity_id, details)
+     VALUES ($1, $2, $3, $4)`,
+    ['async_payment_failed', 'order', order.id, JSON.stringify({ sessionId: session.id })]
+  );
+
+  console.log('Async payment failed for order:', order.order_number);
 };
 
 /**

@@ -49,6 +49,15 @@ export default function CheckoutPage() {
         });
       return;
     }
+    if (status === 'pending' && orderId) {
+      // Klarna and other delayed methods can return before Stripe settles. The
+      // webhook will create the invoice and send the confirmation once paid.
+      setOrderConfirmed(true);
+      setConfirmedOrderId(orderId);
+      setPaymentStatus('pending');
+      if (typeof clearCart === 'function') clearCart();
+      return;
+    }
     if (status === 'cancelled') {
       alert('Zahlung wurde abgebrochen. Sie können es erneut versuchen.');
     }
@@ -89,7 +98,9 @@ export default function CheckoutPage() {
           </h1>
 
           <p className="text-xl text-gray-500 mb-8">
-            {paymentStatus === 'verifying' 
+            {paymentStatus === 'pending'
+              ? 'Ihre Zahlung wird von Stripe bestätigt. Sie erhalten die Bestätigung per E-Mail, sobald sie abgeschlossen ist.'
+              : paymentStatus === 'verifying'
               ? 'Zahlung wird überprüft...'
               : 'Ihre Zahlung war erfolgreich!'}
           </p>
@@ -128,7 +139,7 @@ export default function CheckoutPage() {
           </div>
 
           {/* Invoice Download */}
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 mb-10 text-left">
+          {paymentStatus !== 'pending' && <div className="bg-white rounded-2xl p-6 border border-gray-100 mb-10 text-left">
             <h3 className="font-semibold text-gray-800 mb-2">Rechnung herunterladen</h3>
             <p className="text-sm text-gray-500 mb-3">
               Laden Sie Ihre Rechnung als PDF herunter.
@@ -140,7 +151,7 @@ export default function CheckoutPage() {
               </svg>
               {downloading ? 'Wird erstellt...' : 'Rechnung PDF herunterladen'}
             </button>
-          </div>
+          </div>}
 
           {/* Navigation */}
           <div className="flex flex-wrap justify-center gap-4">

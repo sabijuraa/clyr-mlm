@@ -463,27 +463,6 @@ export const verifyPayment = asyncHandler(async (req, res) => {
     }
   }
 
-  // Mark as paid anyway if coming from Stripe success redirect (Stripe only redirects on success)
-  if (sessionId && order.payment_status === 'pending') {
-    await query(
-      `UPDATE orders SET payment_status = 'paid', payment_method = 'stripe', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
-      [id]
-    );
-
-    // Calculate commissions
-    if (order.partner_id) {
-      try {
-        await transaction(async (client) => {
-          await calculateCommissions(client, order.id, order.partner_id, getOrderCommissionBase(order));
-        });
-      } catch (e) {
-        console.error('Commission calculation failed:', e.message);
-      }
-    }
-
-    return res.json({ status: 'paid', order_number: order.order_number });
-  }
-
   res.json({ status: order.payment_status, order_number: order.order_number });
 });
 
@@ -625,6 +604,7 @@ export const paymentSuccessRedirect = asyncHandler(async (req, res) => {
   }
 
   let orderNumber = orderId;
+  let paymentConfirmed = false;
   if (orderId) {
     try {
       const orderResult = await query('SELECT * FROM orders WHERE id = $1', [orderId]);
@@ -632,45 +612,13 @@ export const paymentSuccessRedirect = asyncHandler(async (req, res) => {
         const order = orderResult.rows[0];
         orderNumber = order.order_number || orderId;
 
-        if (order.payment_status !== 'paid') {
-          await query(
-            `UPDATE orders SET
-               payment_status = 'paid',
-               payment_method = 'stripe',
-               stripe_payment_intent_id = COALESCE(NULLIF(stripe_payment_intent_id, ''), $2),
-               updated_at = CURRENT_TIMESTAMP
-             WHERE id = $1`,
-            [orderId, sessionId || null]
-          );
-
-          if (order.partner_id) {
-            try {
-              await transaction(async (client) => {
-                await calculateCommissions(client, order.id, order.partner_id, getOrderCommissionBase(order));
-              });
-            } catch (e) {
-              console.error('Commission error:', e.message);
-            }
-          }
-
-          try {
-            const { generateInvoice } = await import('../services/invoice.service.js');
-            await generateInvoice(orderId);
-          } catch (e) {
-            console.error('Invoice error:', e.message);
-          }
-
-          try {
-            const { sendOrderConfirmation } = await import('../services/email.service.js');
-            const itemsResult = await query('SELECT * FROM order_items WHERE order_id = $1', [orderId]);
-            const updatedOrder = (await query('SELECT * FROM orders WHERE id = $1', [orderId])).rows[0];
-            const partnerEmail = updatedOrder.partner_id
-              ? (await query('SELECT email FROM users WHERE id = $1', [updatedOrder.partner_id])).rows[0]?.email
-              : null;
-            await sendOrderConfirmation({ ...updatedOrder, partner_email: partnerEmail }, itemsResult.rows);
-          } catch (e) {
-            console.error('Email error:', e.message);
-          }
+        paymentConfirmed = order.payment_status === 'paid';
+        // A browser redirect is not proof of payment: Klarna and other delayed
+        // methods return before settlement. Only the signed webhook may change
+        // payment state, create commissions/invoices, or send confirmation mail.
+        if (!paymentConfirmed && sessionId && stripe) {
+          const session = await stripe.checkout.sessions.retrieve(sessionId);
+          paymentConfirmed = session.payment_status === 'paid';
         }
       }
     } catch (e) {
@@ -679,7 +627,7 @@ export const paymentSuccessRedirect = asyncHandler(async (req, res) => {
   }
 
   const params = new URLSearchParams();
-  params.set('status', 'success');
+  params.set('status', paymentConfirmed ? 'success' : 'pending');
   if (orderId) params.set('order', orderId);
   if (sessionId) params.set('session_id', sessionId);
   if (orderNumber) params.set('order_number', orderNumber);
@@ -728,6 +676,61 @@ export const createOrder = asyncHandler(async (req, res) => {
   }
 
   const products = productsResult.rows;
+
+  // A variant is a fulfilment requirement, not just a storefront preference.
+  // Enforce the selection here as well so a handcrafted API request cannot
+  // create an ambiguous faucet, colour, or aroma order.
+  const componentResult = await query(
+    `SELECT bundle_id, product_id FROM bundle_items WHERE bundle_id = ANY($1)`,
+    [productIds]
+  );
+  const variantProductIds = [...new Set([
+    ...productIds,
+    ...componentResult.rows.map((component) => component.product_id)
+  ])];
+  const requiredVariantsResult = variantProductIds.length
+    ? await query(
+      `SELECT pv.product_id, pv.option_id, vo.type
+       FROM product_variants pv
+       JOIN variant_options vo ON vo.id = pv.option_id
+       WHERE pv.product_id = ANY($1) AND pv.is_active = true AND vo.is_active = true`,
+      [variantProductIds]
+    )
+    : { rows: [] };
+  const variantOptionsByProduct = new Map();
+  for (const variant of requiredVariantsResult.rows) {
+    const productKey = String(variant.product_id);
+    if (!variantOptionsByProduct.has(productKey)) variantOptionsByProduct.set(productKey, new Map());
+    const optionsByType = variantOptionsByProduct.get(productKey);
+    if (!optionsByType.has(variant.type)) optionsByType.set(variant.type, new Set());
+    optionsByType.get(variant.type).add(Number(variant.option_id));
+  }
+  const componentsByBundle = new Map();
+  for (const component of componentResult.rows) {
+    const bundleKey = String(component.bundle_id);
+    if (!componentsByBundle.has(bundleKey)) componentsByBundle.set(bundleKey, []);
+    componentsByBundle.get(bundleKey).push(component.product_id);
+  }
+  const requireValidVariantSelection = (selectedVariants, productId, prefix = '') => {
+    const optionsByType = variantOptionsByProduct.get(String(productId));
+    if (!optionsByType) return;
+    for (const [type, allowedOptionIds] of optionsByType) {
+      const selectedOptionId = Number(selectedVariants?.[`${prefix}${type}`]?.id);
+      if (!Number.isInteger(selectedOptionId) || !allowedOptionIds.has(selectedOptionId)) {
+        throw new AppError(`Bitte wählen Sie eine gültige Variante (${type}).`, 400);
+      }
+    }
+  };
+  for (const item of items) {
+    const product = products.find((entry) => entry.id === item.productId);
+    const selectedVariants = item.selectedVariants || {};
+    requireValidVariantSelection(selectedVariants, product.id);
+    if (product.is_bundle) {
+      for (const componentId of componentsByBundle.get(String(product.id)) || []) {
+        requireValidVariantSelection(selectedVariants, componentId, `${componentId}:`);
+      }
+    }
+  }
 
   // Build a price map for selected variant options (if present)
   const selectedOptionIds = [
@@ -794,15 +797,22 @@ export const createOrder = asyncHandler(async (req, res) => {
     );
     if (partnerResult.rows.length > 0) {
       const foundPartnerId = partnerResult.rows[0].id;
-      // Block self-referral: partner cannot use their own referral code
-      const isSelfReferral = customer?.userId === foundPartnerId || customer?.id === foundPartnerId;
+      // A signed-in partner may not earn direct commission on their own order.
+      // Attribute that purchase to their active sponsor instead, so the upline
+      // (for example, Theresa for a first-line partner) receives the sale.
+      const isSelfReferral = String(req.user?.id || '') === String(foundPartnerId);
       if (isSelfReferral) {
-        return res.status(400).json({ 
-          error: 'Sie können nicht Ihren eigenen Empfehlungscode verwenden.',
-          code: 'SELF_REFERRAL'
-        });
+        const sponsorResult = await query(
+          `SELECT id FROM users WHERE id = $1 AND status = 'active'`,
+          [req.user.upline_id]
+        );
+        if (sponsorResult.rows.length === 0) {
+          throw new AppError('Der eigene Empfehlungscode kann nicht verwendet werden.', 400);
+        }
+        partnerId = sponsorResult.rows[0].id;
+      } else {
+        partnerId = foundPartnerId;
       }
-      partnerId = foundPartnerId;
     }
   }
 

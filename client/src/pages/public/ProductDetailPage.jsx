@@ -30,38 +30,11 @@ const ProductDetailPage = () => {
         const productData = response.data.product || response.data;
         setProduct(productData);
         
-        // Set default variants
-        if (productData.variants) {
-          const defaults = {};
-          Object.entries(productData.variants).forEach(([type, options]) => {
-            const defaultOption = options.find(o => o.isDefault) || options[0];
-            if (defaultOption) {
-              defaults[type] = defaultOption;
-            }
-          });
-          setSelectedVariants(defaults);
-        } else {
-          setSelectedVariants({});
-        }
+        // Each option must be deliberately chosen for fulfilment; never infer a default.
+        setSelectedVariants({});
 
         if (productData.is_bundle && Array.isArray(productData.bundle_items)) {
-          const bundleDefaults = {};
-          productData.bundle_items.forEach((item) => {
-            Object.entries(item.variants || {}).forEach(([type, options]) => {
-              const defaultOption = options.find(o => o.isDefault) || options[0];
-              if (defaultOption) {
-                bundleDefaults[`${item.product_id}:${type}`] = {
-                  ...defaultOption,
-                  type,
-                  productId: item.product_id,
-                  productName: item.name,
-                  productNameEn: item.name_en || item.name,
-                  bundleComponent: true
-                };
-              }
-            });
-          });
-          setSelectedBundleVariants(bundleDefaults);
+          setSelectedBundleVariants({});
         } else {
           setSelectedBundleVariants({});
         }
@@ -97,6 +70,11 @@ const ProductDetailPage = () => {
   const variantKey = Object.entries(combinedVariants).map(([key, v]) => `${key}:${v?.id || v?.name || ''}`).sort().join('|');
   const cartKey = `${product.id}__${variantKey}`;
   const inCart = isInCart(cartKey);
+  const missingProductVariant = Object.keys(product.variants || {}).some((type) => !selectedVariants[type]);
+  const missingBundleVariant = (product.bundle_items || []).some((item) =>
+    Object.keys(item.variants || {}).some((type) => !selectedBundleVariants[`${item.product_id}:${type}`])
+  );
+  const hasMissingVariant = missingProductVariant || missingBundleVariant;
   
   // Calculate price with variant modifiers
   const basePrice = parseFloat(product.price) || 0;
@@ -219,7 +197,7 @@ const ProductDetailPage = () => {
                         {type === 'faucet' || type === 'armatur' ? (lang === 'de' ? 'Armatur wählen' : 'Select Faucet') :
                          type === 'aroma' || type === 'duft' ? (lang === 'de' ? 'Aroma wählen' : 'Select Aroma') :
                          type === 'color' || type === 'farbe' ? (lang === 'de' ? 'Farbe wählen' : 'Select Color') :
-                         lang === 'de' ? 'Option wählen' : 'Select Option'}
+                         lang === 'de' ? 'Option wählen' : 'Select Option'} <span className="text-red-500">*</span>
                       </label>
                       <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2">
                         {options.map((option) => {
@@ -265,7 +243,7 @@ const ProductDetailPage = () => {
                           return (
                             <div key={selectedKey}>
                               <label className="block text-xs font-medium text-secondary-500 mb-2">
-                                {formatVariantTypeLabel(type)}
+                                {formatVariantTypeLabel(type)} <span className="text-red-500">*</span>
                               </label>
                               <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2">
                                 {options.map((option) => {
@@ -341,13 +319,14 @@ const ProductDetailPage = () => {
 
                 <button
                   onClick={handleAddToCart}
-                  disabled={inCart || !isInStock}
+                  disabled={inCart || !isInStock || hasMissingVariant}
                   className={`flex-1 flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-semibold transition-all ${
-                    !isInStock ? 'bg-gray-200 text-gray-500 cursor-not-allowed' :
+                    !isInStock || hasMissingVariant ? 'bg-gray-200 text-gray-500 cursor-not-allowed' :
                     inCart ? 'bg-green-100 text-green-700' : 'bg-secondary-700 text-white hover:bg-primary-500'
                   }`}
                 >
                   {!isInStock ? (lang === 'de' ? 'Nicht verfügbar' : 'Unavailable') :
+                   hasMissingVariant ? (lang === 'de' ? 'Bitte Variante wählen' : 'Please select a variant') :
                    inCart ? <><Check className="w-5 h-5" /> {lang === 'de' ? 'Im Warenkorb' : 'In Cart'}</> : 
                    <><ShoppingBag className="w-5 h-5" /> {lang === 'de' ? 'In den Warenkorb' : 'Add to Cart'}</>}
                 </button>

@@ -194,16 +194,22 @@ export const runStripePayouts = async () => {
 
     try {
       // ── Claim the payout slot FIRST, before any Stripe call ──
-      // The (user_id, reference) unique index (see
-      // migration_fix_double_payout_july2026.sql) makes this
-      // insert fail if a payout for this partner+month already
-      // exists and is still active. This closes the race where
-      // two concurrent runs (overlapping cron, admin retry, a
-      // server restart mid-cycle) both read the same "released"
-      // commissions before either had committed.
+      // Use a database advisory lock per partner+cycle. This protects against
+      // overlapping cron/retry runs even on databases that still contain old
+      // duplicate historical payout rows and therefore cannot yet accept a
+      // retrospective unique index.
       const statementNumber = await generateStatementNumber();
-      try {
-        const claim = await query(
+      const claim = await transaction(async (client) => {
+        await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [payoutReference]);
+        const existing = await client.query(
+          `SELECT id FROM payouts
+           WHERE user_id = $1 AND reference = $2
+             AND status NOT IN ('cancelled', 'failed')
+           LIMIT 1`,
+          [p.id, payoutReference]
+        );
+        if (existing.rows.length > 0) return null;
+        return client.query(
           `INSERT INTO payouts (
              user_id, net_amount, vat_amount, gross_amount,
              method, status, reference, statement_number
@@ -211,17 +217,15 @@ export const runStripePayouts = async () => {
            RETURNING id`,
           [p.id, netAmount, vatAmount, grossAmount, payoutReference, statementNumber]
         );
-        claimedPayoutId = claim.rows[0].id;
-        L(`  Claimed payout slot ${claimedPayoutId} (reference=${payoutReference})`);
-      } catch (claimErr) {
-        if (claimErr.code === '23505') {
-          L(`  Active payout already exists for this reference; skipping duplicate.`);
-          summary.skipped++;
-          summary.details.push({ name, email: p.email, netAmount, vatAmount, grossAmount, status: 'duplicate_skipped' });
-          continue;
-        }
-        throw claimErr;
+      });
+      if (!claim) {
+        L(`  Active payout already exists for this reference; skipping duplicate.`);
+        summary.skipped++;
+        summary.details.push({ name, email: p.email, netAmount, vatAmount, grossAmount, status: 'duplicate_skipped' });
+        continue;
       }
+      claimedPayoutId = claim.rows[0].id;
+        L(`  Claimed payout slot ${claimedPayoutId} (reference=${payoutReference})`);
 
       await transaction(async (client) => {
         let method = 'sepa';
