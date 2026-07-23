@@ -187,15 +187,19 @@ export const sendOrderConfirmation = async (order, items) => {
   const shipping = parseFloat(order.shipping_cost || 0);
   const vat = parseFloat(order.vat_amount || 0);
   const total = parseFloat(order.total || 0);
-  let invoiceNumber = order.invoice_number || null;
-  if (!invoiceNumber && order.id) {
+  // An orders.invoice_number value alone is not sufficient evidence that a real
+  // invoice exists. Older payment flows could write the value before the invoice
+  // insert failed, which left the confirmation email with a stale/duplicate
+  // number and no reliable attachment source.
+  let invoiceNumber = null;
+  if (order.id) {
     try {
       const invoiceResult = await query(
-        `SELECT COALESCE(o.invoice_number, i.invoice_number) as invoice_number
-         FROM orders o
-         LEFT JOIN invoices i ON i.order_id = o.id
-         WHERE o.id = $1
-         ORDER BY i.created_at DESC
+        `SELECT invoice_number
+         FROM invoices
+         WHERE order_id = $1
+           AND type = 'customer'
+         ORDER BY created_at DESC
          LIMIT 1`,
         [order.id]
       );
@@ -204,10 +208,9 @@ export const sendOrderConfirmation = async (order, items) => {
       console.error('Invoice number lookup failed:', e.message);
     }
   }
-  // No real invoice exists yet (the webhook's generateInvoice call must have failed) —
-  // create it now rather than faking the invoice number with order.order_number.
-  // This guarantees the PDF the customer receives always matches a real row in
-  // the `invoices` table that the admin Billings page reads from.
+  // No real invoice exists yet (the webhook's generateInvoice call may have
+  // failed). Create it now rather than trusting a stale order.invoice_number.
+  // This guarantees the PDF the customer receives matches a real Billing record.
   if (!invoiceNumber && order.id) {
     try {
       const { generateInvoice } = await import('./invoice.service.js');
