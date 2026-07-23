@@ -91,16 +91,23 @@ const AdminCommissionsPage = () => {
   };
 
   const handleCompleteManualPayout = async (payout) => {
+    const methodInput = window.prompt('Payment method: enter SEPA, PayPal, or Manual.', 'SEPA');
+    if (!methodInput) return;
+    const paymentMethod = methodInput.trim().toLowerCase();
+    if (!['sepa', 'paypal', 'manual'].includes(paymentMethod)) {
+      toast.error('Choose SEPA, PayPal, or Manual');
+      return;
+    }
     const reference = window.prompt(
-      `Enter the bank or PayPal transaction reference for €${Number(payout.gross_amount).toFixed(2)} paid to ${payout.first_name} ${payout.last_name}.`
+      `Enter the ${paymentMethod.toUpperCase()} transaction reference for €${Number(payout.gross_amount).toFixed(2)} paid to ${payout.first_name} ${payout.last_name}.`
     );
     if (!reference) return;
     if (!window.confirm('Confirm that this payment has already been sent externally. This only records it in CLYR and cannot be undone.')) return;
 
     setCompletingManualPayoutId(payout.id);
     try {
-      await payoutsAPI.completeManual(payout.id, reference);
-      toast.success('Manual payment recorded and commissions marked paid');
+      await payoutsAPI.completeManual(payout.id, reference, paymentMethod);
+      toast.success(`${paymentMethod.toUpperCase()} payment recorded and commissions marked paid`);
       await Promise.all([fetchCommissions(), fetchManualPayouts()]);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Manual payment could not be recorded');

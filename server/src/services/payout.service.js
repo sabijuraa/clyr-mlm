@@ -400,10 +400,14 @@ export const completePayout = async (payoutId, transactionId = null) => {
  * left as `pending` until this action; no commission is marked paid merely
  * because an affiliate does not have Stripe Connect.
  */
-export const completeManualPayout = async (payoutId, transactionReference, completedBy) => {
+export const completeManualPayout = async (payoutId, transactionReference, paymentMethod, completedBy) => {
   const reference = String(transactionReference || '').trim();
+  const method = String(paymentMethod || 'manual').trim().toLowerCase();
   if (reference.length < 3) {
     throw new Error('A bank or PayPal transaction reference is required');
+  }
+  if (!['sepa', 'paypal', 'manual'].includes(method)) {
+    throw new Error('Payment method must be SEPA, PayPal, or manual');
   }
 
   return transaction(async (client) => {
@@ -456,10 +460,10 @@ export const completeManualPayout = async (payoutId, transactionReference, compl
     );
     await client.query(
       `UPDATE payouts
-       SET status = 'completed', method = 'manual', transaction_id = $1,
+       SET status = 'completed', method = $1, transaction_id = $2,
            completed_at = CURRENT_TIMESTAMP
-       WHERE id = $2`,
-      [reference, payoutId]
+       WHERE id = $3`,
+      [method, reference, payoutId]
     );
     await client.query(
       `UPDATE users
@@ -474,12 +478,13 @@ export const completeManualPayout = async (payoutId, transactionReference, compl
       [completedBy, payoutId, JSON.stringify({
         netAmount: payout.net_amount,
         grossAmount: payout.gross_amount,
+        paymentMethod: method,
         transactionReference: reference,
         commissionCount: commissionIds.length,
       })]
     );
 
-    return { ...payout, status: 'completed', method: 'manual', transaction_id: reference };
+    return { ...payout, status: 'completed', method, transaction_id: reference };
   });
 };
 

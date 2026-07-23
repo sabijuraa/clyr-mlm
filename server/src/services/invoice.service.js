@@ -397,7 +397,13 @@ class InvoiceService {
     const pNet     = netTotal;
     const pVat     = vatAmt;
     const pGross   = gross;
-    const pMethod  = payoutRecord?.method === 'stripe' ? 'Stripe (automatische Überweisung)' : 'SEPA-Banküberweisung';
+    const payoutMethodLabels = {
+      stripe: 'Stripe (automatische Überweisung)',
+      sepa: 'SEPA-Banküberweisung',
+      paypal: 'PayPal',
+      manual: 'Manuelle Auszahlung',
+    };
+    const pMethod  = payoutMethodLabels[payoutRecord?.method] || 'Auszahlung';
     const pRef     = payoutRecord?.reference || '';
     const pStatus  = payoutRecord?.status || 'pending';
 

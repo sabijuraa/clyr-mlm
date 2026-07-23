@@ -428,8 +428,8 @@ export const payoutsAPI = {
   complete: (id, transactionId) =>
     api.post(`/payouts/admin/${id}/complete`, { transactionId }),
 
-  completeManual: (id, transactionReference) =>
-    api.post(`/payouts/admin/${id}/complete-manual`, { transactionReference }),
+  completeManual: (id, transactionReference, paymentMethod) =>
+    api.post(`/payouts/admin/${id}/complete-manual`, { transactionReference, paymentMethod }),
 
   prepareManual: (id) =>
     api.post(`/payouts/admin/${id}/prepare-manual`),

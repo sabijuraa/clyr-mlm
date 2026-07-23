@@ -302,10 +302,11 @@ export const completePayout = async (req, res) => {
 export const completeManualPayout = async (req, res) => {
   try {
     const { id } = req.params;
-    const { transactionReference } = req.body;
+    const { transactionReference, paymentMethod } = req.body;
     const payout = await payoutService.completeManualPayout(
       id,
       transactionReference,
+      paymentMethod,
       req.user.id
     );
 
