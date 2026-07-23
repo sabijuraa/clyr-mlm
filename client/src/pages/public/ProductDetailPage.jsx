@@ -83,7 +83,7 @@ const ProductDetailPage = () => {
   const formatVariantTypeLabel = (type) => (
     type === 'faucet' || type === 'armatur' ? (lang === 'de' ? 'Armatur wählen' : 'Select Faucet') :
     type === 'aroma' || type === 'duft' ? (lang === 'de' ? 'Aroma wählen' : 'Select Aroma') :
-    type === 'color' || type === 'farbe' ? (lang === 'de' ? 'Farbe wählen' : 'Select Color') :
+    type === 'color' || type === 'farbe' || type === 'style' ? (lang === 'de' ? 'Farbe wählen' : 'Select Color') :
     lang === 'de' ? 'Option wählen' : 'Select Option'
   );
 
@@ -196,7 +196,7 @@ const ProductDetailPage = () => {
                       <label className="block text-sm font-medium text-secondary-700 mb-2">
                         {type === 'faucet' || type === 'armatur' ? (lang === 'de' ? 'Armatur wählen' : 'Select Faucet') :
                          type === 'aroma' || type === 'duft' ? (lang === 'de' ? 'Aroma wählen' : 'Select Aroma') :
-                         type === 'color' || type === 'farbe' ? (lang === 'de' ? 'Farbe wählen' : 'Select Color') :
+                         type === 'color' || type === 'farbe' || type === 'style' ? (lang === 'de' ? 'Farbe wählen' : 'Select Color') :
                          lang === 'de' ? 'Option wählen' : 'Select Option'} <span className="text-red-500">*</span>
                       </label>
                       <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2">
