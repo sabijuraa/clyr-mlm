@@ -182,6 +182,7 @@ export const sendOrderConfirmation = async (order, items) => {
 
   const billingAddressHtml = formatAddressHtml(order, 'billing');
   const shippingAddressHtml = formatAddressHtml(order, 'shipping') || billingAddressHtml;
+  const isPickup = String(order.customer_notes || '').includes('Selbstabholung');
   const subtotal = parseFloat(order.subtotal || 0);
   const discount = parseFloat(order.discount_amount || 0);
   const shipping = parseFloat(order.shipping_cost || 0);
@@ -276,7 +277,7 @@ export const sendOrderConfirmation = async (order, items) => {
               ${billingAddressHtml}
             </div>
             <div class="address-col">
-              <strong>Lieferadresse</strong><br>
+              <strong>${isPickup ? 'Abholadresse' : 'Lieferadresse'}</strong><br>
               ${shippingAddressHtml}
             </div>
           </div>
@@ -293,7 +294,7 @@ export const sendOrderConfirmation = async (order, items) => {
             <table class="summary" style="margin-top: 20px;">
               <tr><td>Zwischensumme netto:</td><td style="text-align:right;">${formatCurrency(subtotal)}</td></tr>
               ${discount > 0 ? `<tr><td>Rabatt:</td><td style="text-align:right;">-${formatCurrency(discount)}</td></tr>` : ''}
-              <tr><td>Versand:</td><td style="text-align:right;">${formatCurrency(shipping)}</td></tr>
+              <tr><td>${isPickup ? 'Selbstabholung:' : 'Versand:'}</td><td style="text-align:right;">${formatCurrency(shipping)}</td></tr>
               <tr><td>MwSt.:</td><td style="text-align:right;">${formatCurrency(vat)}</td></tr>
               <tr><td style="font-weight:bold;">Gesamt:</td><td style="text-align:right;font-weight:bold;">${formatCurrency(total)}</td></tr>
             </table>

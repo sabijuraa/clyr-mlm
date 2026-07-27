@@ -189,6 +189,7 @@ export default function CheckoutPage() {
     customerNotes: ''
   });
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [deliveryMethod, setDeliveryMethod] = useState('shipping');
 
   // Referral code state - auto-fill from CartContext, URL, or cookie
   const urlRef = searchParams.get('ref') || '';
@@ -218,7 +219,9 @@ export default function CheckoutPage() {
   // Mixed order: large rate only (not both added)
   // Fallback: price > 500 = large item, name contains montage/installation = service
   const normalizedCountry = normalizeCountryCode(formData.country);
-  const effectiveShipping = calculateShipping(normalizedCountry, effectiveCartItems);
+  const isPickup = deliveryMethod === 'pickup';
+  const pickupAvailable = normalizedCountry === 'AT';
+  const effectiveShipping = isPickup ? 0 : calculateShipping(normalizedCountry, effectiveCartItems);
   
   // EU countries eligible for reverse charge (not AT = home country)
   const EU_RC_COUNTRIES = ['BE','BG','CY','CZ','DE','DK','EE','EL','ES','FI','FR','HR',
@@ -246,6 +249,7 @@ export default function CheckoutPage() {
 
   const handleChange = (e) => {
     const value = e.target.name === 'country' ? normalizeCountryCode(e.target.value) : e.target.value;
+    if (e.target.name === 'country' && value !== 'AT') setDeliveryMethod('shipping');
     setFormData({ ...formData, [e.target.name]: value });
   };
 
@@ -364,6 +368,13 @@ export default function CheckoutPage() {
           city: formData.city.trim(),
           country: normalizedCountry
         },
+        deliveryMethod: isPickup ? 'pickup' : 'shipping',
+        shipping: isPickup ? {
+          street: 'Pappelweg 4b',
+          zip: '9524',
+          city: 'St. Magdalen',
+          country: 'AT'
+        } : null,
         items: orderItems,
         referralCode: referralValid ? referralCode : null,
         discountCode: discountApplied ? discountApplied.code : null,
@@ -650,6 +661,23 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
+              {pickupAvailable && (
+                <div className="bg-white p-6 rounded-lg shadow">
+                  <h2 className="text-xl font-semibold mb-2">Lieferart</h2>
+                  <p className="text-sm text-gray-600 mb-4">Die Rechnungsadresse oben bleibt für Ihre Rechnung erforderlich.</p>
+                  <div className="space-y-3">
+                    <label className="flex items-start gap-3 rounded-lg border p-4 cursor-pointer">
+                      <input type="radio" name="deliveryMethod" checked={!isPickup} onChange={() => setDeliveryMethod('shipping')} className="mt-1" />
+                      <span><strong>Lieferung</strong><br /><span className="text-sm text-gray-600">Versandkosten werden im Warenkorb berechnet.</span></span>
+                    </label>
+                    <label className="flex items-start gap-3 rounded-lg border p-4 cursor-pointer">
+                      <input type="radio" name="deliveryMethod" checked={isPickup} onChange={() => setDeliveryMethod('pickup')} className="mt-1" />
+                      <span><strong>Selbstabholung / Keine Lieferung</strong><br /><span className="text-sm text-gray-600">Kostenlos abholen bei Pappelweg 4b, 9524 St. Magdalen, Österreich.</span></span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
               {/* REFERRAL CODE SECTION */}
               <div className={`bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg shadow border-2 ${referralValid ? 'border-green-400' : 'border-red-400'}`}>
                 <h2 className="text-xl font-semibold mb-3 flex items-center">
@@ -850,7 +878,7 @@ export default function CheckoutPage() {
                   <span>{'\u20AC'}{effectiveSubtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Versand ({appConfig.countries[normalizedCountry]?.name || 'EU'})</span>
+                  <span>{isPickup ? 'Selbstabholung' : `Versand (${appConfig.countries[normalizedCountry]?.name || 'EU'})`}</span>
                   <span>{'\u20AC'}{effectiveShipping.toFixed(2)}</span>
                 </div>
                 {discountApplied && (

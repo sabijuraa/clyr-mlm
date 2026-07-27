@@ -654,7 +654,8 @@ export const createOrder = asyncHandler(async (req, res) => {
     discountCode,
     paymentMethod,
     stripePaymentIntentId,
-    customerNotes
+    customerNotes,
+    deliveryMethod = 'shipping'
   } = req.body;
 
   if (paymentMethod === 'stripe' && (!process.env.STRIPE_SECRET_KEY || !stripe)) {
@@ -831,6 +832,10 @@ export const createOrder = asyncHandler(async (req, res) => {
   const country = normalizeCountryCode(billing.country);
   billing.country = country;
   if (shipping?.country) shipping.country = normalizeCountryCode(shipping.country);
+  const isPickup = deliveryMethod === 'pickup';
+  if (isPickup && country !== 'AT') {
+    throw new AppError('Selbstabholung ist derzeit nur in Österreich verfügbar.', 400);
+  }
   const customerVatId = customer.vatId || null;
 
   // Territory restriction: AT, DE, CH + all EU countries
@@ -850,7 +855,7 @@ export const createOrder = asyncHandler(async (req, res) => {
     return sum + unitPrice * item.quantity;
   }, 0);
 
-  const shippingCost = await getShippingCost(country, items, products);
+  const shippingCost = isPickup ? 0 : await getShippingCost(country, items, products);
   const vatRule = await getVatRate(country, customerVatId, new Date());
   const vatRate = vatRule.vatRate;
 
@@ -942,6 +947,16 @@ export const createOrder = asyncHandler(async (req, res) => {
     }
 
     const isReverseCharge = vatRule.isReverseCharge;
+    const pickupAddress = {
+      street: 'Pappelweg 4b',
+      zip: '9524',
+      city: 'St. Magdalen',
+      country: 'AT'
+    };
+    const storedCustomerNotes = isPickup
+      ? ['Selbstabholung – Abholung bei Pappelweg 4b, 9524 St. Magdalen, Österreich.', customerNotes]
+          .filter(Boolean).join('\n')
+      : customerNotes;
 
     // Create order
     const orderResult = await client.query(
@@ -962,12 +977,14 @@ export const createOrder = asyncHandler(async (req, res) => {
         orderNumber, customerId, customer.email.toLowerCase(), customer.firstName, customer.lastName, customer.phone,
         customer.company, customer.vatId,
         billing.street, billing.zip, billing.city, billing.country,
-        shipping?.street || billing.street, shipping?.zip || billing.zip,
-        shipping?.city || billing.city, shipping?.country || billing.country,
+        isPickup ? pickupAddress.street : (shipping?.street || billing.street),
+        isPickup ? pickupAddress.zip : (shipping?.zip || billing.zip),
+        isPickup ? pickupAddress.city : (shipping?.city || billing.city),
+        isPickup ? pickupAddress.country : (shipping?.country || billing.country),
         subtotal, shippingCost, vatRate, vatAmount, discountAmount, total,
         partnerId, referralCode?.toUpperCase(), appliedDiscountCode?.code,
         paymentMethod, null, 'pending',
-        customerNotes, isReverseCharge
+        storedCustomerNotes, isReverseCharge
       ]
     );
 

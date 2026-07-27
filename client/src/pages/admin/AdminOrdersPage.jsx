@@ -69,6 +69,7 @@ const AdminOrdersPage = () => {
           zip: o.shipping_zip || o.customer_zip || '',
           country: o.shipping_country || o.customer_country || ''
         },
+        isPickup: String(o.customer_notes || '').includes('Selbstabholung'),
         createdAt: new Date(o.created_at),
         shippedAt: o.shipped_at ? new Date(o.shipped_at) : null,
         order_number: o.order_number
@@ -154,6 +155,7 @@ const AdminOrdersPage = () => {
         paymentStatus: fullOrder.payment_status || order.paymentStatus,
         status: fullOrder.status || order.status,
         trackingNumber: fullOrder.tracking_number || null,
+        isPickup: String(fullOrder.customer_notes || '').includes('Selbstabholung'),
         customer: {
           firstName: fullOrder.customer_first_name || order.customer.firstName || '',
           lastName: fullOrder.customer_last_name || order.customer.lastName || '',
@@ -460,7 +462,7 @@ const AdminOrdersPage = () => {
               <div>
                 <h4 className="font-semibold text-secondary-700 mb-3 flex items-center gap-2">
                   <MapPin className="w-5 h-5 text-primary-400" />
-                  Lieferadresse
+                  {selectedOrder.isPickup ? 'Selbstabholung' : 'Lieferadresse'}
                 </h4>
                 <div className="p-4 bg-gray-50 rounded-xl space-y-1">
                   <p className="text-secondary-700">{selectedOrder.shippingAddress.street}</p>
@@ -468,6 +470,7 @@ const AdminOrdersPage = () => {
                     {selectedOrder.shippingAddress.zip} {selectedOrder.shippingAddress.city}
                   </p>
                   <p className="text-secondary-500">{selectedOrder.shippingAddress.country}</p>
+                  {selectedOrder.isPickup && <p className="pt-2 text-sm font-medium text-primary-500">Keine Lieferung – Versandkosten €0,00</p>}
                 </div>
               </div>
             </div>
