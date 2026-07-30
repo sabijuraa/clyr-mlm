@@ -11,22 +11,21 @@ const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SEC
 /**
  * Generate unique order number
  */
-const generateOrderNumber = async () => {
+const generateOrderNumber = async (client) => {
   const date = new Date();
   const prefix = `FL${date.getFullYear().toString().slice(-2)}${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-  
-  const result = await query(
-    `SELECT order_number FROM orders 
-     WHERE order_number LIKE $1 
-     ORDER BY created_at DESC LIMIT 1`,
-    [`${prefix}%`]
-  );
 
-  let sequence = 1;
-  if (result.rows.length > 0) {
-    const lastNumber = result.rows[0].order_number;
-    sequence = parseInt(lastNumber.slice(-4)) + 1;
-  }
+  // Serialize number allocation for the current monthly prefix.  Created-at
+  // ordering is not a sequence: a backdated/imported order can otherwise make
+  // the generator reuse an existing number and reject every checkout.
+  await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [prefix]);
+  const result = await client.query(
+    `SELECT COALESCE(MAX(CAST(RIGHT(order_number, 4) AS INTEGER)), 0) AS sequence
+     FROM orders
+     WHERE order_number ~ $1`,
+    [`^${prefix}[0-9]{4}$`]
+  );
+  const sequence = Number(result.rows[0].sequence) + 1;
 
   return `${prefix}${sequence.toString().padStart(4, '0')}`;
 };
@@ -907,7 +906,7 @@ export const createOrder = asyncHandler(async (req, res) => {
   // Create order in transaction
   const order = await transaction(async (client) => {
     // Generate order number
-    const orderNumber = await generateOrderNumber();
+    const orderNumber = await generateOrderNumber(client);
 
     // Find or create customer
     let customerId = null;
