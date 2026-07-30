@@ -79,19 +79,34 @@ export const customerRegister = async (req, res) => {
     let customer;
     if (existing.rows.length > 0) {
       if (existing.rows[0].password_hash) {
-        return res.status(409).json({ error: 'E-Mail bereits registriert. Bitte melden Sie sich an.' });
+        // Checkout always calls this endpoint to make sure the customer can
+        // access their account after payment.  A returning customer must not
+        // be blocked merely because their account already exists: verify the
+        // supplied password and treat this as a login instead.
+        const passwordMatches = await bcrypt.compare(password, existing.rows[0].password_hash);
+        if (!passwordMatches) {
+          return res.status(401).json({ error: 'Für diese E-Mail existiert bereits ein Konto. Bitte geben Sie das richtige Passwort ein.' });
+        }
+
+        const result = await pool.query(`
+          SELECT id, first_name, last_name, email, phone, street, zip, city, country, created_at
+          FROM customers
+          WHERE id = $1
+        `, [existing.rows[0].id]);
+        customer = result.rows[0];
+      } else {
+        // Update existing customer with password
+        const result = await pool.query(`
+          UPDATE customers SET
+            password_hash = $1, is_registered = true,
+            first_name = COALESCE($2, first_name), last_name = COALESCE($3, last_name),
+            phone = COALESCE($4, phone), street = COALESCE($5, street),
+            zip = COALESCE($6, zip), city = COALESCE($7, city), country = COALESCE($8, country)
+          WHERE id = $9
+          RETURNING id, first_name, last_name, email, phone, street, zip, city, country, created_at
+        `, [password_hash, first_name, last_name, phone, street, zip, city, country || 'AT', existing.rows[0].id]);
+        customer = result.rows[0];
       }
-      // Update existing customer with password
-      const result = await pool.query(`
-        UPDATE customers SET 
-          password_hash = $1, is_registered = true,
-          first_name = COALESCE($2, first_name), last_name = COALESCE($3, last_name),
-          phone = COALESCE($4, phone), street = COALESCE($5, street),
-          zip = COALESCE($6, zip), city = COALESCE($7, city), country = COALESCE($8, country)
-        WHERE id = $9
-        RETURNING id, first_name, last_name, email, phone, street, zip, city, country, created_at
-      `, [password_hash, first_name, last_name, phone, street, zip, city, country || 'AT', existing.rows[0].id]);
-      customer = result.rows[0];
     } else {
       const result = await pool.query(`
         INSERT INTO customers (first_name, last_name, email, password_hash, phone, street, zip, city, country, is_registered)
