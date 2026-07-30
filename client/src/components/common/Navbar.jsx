@@ -172,13 +172,21 @@ const Navbar = () => {
                 )}
               </div>
             ) : (
-              <Link
-                to="/login"
-                className="hidden sm:inline-flex items-center gap-2 px-5 py-2.5 bg-secondary-700 text-white font-medium rounded-xl hover:bg-secondary-800 transition-all"
-              >
-                <User className="w-5 h-5" />
-                {lang === 'de' ? 'Anmelden' : 'Login'}
-              </Link>
+              <div className="hidden sm:flex items-center gap-2">
+                <Link
+                  to="/customer/login"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 border border-secondary-300 text-secondary-700 font-medium rounded-xl hover:bg-secondary-50 transition-all"
+                >
+                  <User className="w-5 h-5" />
+                  {lang === 'de' ? 'Kundenbereich' : 'Customer Portal'}
+                </Link>
+                <Link
+                  to="/login"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-secondary-700 text-white font-medium rounded-xl hover:bg-secondary-800 transition-all"
+                >
+                  {lang === 'de' ? 'Partner Login' : 'Partner Login'}
+                </Link>
+              </div>
             )}
 
             {/* Mobile Menu Button - ALWAYS Charcoal */}
@@ -231,12 +239,20 @@ const Navbar = () => {
             </button>
             
             {!isAuthenticated && (
-              <Link
-                to="/login"
-                className="block w-full text-center px-4 py-3 bg-secondary-700 text-white font-medium rounded-xl hover:bg-secondary-800 transition-colors mt-4"
-              >
-                {lang === 'de' ? 'Anmelden' : 'Login'}
-              </Link>
+              <div className="mt-4 space-y-2">
+                <Link
+                  to="/customer/login"
+                  className="block w-full text-center px-4 py-3 border border-secondary-300 text-secondary-700 font-medium rounded-xl hover:bg-secondary-50 transition-colors"
+                >
+                  {lang === 'de' ? 'Kundenbereich' : 'Customer Portal'}
+                </Link>
+                <Link
+                  to="/login"
+                  className="block w-full text-center px-4 py-3 bg-secondary-700 text-white font-medium rounded-xl hover:bg-secondary-800 transition-colors"
+                >
+                  {lang === 'de' ? 'Partner Login' : 'Partner Login'}
+                </Link>
+              </div>
             )}
           </div>
         </div>
