@@ -22,6 +22,10 @@ router.get('/partners',              adminController.getPartners);
 router.get('/partners/:id',          adminController.getPartnerById);
 router.patch('/partners/:id/status', adminController.updatePartnerStatus);
 router.patch('/partners/:id/rank',   adminController.updatePartnerRank);
+// Move a partner under a different sponsor/upline (downline reassignment).
+// The controller already existed with cycle-detection logic, but this route
+// was never registered, so the admin UI's "Sponsor ändern" control 404'd.
+router.post('/change-sponsor',       adminController.changeSponsor);
 
 // Full MLM Tree (admin only, shows all partners from root)
 router.get('/full-tree', adminController.getFullTree);

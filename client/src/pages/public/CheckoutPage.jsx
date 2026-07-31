@@ -191,6 +191,44 @@ export default function CheckoutPage() {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [deliveryMethod, setDeliveryMethod] = useState('shipping');
 
+  // A returning customer who is already logged into the Kundenbereich should
+  // not be forced through account creation (new password + confirm) again on
+  // every purchase — that's what was blocking easy repeat purchases.
+  const [customerLoggedIn, setCustomerLoggedIn] = useState(false);
+  const [checkingCustomerSession, setCheckingCustomerSession] = useState(true);
+
+  useEffect(() => {
+    const existingToken = localStorage.getItem('customerToken');
+    if (!existingToken) {
+      setCheckingCustomerSession(false);
+      return;
+    }
+    customerPortalAPI.getProfile()
+      .then((res) => {
+        const profile = res.data?.customer || res.data;
+        if (profile) {
+          setCustomerLoggedIn(true);
+          setFormData((prev) => ({
+            ...prev,
+            firstName: profile.first_name || prev.firstName,
+            lastName: profile.last_name || prev.lastName,
+            email: profile.email || prev.email,
+            phone: profile.phone || prev.phone,
+            addressLine1: profile.street || prev.addressLine1,
+            city: profile.city || prev.city,
+            postalCode: profile.zip || prev.postalCode,
+            country: profile.country || prev.country,
+          }));
+        }
+      })
+      .catch(() => {
+        // Token expired/invalid — fall back to guest checkout instead of blocking the purchase.
+        localStorage.removeItem('customerToken');
+        setCustomerLoggedIn(false);
+      })
+      .finally(() => setCheckingCustomerSession(false));
+  }, []);
+
   // Referral code state - auto-fill from CartContext, URL, or cookie
   const urlRef = searchParams.get('ref') || '';
   const initialRef = urlRef || cartReferral || localStorage.getItem('clyr_referral') || '';
@@ -326,32 +364,36 @@ export default function CheckoutPage() {
         return;
       }
 
-      if (formData.accountPassword.length < 8) {
-        alert('Bitte wählen Sie ein Passwort mit mindestens 8 Zeichen für Ihren Kundenbereich.');
-        setLoading(false);
-        return;
-      }
-      if (formData.accountPassword !== formData.accountPasswordConfirm) {
-        alert('Die Passwörter stimmen nicht überein.');
-        setLoading(false);
-        return;
-      }
+      if (!customerLoggedIn) {
+        if (formData.accountPassword.length < 8) {
+          alert('Bitte wählen Sie ein Passwort mit mindestens 8 Zeichen für Ihren Kundenbereich.');
+          setLoading(false);
+          return;
+        }
+        if (formData.accountPassword !== formData.accountPasswordConfirm) {
+          alert('Die Passwörter stimmen nicht überein.');
+          setLoading(false);
+          return;
+        }
 
-      // A checkout customer already exists (or is created) in the database.
-      // Register it before payment so the account is ready immediately after
-      // Stripe returns and the customer stays logged into the portal.
-      const accountResponse = await customerPortalAPI.register({
-        first_name: formData.firstName.trim(),
-        last_name: formData.lastName.trim(),
-        email: formData.email.trim().toLowerCase(),
-        password: formData.accountPassword,
-        phone: formData.phone.trim(),
-        street: (formData.addressLine1 + (formData.addressLine2 ? ', ' + formData.addressLine2 : '')).trim(),
-        zip: formData.postalCode.trim(),
-        city: formData.city.trim(),
-        country: normalizedCountry,
-      });
-      if (accountResponse.data?.token) localStorage.setItem('customerToken', accountResponse.data.token);
+        // A checkout customer already exists (or is created) in the database.
+        // Register it before payment so the account is ready immediately after
+        // Stripe returns and the customer stays logged into the portal.
+        // Skipped entirely for an already-logged-in customer — re-registering
+        // on every repeat purchase is what previously blocked them from buying again.
+        const accountResponse = await customerPortalAPI.register({
+          first_name: formData.firstName.trim(),
+          last_name: formData.lastName.trim(),
+          email: formData.email.trim().toLowerCase(),
+          password: formData.accountPassword,
+          phone: formData.phone.trim(),
+          street: (formData.addressLine1 + (formData.addressLine2 ? ', ' + formData.addressLine2 : '')).trim(),
+          zip: formData.postalCode.trim(),
+          city: formData.city.trim(),
+          country: normalizedCountry,
+        });
+        if (accountResponse.data?.token) localStorage.setItem('customerToken', accountResponse.data.token);
+      }
 
       const orderData = {
         customer: {
@@ -499,20 +541,36 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                <div className="mt-5 rounded-lg border border-blue-200 bg-blue-50 p-4">
-                  <h3 className="font-semibold text-blue-950">Kundenkonto erstellen</h3>
-                  <p className="mt-1 text-sm text-blue-800">Wählen Sie ein Passwort, damit Sie Ihre Bestellung, Rechnung und spätere Filter-Nachkäufe im Kundenbereich sehen können.</p>
-                  <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Passwort *</label>
-                      <input type="password" name="accountPassword" value={formData.accountPassword} onChange={handleChange} minLength={8} required autoComplete="new-password" className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Passwort wiederholen *</label>
-                      <input type="password" name="accountPasswordConfirm" value={formData.accountPasswordConfirm} onChange={handleChange} minLength={8} required autoComplete="new-password" className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500" />
+                {customerLoggedIn ? (
+                  <div className="mt-5 rounded-lg border border-green-200 bg-green-50 p-4">
+                    <h3 className="font-semibold text-green-950">Angemeldet als {formData.email}</h3>
+                    <p className="mt-1 text-sm text-green-800">
+                      Sie sind bereits in Ihrem Kundenbereich angemeldet — diese Bestellung wird direkt Ihrem Konto zugeordnet, kein neues Passwort nötig.{' '}
+                      <button
+                        type="button"
+                        onClick={() => { localStorage.removeItem('customerToken'); setCustomerLoggedIn(false); }}
+                        className="underline hover:text-green-950"
+                      >
+                        Nicht Sie? Abmelden
+                      </button>
+                    </p>
+                  </div>
+                ) : (
+                  <div className="mt-5 rounded-lg border border-blue-200 bg-blue-50 p-4">
+                    <h3 className="font-semibold text-blue-950">Kundenkonto erstellen</h3>
+                    <p className="mt-1 text-sm text-blue-800">Wählen Sie ein Passwort, damit Sie Ihre Bestellung, Rechnung und spätere Filter-Nachkäufe im Kundenbereich sehen können.</p>
+                    <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Passwort *</label>
+                        <input type="password" name="accountPassword" value={formData.accountPassword} onChange={handleChange} minLength={8} required={!customerLoggedIn} autoComplete="new-password" className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Passwort wiederholen *</label>
+                        <input type="password" name="accountPasswordConfirm" value={formData.accountPasswordConfirm} onChange={handleChange} minLength={8} required={!customerLoggedIn} autoComplete="new-password" className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500" />
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Billing Address - Rechnungsadresse */}

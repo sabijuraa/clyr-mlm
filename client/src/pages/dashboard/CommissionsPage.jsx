@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Wallet, TrendingUp, Clock, CheckCircle, Download, FileText, AlertCircle } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatCurrency } from '../../config/app.config';
-import { commissionsAPI, downloadBlob } from '../../services/api';
+import { commissionsAPI, payoutsAPI, downloadBlob } from '../../services/api';
 import StatCard from '../../components/dashboard/StatCard';
 import Button from '../../components/common/Button';
 import toast from 'react-hot-toast';
@@ -19,8 +19,12 @@ const CommissionsPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [selectedPeriod, setSelectedPeriod] = useState(defaultPeriod);
-  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState('');
+  // Completed payouts now run twice a month (1st and 15th), so a single
+  // month can have two separate statements. Fetch actual payout records
+  // instead of assuming one PDF per calendar month.
+  const [payouts, setPayouts] = useState([]);
+  const [downloadingPayoutId, setDownloadingPayoutId] = useState(null);
 
   const getCommissionDate = (commission) => new Date(commission.order_date || commission.created_at);
   const isWithinSelectedPeriod = (commission) => {
@@ -54,6 +58,13 @@ const CommissionsPage = () => {
         .reduce((sum, c) => sum + parseFloat(c.amount || 0), 0));
 
       setStats({ totalEarned, pendingAmount, paidAmount });
+
+      try {
+        const payoutsRes = await payoutsAPI.getMy({ status: 'completed', limit: 24 });
+        setPayouts(payoutsRes.data?.payouts || payoutsRes.data || []);
+      } catch (payoutErr) {
+        console.error('Load payouts error:', payoutErr);
+      }
     } catch (err) {
       console.error('Load commissions error:', err);
       setError('Fehler beim Laden der Provisionen');
@@ -64,21 +75,25 @@ const CommissionsPage = () => {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const downloadStatement = async (period) => {
-    setDownloading(true);
+  const downloadPayoutStatement = async (payout) => {
+    setDownloadingPayoutId(payout.id);
     try {
-      const response = await commissionsAPI.getStatement(period);
-      downloadBlob(response.data, `Provisionsgutschrift-${period}.pdf`);
+      const response = await payoutsAPI.downloadStatement(payout.id);
+      const label = payout.statement_number || payout.id;
+      downloadBlob(response.data, `Provisionsgutschrift-${label}.pdf`);
       toast.success('Provisionsgutschrift heruntergeladen');
     } catch (err) {
-      const msg = err.response?.status === 404
-        ? 'Keine Provisionen für diesen Zeitraum vorhanden'
-        : 'Fehler beim Herunterladen der Provisionsgutschrift';
-      toast.error(msg);
+      toast.error('Fehler beim Herunterladen der Provisionsgutschrift');
     } finally {
-      setDownloading(false);
+      setDownloadingPayoutId(null);
     }
   };
+
+  const payoutsInSelectedPeriod = payouts.filter((p) => {
+    const [year, month] = selectedPeriod.split('-').map(Number);
+    const ref = new Date(p.period_end || p.period_start || p.created_at);
+    return ref.getFullYear() === year && ref.getMonth() === month - 1;
+  });
 
   const selectedMonthAmount = (() => {
     const vatMult = vatInfo?.vatDisplay === 'separate' ? 1.20 : 1.0;
@@ -145,12 +160,36 @@ const CommissionsPage = () => {
               <option key={p.value} value={p.value}>{p.label}</option>
             ))}
           </select>
-          <Button variant="secondary" icon={Download} disabled={downloading}
-            onClick={() => downloadStatement(selectedPeriod)}>
-            {downloading ? 'Lädt...' : 'PDF herunterladen'}
-          </Button>
         </div>
       </div>
+
+      {/* Provisionsauszahlungen finden 2x im Monat statt (1. und 15.) — daher
+          hier je Auszahlung ein eigener Download statt nur einer PDF pro Monat. */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl border border-gray-100 p-4">
+        <h3 className="font-semibold text-secondary-700 mb-3">Provisionsgutschriften — {periods.find(p => p.value === selectedPeriod)?.label}</h3>
+        {payoutsInSelectedPeriod.length === 0 ? (
+          <p className="text-sm text-secondary-400">Für diesen Zeitraum liegt noch keine abgeschlossene Auszahlung vor.</p>
+        ) : (
+          <div className="space-y-2">
+            {payoutsInSelectedPeriod.map((payout) => (
+              <div key={payout.id} className="flex items-center justify-between gap-4 rounded-xl border border-gray-100 px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-secondary-700">
+                    {payout.period_start && payout.period_end
+                      ? `${new Date(payout.period_start).toLocaleDateString('de-DE')} – ${new Date(payout.period_end).toLocaleDateString('de-DE')}`
+                      : new Date(payout.created_at).toLocaleDateString('de-DE')}
+                  </p>
+                  <p className="text-xs text-secondary-400">{formatCurrency(parseFloat(payout.amount || payout.net_amount || 0))} · {payout.statement_number || `#${payout.id}`}</p>
+                </div>
+                <Button variant="secondary" icon={Download} disabled={downloadingPayoutId === payout.id}
+                  onClick={() => downloadPayoutStatement(payout)}>
+                  {downloadingPayoutId === payout.id ? 'Lädt...' : 'PDF'}
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </motion.div>
 
       {error && (
         <div className="bg-red-50 text-red-700 p-4 rounded-xl flex items-center gap-3">
