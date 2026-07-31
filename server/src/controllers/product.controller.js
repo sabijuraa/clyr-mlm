@@ -149,7 +149,7 @@ export const getProductBySlug = async (req, res) => {
     // Load variants from product_variants + variant_options
     try {
       const variantsResult = await pool.query(`
-        SELECT pv.id, pv.is_default, pv.price_modifier, pv.sort_order,
+        SELECT pv.option_id, pv.is_default, pv.price_modifier, pv.sort_order,
                vo.name, vo.name_en, vo.type as type_slug,
                COALESCE(pv.price_modifier, vo.price_modifier, 0) as effective_price_modifier
         FROM product_variants pv
@@ -165,7 +165,10 @@ export const getProductBySlug = async (req, res) => {
           const typeKey = row.type_slug || 'default';
           if (!grouped[typeKey]) grouped[typeKey] = [];
           grouped[typeKey].push({
-            id: row.id,
+            // Checkout validates against variant_options.id.  Returning the
+            // product_variants link id here made otherwise valid selections
+            // fail at checkout.
+            id: row.option_id,
             name: row.name,
             name_en: row.name_en || row.name,
             priceModifier: parseFloat(row.effective_price_modifier) || 0,
@@ -193,7 +196,7 @@ export const getProductBySlug = async (req, res) => {
         let variantsByProduct = {};
         if (componentIds.length > 0) {
           const componentVariantsResult = await pool.query(`
-            SELECT pv.product_id, pv.id, pv.is_default, pv.price_modifier, pv.sort_order,
+            SELECT pv.product_id, pv.option_id, pv.is_default, pv.price_modifier, pv.sort_order,
                    vo.name, vo.name_en, vo.type as type_slug,
                    COALESCE(pv.price_modifier, vo.price_modifier, 0) as effective_price_modifier
             FROM product_variants pv
@@ -207,7 +210,7 @@ export const getProductBySlug = async (req, res) => {
             const typeKey = row.type_slug || 'default';
             if (!variantsByProduct[row.product_id][typeKey]) variantsByProduct[row.product_id][typeKey] = [];
             variantsByProduct[row.product_id][typeKey].push({
-              id: row.id,
+              id: row.option_id,
               name: row.name,
               name_en: row.name_en || row.name,
               priceModifier: parseFloat(row.effective_price_modifier) || 0,

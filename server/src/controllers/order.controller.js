@@ -690,7 +690,7 @@ export const createOrder = asyncHandler(async (req, res) => {
   ])];
   const requiredVariantsResult = variantProductIds.length
     ? await query(
-      `SELECT pv.product_id, pv.option_id, vo.type
+      `SELECT pv.product_id, pv.id AS assignment_id, pv.option_id, vo.type
        FROM product_variants pv
        JOIN variant_options vo ON vo.id = pv.option_id
        WHERE pv.product_id = ANY($1) AND pv.is_active = true AND vo.is_active = true`,
@@ -702,8 +702,13 @@ export const createOrder = asyncHandler(async (req, res) => {
     const productKey = String(variant.product_id);
     if (!variantOptionsByProduct.has(productKey)) variantOptionsByProduct.set(productKey, new Map());
     const optionsByType = variantOptionsByProduct.get(productKey);
-    if (!optionsByType.has(variant.type)) optionsByType.set(variant.type, new Set());
-    optionsByType.get(variant.type).add(Number(variant.option_id));
+    if (!optionsByType.has(variant.type)) optionsByType.set(variant.type, new Map());
+    const optionIds = optionsByType.get(variant.type);
+    const optionId = Number(variant.option_id);
+    // Accept legacy cart data that contains the product_variants link ID,
+    // then normalise it to the canonical variant_options ID used below.
+    optionIds.set(optionId, optionId);
+    optionIds.set(Number(variant.assignment_id), optionId);
   }
   const componentsByBundle = new Map();
   for (const component of componentResult.rows) {
@@ -714,10 +719,18 @@ export const createOrder = asyncHandler(async (req, res) => {
   const requireValidVariantSelection = (selectedVariants, productId, prefix = '') => {
     const optionsByType = variantOptionsByProduct.get(String(productId));
     if (!optionsByType) return;
-    for (const [type, allowedOptionIds] of optionsByType) {
-      const selectedOptionId = Number(selectedVariants?.[`${prefix}${type}`]?.id);
-      if (!Number.isInteger(selectedOptionId) || !allowedOptionIds.has(selectedOptionId)) {
+    for (const [type, optionIdBySelectionId] of optionsByType) {
+      const selectionKey = `${prefix}${type}`;
+      const selectedOptionId = Number(selectedVariants?.[selectionKey]?.id);
+      const canonicalOptionId = optionIdBySelectionId.get(selectedOptionId);
+      if (!Number.isInteger(selectedOptionId) || !canonicalOptionId) {
         throw new AppError(`Bitte wählen Sie eine gültige Variante (${type}).`, 400);
+      }
+      if (selectedOptionId !== canonicalOptionId) {
+        selectedVariants[selectionKey] = {
+          ...selectedVariants[selectionKey],
+          id: canonicalOptionId
+        };
       }
     }
   };
