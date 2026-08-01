@@ -61,7 +61,13 @@ const CommissionsPage = () => {
 
       try {
         const payoutsRes = await payoutsAPI.getMy({ status: 'completed', limit: 24 });
-        setPayouts(payoutsRes.data?.payouts || payoutsRes.data || []);
+        // The payout endpoint wraps its result as { success, data: { payouts } }.
+        // Reading the outer object made `payouts` an object, so the period
+        // filter below crashed with "payouts.filter is not a function".
+        const payoutRows = payoutsRes.data?.data?.payouts
+          || payoutsRes.data?.payouts
+          || [];
+        setPayouts(Array.isArray(payoutRows) ? payoutRows : []);
       } catch (payoutErr) {
         console.error('Load payouts error:', payoutErr);
       }
