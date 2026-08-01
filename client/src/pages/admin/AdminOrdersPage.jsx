@@ -155,6 +155,7 @@ const AdminOrdersPage = () => {
         paymentStatus: fullOrder.payment_status || order.paymentStatus,
         status: fullOrder.status || order.status,
         trackingNumber: fullOrder.tracking_number || null,
+        customerNotes: fullOrder.customer_notes || '',
         isPickup: String(fullOrder.customer_notes || '').includes('Selbstabholung'),
         customer: {
           firstName: fullOrder.customer_first_name || order.customer.firstName || '',
@@ -480,6 +481,18 @@ const AdminOrdersPage = () => {
               <span className="text-secondary-700">Gesamt</span>
               <span className="text-lg text-secondary-700">{formatCurrency(selectedOrder.total)}</span>
             </div>
+
+            {selectedOrder.customerNotes && (
+              <div>
+                <h4 className="font-semibold text-secondary-700 mb-3 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-primary-400" />
+                  Kundenhinweis
+                </h4>
+                <p className="whitespace-pre-wrap p-4 bg-amber-50 border border-amber-100 rounded-xl text-sm text-secondary-700">
+                  {selectedOrder.customerNotes}
+                </p>
+              </div>
+            )}
 
             {/* Ordered Items */}
             <div>
