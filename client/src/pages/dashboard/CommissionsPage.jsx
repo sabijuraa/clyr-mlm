@@ -95,9 +95,16 @@ const CommissionsPage = () => {
     }
   };
 
+  // Statements belong to the month in which money was paid, not the month
+  // in which the underlying commissions were earned.  That gives the 1st
+  // and 15th payout their own document in the correct month.
+  const getPayoutDate = (payout) => new Date(
+    payout.completed_at || payout.processed_at || payout.created_at
+  );
   const payoutsInSelectedPeriod = payouts.filter((p) => {
+    if (p.status !== 'completed') return false;
     const [year, month] = selectedPeriod.split('-').map(Number);
-    const ref = new Date(p.period_end || p.period_start || p.created_at);
+    const ref = getPayoutDate(p);
     return ref.getFullYear() === year && ref.getMonth() === month - 1;
   });
 
@@ -181,9 +188,7 @@ const CommissionsPage = () => {
               <div key={payout.id} className="flex items-center justify-between gap-4 rounded-xl border border-gray-100 px-4 py-3">
                 <div>
                   <p className="text-sm font-medium text-secondary-700">
-                    {payout.period_start && payout.period_end
-                      ? `${new Date(payout.period_start).toLocaleDateString('de-DE')} – ${new Date(payout.period_end).toLocaleDateString('de-DE')}`
-                      : new Date(payout.created_at).toLocaleDateString('de-DE')}
+                    Auszahlung vom {getPayoutDate(payout).toLocaleDateString('de-DE')}
                   </p>
                   <p className="text-xs text-secondary-400">{formatCurrency(parseFloat(payout.amount || payout.net_amount || 0))} · {payout.statement_number || `#${payout.id}`}</p>
                 </div>

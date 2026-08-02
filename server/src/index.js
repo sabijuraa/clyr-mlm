@@ -538,6 +538,20 @@ cron.schedule('0 3 15 * *', async () => {
   }
 });
 
+// Stripe standard bank payouts can settle after the payout cycle.  Reconcile
+// their final status so only genuinely paid payouts appear as statements.
+cron.schedule('15 * * * *', async () => {
+  try {
+    const { reconcileStripePayouts } = await import('./controllers/stripe-connect.controller.js');
+    const result = await reconcileStripePayouts();
+    if (result.checked > 0) {
+      console.log(`[PAYOUT RECONCILIATION] checked=${result.checked}, completed=${result.completed}, failed=${result.failed}, unmatched=${result.unmatched}`);
+    }
+  } catch (err) {
+    console.error('[PAYOUT RECONCILIATION] failed:', err.message);
+  }
+});
+
 // Reset quarterly sales counts on 1st of Jan, Apr, Jul, Oct at 1:00 AM
 cron.schedule('0 1 1 1,4,7,10 *', async () => {  try {
     console.log('⏰ Cron: Resetting quarterly sales counts...');

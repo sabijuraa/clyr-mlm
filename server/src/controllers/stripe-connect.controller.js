@@ -231,6 +231,7 @@ export const runStripePayouts = async () => {
         let method = 'sepa';
         let status = 'pending';
         let stripeTransferId = null;
+        let stripePayoutId = null;
         let payoutSucceeded = false;
 
         if (stripe && p.stripe_account_id) {
@@ -284,13 +285,14 @@ export const runStripePayouts = async () => {
                   L(`  Transfer created: ${transferId}`);
 
                   // Payout from connected account to their bank
-                  await stripe.payouts.create(
+                  const connectedPayout = await stripe.payouts.create(
                     { amount: cents, currency: 'eur', method: 'standard' },
                     {
                       stripeAccount: p.stripe_account_id,
                       idempotencyKey: `clyr-connected-payout-${claimedPayoutId}`,
                     }
                   );
+                  stripePayoutId = connectedPayout.id;
                   L(`  ✅ Stripe transfer + payout created for ${name}`);
                 } catch (transferErr) {
                   L(`  Transfer failed (${transferErr.message}) — trying top-up approach`);
@@ -321,10 +323,11 @@ export const runStripePayouts = async () => {
                     capturedTransferId = transferId;
                     L(`  Transfer after top-up: ${transferId}`);
                     
-                    await stripe.payouts.create(
+                    const connectedPayout = await stripe.payouts.create(
                       { amount: cents, currency: 'eur', method: 'standard' },
                       { stripeAccount: p.stripe_account_id }
                     );
+                    stripePayoutId = connectedPayout.id;
                     L(`  ✅ Top-up + transfer + payout created for ${name}`);
                   } catch (topupErr) {
                     E(`  Top-up also failed: ${topupErr.message}`);
@@ -372,9 +375,10 @@ export const runStripePayouts = async () => {
         L(`  Updating claimed payout ${claimedPayoutId}: method=${method} status=${status} net=${netAmount} gross=${grossAmount}`);
         await client.query(
           `UPDATE payouts
-           SET method = $1, status = $2, stripe_transfer_id = $3
-           WHERE id = $4`,
-          [method, status, stripeTransferId, claimedPayoutId]
+           SET method = $1, status = $2, stripe_transfer_id = $3,
+               transaction_id = $4
+           WHERE id = $5`,
+          [method, status, stripeTransferId, stripePayoutId, claimedPayoutId]
         );
 
         if (payoutSucceeded) {
@@ -435,6 +439,70 @@ export const runStripePayouts = async () => {
   L(`CYCLE COMPLETE: ${summary.processed} paid via Stripe, ${summary.pending} pending manual, ${summary.skipped} Stripe not ready, ${summary.failed} errors`);
   L(`Total gross paid: €${summary.totalGross.toFixed(2)}`);
   L('='.repeat(60));
+  return summary;
+};
+
+// Keep local payout status in sync with Stripe's connected-account payout.
+// A transfer is created immediately, while a standard bank payout can remain
+// pending for days.  Statements must only be shown after Stripe reports paid.
+export const reconcileStripePayouts = async () => {
+  if (!stripe) return { checked: 0, completed: 0, failed: 0, unmatched: 0 };
+
+  const result = await query(`
+    SELECT p.*, u.stripe_account_id
+    FROM payouts p
+    JOIN users u ON u.id = p.user_id
+    WHERE p.method = 'stripe'
+      AND p.status = 'processing'
+      AND u.stripe_account_id IS NOT NULL
+  `);
+
+  const summary = { checked: result.rows.length, completed: 0, failed: 0, unmatched: 0 };
+  for (const payout of result.rows) {
+    try {
+      let stripePayout = null;
+      if (payout.transaction_id) {
+        stripePayout = await stripe.payouts.retrieve(payout.transaction_id, {
+          stripeAccount: payout.stripe_account_id
+        });
+      } else {
+        const created = new Date(payout.created_at).getTime() / 1000;
+        const candidates = await stripe.payouts.list({
+          created: { gte: Math.floor(created - 300), lte: Math.ceil(created + 300) },
+          limit: 10
+        }, { stripeAccount: payout.stripe_account_id });
+        const expectedAmount = Math.round(Number(payout.gross_amount) * 100);
+        stripePayout = candidates.data.find((candidate) => candidate.amount === expectedAmount) || null;
+      }
+
+      if (!stripePayout) {
+        summary.unmatched++;
+        continue;
+      }
+
+      if (stripePayout.status === 'paid') {
+        await query(
+          `UPDATE payouts
+           SET status = 'completed', completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP),
+               transaction_id = $1
+           WHERE id = $2 AND status = 'processing'`,
+          [stripePayout.id, payout.id]
+        );
+        summary.completed++;
+      } else if (['failed', 'canceled'].includes(stripePayout.status)) {
+        await query(
+          `UPDATE payouts
+           SET status = 'failed', transaction_id = $1, failure_reason = $2
+           WHERE id = $3 AND status = 'processing'`,
+          [stripePayout.id, stripePayout.failure_message || `Stripe payout ${stripePayout.status}`, payout.id]
+        );
+        summary.failed++;
+      }
+    } catch (error) {
+      console.error(`[PAYOUT RECONCILIATION] ${payout.id}:`, error.message);
+      summary.unmatched++;
+    }
+  }
   return summary;
 };
 

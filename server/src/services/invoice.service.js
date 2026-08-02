@@ -357,9 +357,16 @@ class InvoiceService {
     const labelMonth = MONTHS[labelParts[0]] || (now.getMonth() + 1);
     const labelYear  = parseInt(labelParts[1]) || now.getFullYear();
     const yr         = labelYear;
-    // Payout date = 1st of the month FOLLOWING the period
-    // (April commissions → paid out 1st May)
-    const payoutDate = new Date(yr, labelMonth, 1); // labelMonth is 1-indexed -> 1st of next month
+    // The payout record is authoritative.  A payout can happen on either
+    // the 1st or the 15th, so deriving this date from the commission period
+    // produced incorrect statement dates.
+    const recordPayoutDate = payoutRecord && (
+      payoutRecord.completed_at || payoutRecord.processed_at || payoutRecord.created_at
+    );
+    const parsedRecordPayoutDate = recordPayoutDate ? new Date(recordPayoutDate) : null;
+    const payoutDate = parsedRecordPayoutDate && !Number.isNaN(parsedRecordPayoutDate.getTime())
+      ? parsedRecordPayoutDate
+      : new Date(yr, labelMonth, 1);
     let stmtNr = payoutRecord?.statement_number;
     if (!stmtNr) {
       const sequenceDate = payoutRecord?.created_at ? new Date(payoutRecord.created_at) : payoutDate;
@@ -429,7 +436,7 @@ class InvoiceService {
         // ── RIGHT META BLOCK (no overlap — placed before address) ──
         doc.font('Helvetica').fontSize(9).fillColor(COLORS.text);
         doc.text(`Gutschrift-Nr.: ${stmtNr}`,  350, y,      { width: 195, align: 'right' });
-        doc.text(`Abrechnungsmonat: ${periodLabel}`,        350, y + 14, { width: 195, align: 'right' });
+        doc.text(`Abrechnungszeitraum: ${periodLabel}`,     350, y + 14, { width: 195, align: 'right' });
         doc.text(`Auszahlung: ${payoutDate.toLocaleDateString('de-DE')}`, 350, y + 28, { width: 195, align: 'right' });
 
         // ── LEFT: PARTNER ADDRESS ──
@@ -509,7 +516,7 @@ class InvoiceService {
         doc.font('Helvetica').fontSize(8.5).fillColor('#333');
         doc.text(`Auszahlungsdatum:   ${payoutDate.toLocaleDateString('de-DE')}`, 62, y + 22);
         doc.text(`Zahlungsmethode:    ${pMethod}`,    62, y + 35);
-        doc.text(`Status:             ${pStatus === 'processing' ? 'Übermittelt' : pStatus === 'paid' ? 'Abgeschlossen' : 'Ausstehend'}`, 62, y + 48);
+        doc.text(`Status:             ${pStatus === 'processing' ? 'Übermittelt' : ['paid', 'completed'].includes(pStatus) ? 'Abgeschlossen' : 'Ausstehend'}`, 62, y + 48);
         if (pRef) doc.text(`Referenz:           ${pRef}`, 300, y + 22);
         y += boxH + 14;
 

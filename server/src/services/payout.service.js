@@ -672,12 +672,14 @@ export const generatePayoutStatement = async (payoutId) => {
   const periodStart = parseDateSafe(payout.period_start);
   const periodEnd = parseDateSafe(payout.period_end);
   const createdAt = parseDateSafe(payout.created_at);
-  const periodBaseDate = hasPlausibleYear(periodStart)
-    ? periodStart
-    : hasPlausibleYear(periodEnd)
-      ? periodEnd
-      : createdAt || new Date();
-  const periodLabel = periodBaseDate.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+  const formatDate = (date) => date.toLocaleDateString('de-DE');
+  const periodLabel = hasPlausibleYear(periodStart) && hasPlausibleYear(periodEnd)
+    ? `${formatDate(periodStart)} - ${formatDate(periodEnd)}`
+    : hasPlausibleYear(periodStart)
+      ? formatDate(periodStart)
+      : hasPlausibleYear(periodEnd)
+        ? formatDate(periodEnd)
+        : (createdAt || new Date()).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
 
   // Generate PDF
   const pdfBuffer = await generateCommissionStatement(
