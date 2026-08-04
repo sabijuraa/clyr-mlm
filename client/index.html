@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="de" translate="no">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,6 +10,10 @@
     <!-- SEO: Explicit index directive (opposite of noindex) -->
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
     <meta name="googlebot" content="index, follow" />
+    <!-- Prevent Chrome's built-in auto-translate: it rewrites text nodes
+         behind React's back and causes intermittent "removeChild" crashes.
+         The app has its own EN/DE switcher, so browser translation isn't needed. -->
+    <meta name="google" content="notranslate" />
     
     <!-- CLYR Brand Info -->
     <title>CLYR | Klares Wasser. Klares Leben. | Premium Wassersysteme</title>
