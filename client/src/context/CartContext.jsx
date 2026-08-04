@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import appConfig, { calculateShipping, calculateVAT, formatCurrency, normalizeCountryCode } from '../config/app.config';
-import { referralAPI } from '../services/api';
+import { referralAPI, productsAPI } from '../services/api';
+import { useAuth } from './AuthContext';
 
 // EU countries eligible for Reverse Charge (excludes AT = home country)
 const EU_RC_COUNTRIES = new Set([
@@ -19,6 +20,7 @@ export const useCart = () => {
 };
 
 export const CartProvider = ({ children }) => {
+  const { loading: authLoading } = useAuth();
   // Cart items
   const [items, setItems] = useState([]);
   
@@ -72,6 +74,48 @@ export const CartProvider = ({ children }) => {
       }
     }
   }, []);
+
+  // Cart lines are persisted in localStorage.  Re-fetch their authoritative
+  // product prices after authentication so an existing cart immediately
+  // reflects the logged-in partner's special price (and returns to the
+  // regular price after logout).  Checkout independently repeats this on the
+  // server, so a browser-supplied price can never be trusted.
+  useEffect(() => {
+    if (authLoading || items.length === 0) return;
+
+    let cancelled = false;
+    const refreshCartPrices = async () => {
+      const refreshedProducts = await Promise.all(items.map(async (item) => {
+        try {
+          const response = await productsAPI.getById(item.id);
+          return response.data?.product || response.data;
+        } catch {
+          return null;
+        }
+      }));
+
+      if (cancelled) return;
+      setItems((currentItems) => {
+        let changed = false;
+        const refreshed = currentItems.map((item, index) => {
+          const product = refreshedProducts[index];
+          const basePrice = Number.parseFloat(product?.price);
+          if (!Number.isFinite(basePrice)) return item;
+          const variantModifier = Object.values(item.selectedVariants || {})
+            .filter((variant) => !variant?.bundleComponent)
+            .reduce((sum, variant) => sum + (Number.parseFloat(variant?.priceModifier) || 0), 0);
+          const price = Math.round((basePrice + variantModifier) * 100) / 100;
+          if (Number(item.price) === price) return item;
+          changed = true;
+          return { ...item, price };
+        });
+        return changed ? refreshed : currentItems;
+      });
+    };
+
+    refreshCartPrices();
+    return () => { cancelled = true; };
+  }, [authLoading, items]);
 
   // Look up partner name from referral code
   const lookupPartner = async (code) => {

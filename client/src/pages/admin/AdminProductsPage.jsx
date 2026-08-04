@@ -470,7 +470,7 @@ const AdminProductsPage = () => {
                 <input type="checkbox" checked={form.exclude_from_partner_discount}
                   onChange={e => setForm({...form, exclude_from_partner_discount: e.target.checked})}
                   className="w-5 h-5 rounded border-gray-300 text-primary-400" />
-                <span className="text-secondary-700 text-sm">Vom Partnerrabatt ausschließen (z.B. Wasserfiltersysteme)</span>
+                <span className="text-secondary-700 text-sm">Vom allgemeinen Partnerrabatt ausschließen (ein eingetragener Partnerpreis hat Vorrang)</span>
               </label>
             </div>
           </div>

@@ -13,7 +13,7 @@ const router = Router();
 router.get('/payment-success', orderController.paymentSuccessRedirect);
 
 // Calculate order totals
-router.post('/calculate-totals', orderController.calculateOrderTotals);
+router.post('/calculate-totals', optionalAuth, orderController.calculateOrderTotals);
 
 // Validate discount code
 router.post('/validate-discount', orderController.validateDiscountCode);

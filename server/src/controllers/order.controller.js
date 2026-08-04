@@ -5,6 +5,7 @@ import { calculateCommissions } from '../services/commission.service.js';
 import { generateInvoicePDF } from '../services/invoice.service.js';
 import { calculateVatRule, validateVatId } from '../services/tax.service.js';
 import { getPublicAppUrl, getPublicApiUrl } from '../utils/public-url.js';
+import { getEffectiveProductPrice } from '../utils/partner-pricing.js';
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
@@ -218,7 +219,7 @@ export const calculateOrderTotals = asyncHandler(async (req, res) => {
   // Calculate subtotal
   const subtotal = items.reduce((sum, item) => {
     const product = products.find(p => p.id === item.productId);
-    return sum + product.price * item.quantity;
+    return sum + getEffectiveProductPrice(product, req.user) * item.quantity;
   }, 0);
 
   // Get shipping cost
@@ -249,9 +250,9 @@ export const calculateOrderTotals = asyncHandler(async (req, res) => {
       return {
         productId: product.id,
         name: product.name,
-        price: product.price,
+        price: getEffectiveProductPrice(product, req.user),
         quantity: item.quantity,
-        total: product.price * item.quantity,
+        total: getEffectiveProductPrice(product, req.user) * item.quantity,
         image: product.images?.[0] || null
       };
     })
@@ -780,7 +781,7 @@ export const createOrder = asyncHandler(async (req, res) => {
       }
       return sum + parseFloat(variant?.priceModifier || 0);
     }, 0);
-    return Math.round((parseFloat(product.price || 0) + variantModifier) * 100) / 100;
+    return Math.round((getEffectiveProductPrice(product, req.user) + variantModifier) * 100) / 100;
   };
 
   // Check stock

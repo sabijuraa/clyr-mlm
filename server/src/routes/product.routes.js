@@ -97,10 +97,10 @@ router.delete('/admin/categories/:id', authenticate, isAdmin, productController.
 router.get('/', optionalAuth, productController.getAllProducts);
 
 // Get featured products for homepage
-router.get('/featured', productController.getFeaturedProducts);
+router.get('/featured', optionalAuth, productController.getFeaturedProducts);
 
 // Get new products
-router.get('/new', productController.getNewProducts);
+router.get('/new', optionalAuth, productController.getNewProducts);
 
 // Get all categories
 router.get('/categories', productController.getCategories);

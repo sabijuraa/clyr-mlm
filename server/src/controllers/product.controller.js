@@ -1,5 +1,6 @@
 // server/src/controllers/product.controller.js
 import pool from '../config/database.js';
+import { applyPartnerPricing } from '../utils/partner-pricing.js';
 
 // ========================================
 // PUBLIC FUNCTIONS
@@ -48,7 +49,7 @@ export const getAllProducts = async (req, res) => {
         throw sortErr;
       }
     }
-    res.json(result.rows);
+    res.json(result.rows.map((product) => applyPartnerPricing(product, req.user)));
   } catch (error) {
     console.error('Get products error:', error);
     res.status(500).json({ error: 'Failed to fetch products' });
@@ -66,7 +67,7 @@ export const getFeaturedProducts = async (req, res) => {
       ORDER BY p.created_at DESC
       LIMIT 10
     `);
-    res.json(result.rows);
+    res.json(result.rows.map((product) => applyPartnerPricing(product, req.user)));
   } catch (error) {
     console.error('Get featured products error:', error);
     res.status(500).json({ error: 'Failed to fetch featured products' });
@@ -84,7 +85,7 @@ export const getNewProducts = async (req, res) => {
       ORDER BY p.created_at DESC
       LIMIT 10
     `);
-    res.json(result.rows);
+    res.json(result.rows.map((product) => applyPartnerPricing(product, req.user)));
   } catch (error) {
     console.error('Get new products error:', error);
     res.status(500).json({ error: 'Failed to fetch new products' });
@@ -121,7 +122,7 @@ export const getProductsByCategory = async (req, res) => {
       ORDER BY p.is_featured DESC, p.created_at DESC
     `, [slug]);
     
-    res.json(result.rows);
+    res.json(result.rows.map((product) => applyPartnerPricing(product, req.user)));
   } catch (error) {
     console.error('Get products by category error:', error);
     res.status(500).json({ error: 'Failed to fetch products' });
@@ -144,7 +145,7 @@ export const getProductBySlug = async (req, res) => {
       return res.status(404).json({ error: 'Product not found' });
     }
     
-    const product = result.rows[0];
+    const product = applyPartnerPricing(result.rows[0], req.user);
     
     // Load variants from product_variants + variant_options
     try {
@@ -254,7 +255,7 @@ export const getProduct = async (req, res) => {
       return res.status(404).json({ error: 'Product not found' });
     }
     
-    res.json(result.rows[0]);
+    res.json(applyPartnerPricing(result.rows[0], req.user));
   } catch (error) {
     console.error('Get product error:', error);
     res.status(500).json({ error: 'Failed to fetch product' });
