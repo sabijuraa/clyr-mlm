@@ -446,26 +446,37 @@ cron.schedule('0 2 1 * *', async () => {
 // If any partner fails → commissions stay 'released' → retried next month
 // ─────────────────────────────────────────────────────────────
 cron.schedule('0 3 1 * *', async () => {
-  // IDEMPOTENCY LOCK: prevent double-run if server restarts during payout window
+  // IDEMPOTENCY LOCK — FIXED (race condition): the previous SELECT-then-INSERT
+  // pattern let two near-simultaneous cron firings (e.g. during a rolling
+  // deploy where two app instances briefly overlap) both pass the SELECT
+  // before either INSERT landed, writing two lock rows for the same cycle
+  // (confirmed live in production on 2026-07-01 and 2026-08-01, ~2ms apart).
+  // Fixed by making the lock a single atomic INSERT ... ON CONFLICT DO NOTHING
+  // against a DB-level unique index (see migration_fix_payout_lock_race.sql) —
+  // only ONE process can ever win that insert, so only one can proceed.
+  // Also: if the lock write itself fails, we now SKIP the run rather than
+  // "proceeding with caution" — a broken lock must fail closed, not open,
+  // for something that moves real money.
   const now = new Date();
   const cycleKey = `payout_cycle_${now.getFullYear()}_${now.getMonth() + 1}`;
+  let lockAcquired = false;
   try {
     const { query: dbQ } = await import('./config/database.js');
-    const lockCheck = await dbQ(
-      `SELECT id FROM activity_log WHERE action = 'payout_cycle_started' AND details->>'cycleKey' = $1 LIMIT 1`,
-      [cycleKey]
-    );
-    if (lockCheck.rows.length > 0) {
-      console.log(`[PAYOUT CRON] ⚠️  Skipped — cycle ${cycleKey} already ran this month`);
-      return;
-    }
-    // Record cycle start as idempotency lock
-    await dbQ(
-      `INSERT INTO activity_log (action, entity_type, entity_id, details) VALUES ('payout_cycle_started', 'system', $1, $2)`,
+    const lockResult = await dbQ(
+      `INSERT INTO activity_log (action, entity_type, entity_id, details)
+       VALUES ('payout_cycle_started', 'system', $1, $2)
+       ON CONFLICT (entity_id) WHERE action = 'payout_cycle_started' DO NOTHING
+       RETURNING id`,
       [cycleKey, JSON.stringify({ cycleKey, startedAt: now.toISOString() })]
     );
+    lockAcquired = lockResult.rows.length > 0;
   } catch (lockErr) {
-    console.error('[PAYOUT CRON] Lock check failed, proceeding with caution:', lockErr.message);
+    console.error('[PAYOUT CRON] Lock write failed — skipping run to fail closed:', lockErr.message);
+    return;
+  }
+  if (!lockAcquired) {
+    console.log(`[PAYOUT CRON] ⚠️  Skipped — cycle ${cycleKey} already ran this month`);
+    return;
   }
 
   console.log('========================================');
@@ -502,24 +513,27 @@ cron.schedule('0 3 1 * *', async () => {
 // stripe-connect.controller.js, so this can't collide with the 1st's run.
 // ─────────────────────────────────────────────────────────────
 cron.schedule('0 3 15 * *', async () => {
+  // IDEMPOTENCY LOCK — same atomic fix as the 1st-of-month cron above.
   const now = new Date();
   const cycleKey = `payout_cycle_${now.getFullYear()}_${now.getMonth() + 1}_15th`;
+  let lockAcquired = false;
   try {
     const { query: dbQ } = await import('./config/database.js');
-    const lockCheck = await dbQ(
-      `SELECT id FROM activity_log WHERE action = 'payout_cycle_started' AND details->>'cycleKey' = $1 LIMIT 1`,
-      [cycleKey]
-    );
-    if (lockCheck.rows.length > 0) {
-      console.log(`[PAYOUT CRON 15th] ⚠️  Skipped — cycle ${cycleKey} already ran`);
-      return;
-    }
-    await dbQ(
-      `INSERT INTO activity_log (action, entity_type, entity_id, details) VALUES ('payout_cycle_started', 'system', $1, $2)`,
+    const lockResult = await dbQ(
+      `INSERT INTO activity_log (action, entity_type, entity_id, details)
+       VALUES ('payout_cycle_started', 'system', $1, $2)
+       ON CONFLICT (entity_id) WHERE action = 'payout_cycle_started' DO NOTHING
+       RETURNING id`,
       [cycleKey, JSON.stringify({ cycleKey, startedAt: now.toISOString() })]
     );
+    lockAcquired = lockResult.rows.length > 0;
   } catch (lockErr) {
-    console.error('[PAYOUT CRON 15th] Lock check failed, proceeding:', lockErr.message);
+    console.error('[PAYOUT CRON 15th] Lock write failed — skipping run to fail closed:', lockErr.message);
+    return;
+  }
+  if (!lockAcquired) {
+    console.log(`[PAYOUT CRON 15th] ⚠️  Skipped — cycle ${cycleKey} already ran`);
+    return;
   }
 
   console.log('========================================');
