@@ -981,9 +981,16 @@ export const getCommissionSummary = async (userId) => {
        SUM(CASE WHEN c.status = 'held' THEN c.amount ELSE 0 END) as pending,
        SUM(CASE WHEN c.status = 'released' THEN c.amount ELSE 0 END) as available,
        SUM(CASE WHEN c.status = 'paid' THEN c.amount ELSE 0 END) as paid_out,
+       -- FIX (commission mismatch): "this_month" must only count commissions that
+       -- are actually earned (released or paid out), matching total_earned's
+       -- definition. Previously this summed ANY non-reversed/cancelled row,
+       -- which meant still-pending and held commissions (not yet confirmed —
+       -- e.g. inside the refund-eligibility window) were added into the
+       -- month's total, inflating it above what the partner had truly earned
+       -- and causing totals shown on the dashboard not to reconcile.
        SUM(
          CASE
-           WHEN c.status NOT IN ('reversed', 'cancelled')
+           WHEN c.status IN ('released', 'paid')
             AND (
               (o.created_at >= date_trunc('month', CURRENT_DATE) AND c.order_id IS NOT NULL)
               OR (c.order_id IS NULL AND c.created_at >= date_trunc('month', CURRENT_DATE))

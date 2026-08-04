@@ -70,7 +70,11 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
   const recentOrdersResult = await query(
     `SELECT o.id, o.order_number, o.customer_first_name, o.customer_last_name,
             o.total, o.status, o.created_at,
-            (SELECT SUM(amount) FROM commissions WHERE order_id = o.id AND user_id = $1) as commission
+            -- FIX (commission mismatch): exclude reversed/cancelled commissions from the
+            -- per-order figure shown in "recent orders" — previously this summed every
+            -- row regardless of status, so a refunded/reversed order still showed a
+            -- commission amount that no longer matched the partner's actual totals.
+            (SELECT COALESCE(SUM(amount), 0) FROM commissions WHERE order_id = o.id AND user_id = $1 AND status NOT IN ('reversed', 'cancelled')) as commission
      FROM orders o
      WHERE o.partner_id = $1
      ORDER BY o.created_at DESC

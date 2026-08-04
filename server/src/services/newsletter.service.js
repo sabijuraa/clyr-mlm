@@ -186,21 +186,28 @@ export const createCampaign = async (campaignData, createdBy) => {
   console.log('[NEWSLETTER CREATE] image_url:', campaignData.image_url||'');
   const {
     name, subject,
-    // Accept both camelCase and snake_case from frontend
-    contentHtml, content_html,
+    // Accept camelCase, snake_case, AND the field names the admin UI actually
+    // sends (html_content / text_content). BUG FIX (newsletter empty body):
+    // AdminNewsletterPage.jsx builds the campaign body client-side and posts
+    // it as `html_content`/`text_content`, but this destructuring previously
+    // only recognized `contentHtml`/`content_html` and `contentText`/
+    // `content_text` — so the admin's actual message was silently dropped,
+    // htmlContent ended up empty, and sendCampaign's last-resort fallback
+    // (using just the subject line as the body) is what customers received.
+    contentHtml, content_html, html_content,
     subjectEn, subject_en,
     contentHtmlEn, content_html_en,
-    contentText, content_text,
+    contentText, content_text, text_content,
     targetAudience, target_audience,
     targetFilter, target_filter,
     scheduledAt, scheduled_at,
     image_url
   } = campaignData;
 
-  // Resolve snake_case OR camelCase
+  // Resolve snake_case OR camelCase OR the admin UI's field names
   // If html is empty but text exists, build HTML from text
-  let htmlContent = contentHtml || content_html || '';
-  const rawText = contentText || content_text || '';
+  let htmlContent = contentHtml || content_html || html_content || '';
+  const rawText = contentText || content_text || text_content || '';
   if (!htmlContent && rawText) {
     htmlContent = rawText
       .split('\n')
@@ -209,7 +216,7 @@ export const createCampaign = async (campaignData, createdBy) => {
     console.log('[NEWSLETTER CREATE] Built HTML from text, length:', htmlContent.length);
   }
   console.log('[NEWSLETTER CREATE] Final html_content length:', htmlContent.length);
-  const textContent = contentText || content_text || null;
+  const textContent = contentText || content_text || text_content || null;
   const resolvedSubjectEn = subjectEn || subject_en || null;
   const resolvedHtmlEn = contentHtmlEn || content_html_en || null;
   const resolvedAudience = targetAudience || target_audience || 'newsletter';

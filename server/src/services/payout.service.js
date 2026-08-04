@@ -5,12 +5,13 @@ import { isVatIdFormatValid } from './tax.service.js';
 /**
  * CLYR Payout Service
  * 
- * Handles partner payouts via SEPA transfer
+ * Handles partner payouts via Stripe transfer, SEPA, PayPal, and manual
  * 
  * Payout Rules:
  * - Minimum payout: €50
- * - Payout cycle: 1st of each month
- * - Commission statements generated per payout
+ * - Payout cycle: twice monthly — 1st AND 15th (see cron jobs in index.js)
+ * - Commission statements generated per payout (one statement per cycle,
+ *   so partners receive two statements a month)
  * 
  * VAT Handling for Commission Statements:
  * - Austrian affiliates: 20% VAT, with or without UID
