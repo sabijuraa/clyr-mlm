@@ -245,6 +245,37 @@ export const getPartners = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get sponsor/upline candidates for the "Change Sponsor" dropdown.
+ *
+ * Unlike getPartners() (which only returns role='partner' rows for the main
+ * partners table), this also includes role='admin' accounts. Some admin
+ * accounts - e.g. theresa@clyr.at - are also legitimate affiliates/root
+ * nodes in the MLM tree and need to be selectable as a sponsor, even though
+ * they should NOT show up in the regular partner listing/table.
+ */
+export const getSponsorCandidates = asyncHandler(async (req, res) => {
+  const { search } = req.query;
+
+  let whereClause = "WHERE u.role IN ('partner', 'admin')";
+  const params = [];
+
+  if (search) {
+    whereClause += ` AND (u.first_name ILIKE $1 OR u.last_name ILIKE $1 OR u.email ILIKE $1)`;
+    params.push(`%${search}%`);
+  }
+
+  const result = await query(
+    `SELECT u.id, u.first_name, u.last_name, u.email, u.role
+     FROM users u
+     ${whereClause}
+     ORDER BY u.role = 'admin' DESC, u.first_name ASC, u.last_name ASC`,
+    params
+  );
+
+  res.json({ candidates: result.rows });
+});
+
+/**
  * Get partner by ID
  */
 export const getPartnerById = asyncHandler(async (req, res) => {

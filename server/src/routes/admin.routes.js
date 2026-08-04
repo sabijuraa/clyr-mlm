@@ -19,6 +19,10 @@ router.get('/customers/:id', adminController.getCustomerDetails);
 
 // Partners management
 router.get('/partners',              adminController.getPartners);
+// Sponsor/upline candidates for the "Change Sponsor" dropdown. Includes
+// admin accounts (e.g. theresa@clyr.at) that are also real affiliates,
+// which getPartners() intentionally excludes from the main partner table.
+router.get('/sponsor-candidates',    adminController.getSponsorCandidates);
 router.get('/partners/:id',          adminController.getPartnerById);
 router.patch('/partners/:id/status', adminController.updatePartnerStatus);
 router.patch('/partners/:id/rank',   adminController.updatePartnerRank);

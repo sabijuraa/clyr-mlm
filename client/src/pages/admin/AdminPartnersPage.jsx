@@ -21,9 +21,20 @@ const AdminPartnersPage = () => {
   const [ranks, setRanks] = useState([]);
   const [editingSponsor, setEditingSponsor] = useState(false);
   const [sponsorSearch, setSponsorSearch] = useState('');
+  // Sponsor dropdown candidates: partners + admin accounts that are also
+  // affiliates (e.g. theresa@clyr.at). Kept separate from `partners` so the
+  // main partner table doesn't show admin accounts.
+  const [sponsorCandidates, setSponsorCandidates] = useState([]);
 
   useEffect(() => {
     fetchPartners();
+    adminAPI.getSponsorCandidates().then(res => {
+      setSponsorCandidates(res.data?.candidates || []);
+    }).catch(() => {
+      // Fall back to the regular partner list if this fails, so the
+      // dropdown still works (just without admin/hybrid accounts).
+      setSponsorCandidates([]);
+    });
     // Fetch ranks from API
     adminAPI.getRanks().then(res => {
       const ranksData = res.data?.ranks || res.data || [];
@@ -448,11 +459,12 @@ const AdminPartnersPage = () => {
                                   className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg"
                                 >
                                   <option value="">-- Kein Sponsor --</option>
-                                  {partners
+                                  {(sponsorCandidates.length > 0 ? sponsorCandidates : partners)
                                     .filter(p => p.id !== partnerDetail.partner?.id)
                                     .map(p => (
                                       <option key={p.id} value={p.id}>
                                         {p.first_name || p.firstName} {p.last_name || p.lastName} ({p.email})
+                                        {p.role === 'admin' ? ' — Admin' : ''}
                                       </option>
                                     ))
                                   }

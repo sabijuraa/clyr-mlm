@@ -542,6 +542,12 @@ export const adminAPI = {
   getPartnerById: (id) => 
     api.get(`/admin/partners/${id}`),
 
+  // Sponsor/upline dropdown candidates (includes admin accounts that are
+  // also affiliates, e.g. theresa@clyr.at - these are excluded from
+  // getPartners() on purpose so they don't clutter the main partner table)
+  getSponsorCandidates: (params = {}) =>
+    api.get('/admin/sponsor-candidates', { params }),
+
   updatePartnerStatus: (id, status, reason = null) => 
     api.patch(`/admin/partners/${id}/status`, { status, reason }),
 
