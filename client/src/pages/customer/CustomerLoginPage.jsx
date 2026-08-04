@@ -78,9 +78,14 @@ const CustomerLoginPage = () => {
       const msg = respData?.error || error.message || 'Ein Fehler ist aufgetreten';
       // Auto-switch to registration if account has no password
       if (respData?.needsRegistration) {
-        setIsLogin(false);
-        if (respData.email) setFormData(prev => ({ ...prev, email: respData.email }));
         toast.error('Bitte setzen Sie zuerst ein Passwort für Ihr Konto.');
+        // Defer the fields swap (login-fields -> register-fields Fragment key
+        // change) by a tick so the toast's DOM update finishes first and
+        // doesn't collide with React's reconciliation of this component.
+        setTimeout(() => {
+          setIsLogin(false);
+          if (respData.email) setFormData(prev => ({ ...prev, email: respData.email }));
+        }, 50);
       } else {
         toast.error(msg);
       }
