@@ -465,7 +465,7 @@ export const getCustomerSubscriptions = async (req, res) => {
 
     const result = await pool.query(`
       SELECT s.*, p.name as product_name, p.price as product_price,
-             p.image_url as product_image
+             p.images->>0 as product_image
       FROM subscriptions s
       JOIN products p ON s.product_id = p.id
       WHERE s.customer_id = $1
