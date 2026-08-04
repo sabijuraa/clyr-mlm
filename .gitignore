@@ -47,3 +47,4 @@ coverage/
 
 
 server/public/invoices/*.pdf
+tmp/
