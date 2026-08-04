@@ -1,6 +1,6 @@
 // client/src/pages/customer/CustomerLoginPage.jsx
 // GROUP 7 #9: Fix customer login
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, ArrowRight, Package, ShieldCheck, User } from 'lucide-react';
@@ -69,7 +69,10 @@ const CustomerLoginPage = () => {
       localStorage.setItem('customerToken', data.token);
       localStorage.setItem('customerData', JSON.stringify(data.customer));
       toast.success(isLogin ? 'Erfolgreich angemeldet!' : 'Konto erstellt!');
-      navigate('/customer/dashboard');
+      // Defer navigation slightly so Framer Motion / toast DOM updates
+      // finish before this component unmounts (avoids a React removeChild
+      // race when navigation happens mid-render/animation).
+      setTimeout(() => navigate('/customer/dashboard'), 50);
     } catch (error) {
       const respData = error.response?.data;
       const msg = respData?.error || error.message || 'Ein Fehler ist aufgetreten';
@@ -106,7 +109,7 @@ const CustomerLoginPage = () => {
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
             {showForgot && (
-              <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl">
+              <div key="forgot-panel" className="p-4 bg-blue-50 border border-blue-100 rounded-xl">
                 {forgotSent ? (
                   <div className="text-center">
                     <p className="text-sm text-blue-900 font-medium mb-2">E-Mail gesendet!</p>
@@ -144,7 +147,7 @@ const CustomerLoginPage = () => {
             )}
 
             {!showForgot && !isLogin && (
-              <div className="grid grid-cols-2 gap-4">
+              <div key="register-name-fields" className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-secondary-700 mb-2">Vorname</label>
                   <div className="relative">
@@ -166,7 +169,7 @@ const CustomerLoginPage = () => {
             )}
 
             {!showForgot && (
-              <>
+              <Fragment key={isLogin ? 'login-fields' : 'register-fields'}>
             <div>
               <label className="block text-sm font-medium text-secondary-700 mb-2">E-Mail-Adresse</label>
               <div className="relative">
@@ -219,7 +222,7 @@ const CustomerLoginPage = () => {
                 <>{isLogin ? 'Anmelden' : 'Konto erstellen'}<ArrowRight className="w-5 h-5" /></>
               )}
             </button>
-              </>
+              </Fragment>
             )}
           </form>
 
