@@ -8,6 +8,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { authenticate, isAdmin } from '../middleware/auth.middleware.js';
+import { convertHeicIfNeeded } from '../utils/heicConvert.js';
 import { asyncHandler } from '../middleware/error.middleware.js';
 import * as newsletterService from '../services/newsletter.service.js';
 import { query } from '../config/database.js';
@@ -184,8 +185,18 @@ router.delete('/admin/campaigns/:id', authenticate, isAdmin, asyncHandler(async 
 router.post('/admin/upload-image', authenticate, isAdmin, imgUpload.fields([{ name: 'image', maxCount: 1 }, { name: 'file', maxCount: 1 }]), asyncHandler(async (req, res) => {
   const uploaded = (req.files?.image && req.files.image[0]) || (req.files?.file && req.files.file[0]);
   if (!uploaded) return res.status(400).json({ error: 'No image uploaded' });
+
+  // BUG FIX (newsletter broken image icon):
+  // Photos shared directly from an iPhone gallery are HEIC/HEIF by default.
+  // That format renders fine in the admin preview (Safari/Chrome can decode it),
+  // but almost no email client (Gmail, Outlook, most non-Apple-Mail clients) can
+  // display a raw HEIC <img>, so recipients just saw a broken-image icon.
+  // We now transparently convert HEIC/HEIF uploads to JPEG on the server before
+  // returning the URL, so every downstream <img src="..."> is a normal JPEG.
+  const finalFile = await convertHeicIfNeeded(uploaded.path, nlImgDir);
+
   const baseUrl = process.env.BACKEND_URL || process.env.FRONTEND_URL || 'https://clyr.shop';
-  const url = `${baseUrl}/uploads/newsletter/${uploaded.filename}`;
+  const url = `${baseUrl}/uploads/newsletter/${finalFile}`;
   console.log('[NEWSLETTER] Image uploaded:', url);
   res.json({ url, imageUrl: url });
 }));
@@ -197,6 +208,9 @@ router.get('/admin/image-library', authenticate, isAdmin, asyncHandler(async (re
       return res.json({ images: [] });
     }
     const baseUrl = process.env.BACKEND_URL || process.env.FRONTEND_URL || 'https://clyr.shop';
+    // NOTE: .heic/.heif are intentionally excluded here — any new upload is now
+    // converted to .jpg by convertHeicIfNeeded() before it reaches this folder,
+    // so a HEIC file showing up here would mean conversion failed for it.
     const files = fs.readdirSync(nlImgDir)
       .filter(f => /\.(jpg|jpeg|png|gif|webp)$/i.test(f))
       .map(filename => {

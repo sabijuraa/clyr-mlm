@@ -1017,7 +1017,7 @@ export const getInvoices = asyncHandler(async (req, res) => {
       : "WHERE ((i.type = 'customer' AND i.order_id IS NOT NULL) OR (i.type = 'fee' AND i.subscription_payment_id IS NOT NULL))";
     const countRes = await query(`SELECT COUNT(*) FROM invoices i ${whereClause}`);
     const res2 = await query(
-      `SELECT i.*, o.order_number,
+      `SELECT i.*, o.order_number, o.created_at as order_created_at, o.invoice_generated_at as order_invoice_generated_at,
               c.email as customer_email, c.first_name as customer_first_name, c.last_name as customer_last_name,
               u.email as partner_email, u.first_name as partner_first_name, u.last_name as partner_last_name
        FROM invoices i
@@ -1031,7 +1031,15 @@ export const getInvoices = asyncHandler(async (req, res) => {
     invoices = res2.rows.map(inv => ({
       ...inv,
       customer_name: inv.customer_first_name ? `${inv.customer_first_name} ${inv.customer_last_name}` : null,
-      partner_name: inv.partner_first_name ? `${inv.partner_first_name} ${inv.partner_last_name}` : null
+      partner_name: inv.partner_first_name ? `${inv.partner_first_name} ${inv.partner_last_name}` : null,
+      // BUG FIX (admin billing list showed a different date than the actual
+      // invoice PDF): the list was displaying `invoices.created_at`, which is
+      // when the DB row was inserted/last regenerated (e.g. during a bulk
+      // "generate-missing" run), while the PDF itself prints the order's own
+      // date (see invoice.service.js: order.created_at || order.invoice_generated_at).
+      // `invoice_date` now mirrors that exact same precedence so the list and
+      // the downloaded PDF always agree.
+      invoice_date: inv.order_created_at || inv.order_invoice_generated_at || inv.created_at
     }));
     total = parseInt(countRes.rows[0].count);
   }

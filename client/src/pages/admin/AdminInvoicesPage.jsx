@@ -433,7 +433,10 @@ const AdminInvoicesPage = () => {
                       </div>
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-gray-600 text-sm hidden sm:table-cell">
-                      {formatDate(invoice.created_at)}
+                      {/* BUG FIX: use invoice_date (mirrors the date printed on the
+                          actual PDF) instead of created_at (DB row insert/regeneration
+                          time), which could silently drift from the PDF's real date. */}
+                      {formatDate(invoice.invoice_date || invoice.created_at)}
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-gray-900 text-sm hidden md:table-cell">
                       {formatCurrency(invoice.net_amount)}

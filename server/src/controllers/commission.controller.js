@@ -672,26 +672,45 @@ export const downloadCommissionZip = asyncHandler(async (req, res) => {
     'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
   ];
 
-  const period = `${y}-${String(m).padStart(2, '0')}`;
   const startDate = new Date(y, m - 1, 1);
   const endDate = new Date(y, m, 0, 23, 59, 59);
 
-  // Get all active affiliates who had commissions in this period
-  const affiliatesResult = await query(
-    `SELECT DISTINCT u.id, u.first_name, u.last_name, u.email,
+  // BUG FIX (Aug 5, 2026 — "commissions paid in July filed under June /
+  // one of Theresa's two July statements missing"):
+  //
+  // Root cause: this endpoint used to produce exactly ONE PDF per affiliate
+  // per selected month, matched to a single payout record via `LIMIT 1`.
+  // That was fine when payouts ran once a month, but Milestone 2 introduced
+  // TWO payout cycles per month (1st and 15th). An affiliate paid on both
+  // cycles in the same month therefore always lost one of their two
+  // statements from the ZIP — silently, since the tool never errored.
+  //
+  // It also picked affiliates by commission *creation* date rather than the
+  // actual payout date, so requesting "Juli" could pull in a June-dated
+  // payout (or vice versa) depending on when the underlying commissions were
+  // originally generated versus when they were actually paid out.
+  //
+  // Fix: source directly from `payouts` for the requested month (matched by
+  // the payout's own date), and generate one PDF per payout record — exactly
+  // matching what appears in the partner dashboard and in
+  // Admin > Invoices > "Provisionen". An affiliate with two cycles that
+  // month now correctly gets two separate PDFs.
+  const payoutsResult = await query(
+    `SELECT p.*, u.id as affiliate_id, u.first_name, u.last_name, u.email,
             u.company, u.street, u.zip, u.city, u.country,
             u.vat_id, u.iban, u.bic, u.bank_name, u.account_holder,
             u.is_kleinunternehmer, u.rank_id
-     FROM users u
-     INNER JOIN commissions c ON c.user_id = u.id
-     WHERE TO_CHAR(c.created_at, 'YYYY-MM') = $1
-       AND c.type <> 'bonus_pool'
-       AND c.status NOT IN ('cancelled', 'reversed')
-     ORDER BY u.last_name, u.first_name`,
-    [period]
+     FROM payouts p
+     JOIN users u ON u.id = p.user_id
+     WHERE p.status NOT IN ('cancelled')
+       AND LOWER(u.email) <> 'technik@clyr.shop'
+       AND COALESCE(p.completed_at, p.processed_at, p.created_at) >= $1
+       AND COALESCE(p.completed_at, p.processed_at, p.created_at) <= $2
+     ORDER BY u.last_name, u.first_name, p.created_at ASC`,
+    [startDate, endDate]
   );
 
-  if (affiliatesResult.rows.length === 0) {
+  if (payoutsResult.rows.length === 0) {
     return res.status(404).json({ message: `Keine Provisionsabrechnungen für ${MONTH_NAMES_DE[m]} ${y} gefunden.` });
   }
 
@@ -713,69 +732,53 @@ export const downloadCommissionZip = asyncHandler(async (req, res) => {
   const archive = archiver('zip', { zlib: { level: 6 } });
   archive.pipe(res);
 
-  // Date string for filenames: 01062026 (first of the requested month)
-  const dateStr = `01${String(m).padStart(2, '0')}${y}`;
-  const periodFormatted = new Date(y, m - 1).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
-
-  for (const affiliate of affiliatesResult.rows) {
+  for (const payout of payoutsResult.rows) {
     try {
-      // Fetch this affiliate's commissions for the period
+      // Each payout only ever contains its OWN commissions (via payout_id),
+      // which is what keeps two same-month cycles from bleeding into each
+      // other's statement.
       const commissionsResult = await query(
         `SELECT c.*, o.order_number, o.subtotal as order_total, o.created_at as order_date,
                 NULLIF(TRIM(CONCAT(COALESCE(o.customer_first_name, ''), ' ', COALESCE(o.customer_last_name, ''))), '') as customer_name
          FROM commissions c
          LEFT JOIN orders o ON c.order_id = o.id
-         WHERE c.user_id = $1
+         WHERE c.payout_id = $1
            AND c.type <> 'bonus_pool'
-           AND c.status NOT IN ('cancelled', 'reversed')
-           AND (
-             (o.created_at >= $2 AND o.created_at <= $3)
-             OR (o.created_at IS NULL AND c.created_at >= $2 AND c.created_at <= $3)
-           )
          ORDER BY COALESCE(o.created_at, c.created_at) ASC`,
-        [affiliate.id, startDate, endDate]
+        [payout.id]
       );
 
       if (commissionsResult.rows.length === 0) {
-        console.log(`[ZIP] Skipping ${affiliate.last_name} — no commissions in period`);
+        console.log(`[ZIP] Skipping payout ${payout.statement_number || payout.id} (${payout.last_name}) — no linked commissions`);
         continue;
       }
 
-      // Get payout record for this period if one exists
-      const payoutResult = await query(
-        `SELECT * FROM payouts
-         WHERE user_id = $1
-           AND status <> 'cancelled'
-           AND (
-             (period_start <= $3 AND period_end >= $2)
-             OR (period_start IS NULL AND period_end IS NULL
-                 AND created_at >= $4 AND created_at <= $5)
-           )
-         ORDER BY created_at DESC LIMIT 1`,
-        [
-          affiliate.id,
-          startDate,
-          endDate,
-          new Date(y, m, 1),
-          new Date(y, m + 1, 0, 23, 59, 59)
-        ]
-      );
+      // The payout's own date is authoritative for both the filename and the
+      // period label — never the selected month/year directly — so a 1st and
+      // a 15th payout in the same requested month get distinct, correctly
+      // dated files instead of colliding on one "01MMYYYY" name.
+      const payoutDate = new Date(payout.completed_at || payout.processed_at || payout.created_at);
+      const dd = String(payoutDate.getDate()).padStart(2, '0');
+      const mm = String(payoutDate.getMonth() + 1).padStart(2, '0');
+      const yyyy = payoutDate.getFullYear();
+      const dateStr = `${dd}${mm}${yyyy}`;
+      const periodFormatted = payoutDate.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
 
       // generateCommissionStatement expects (partnerObject, commissionsArray, periodLabel, payoutRecord)
       const pdfBuffer = await generateCommissionStatement(
-        affiliate,
+        payout,
         commissionsResult.rows,
         periodFormatted,
-        payoutResult.rows[0] || null
+        payout
       );
 
-      const lastName = (affiliate.last_name || affiliate.email || String(affiliate.id))
+      const lastName = (payout.last_name || payout.email || String(payout.affiliate_id))
         .replace(/[^a-zA-Z0-9]/g, '_');
-      const filename = `${dateStr}_Commission_${lastName}.pdf`;
+      const filename = `${dateStr}_Commission_${lastName}${payout.statement_number ? `_${payout.statement_number}` : ''}.pdf`;
       archive.append(pdfBuffer, { name: filename });
       console.log(`[ZIP] Added: ${filename}`);
     } catch (err) {
-      console.error(`[ZIP] Statement for affiliate ${affiliate.id} (${affiliate.last_name}) failed:`, err.message);
+      console.error(`[ZIP] Statement for payout ${payout.id} (${payout.last_name}) failed:`, err.message);
     }
   }
 
