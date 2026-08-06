@@ -682,7 +682,10 @@ export const createOrder = asyncHandler(async (req, res) => {
   // Enforce the selection here as well so a handcrafted API request cannot
   // create an ambiguous faucet, colour, or aroma order.
   const componentResult = await query(
-    `SELECT bundle_id, product_id FROM bundle_items WHERE bundle_id = ANY($1)`,
+    `SELECT bi.bundle_id, bi.product_id, bi.quantity, p.name
+     FROM bundle_items bi
+     JOIN products p ON p.id = bi.product_id
+     WHERE bi.bundle_id = ANY($1)`,
     [productIds]
   );
   const variantProductIds = [...new Set([
@@ -712,10 +715,13 @@ export const createOrder = asyncHandler(async (req, res) => {
     optionIds.set(Number(variant.assignment_id), optionId);
   }
   const componentsByBundle = new Map();
+  const componentDetailsByBundle = new Map();
   for (const component of componentResult.rows) {
     const bundleKey = String(component.bundle_id);
     if (!componentsByBundle.has(bundleKey)) componentsByBundle.set(bundleKey, []);
     componentsByBundle.get(bundleKey).push(component.product_id);
+    if (!componentDetailsByBundle.has(bundleKey)) componentDetailsByBundle.set(bundleKey, []);
+    componentDetailsByBundle.get(bundleKey).push({ name: component.name, quantity: component.quantity });
   }
   const requireValidVariantSelection = (selectedVariants, productId, prefix = '') => {
     const optionsByType = variantOptionsByProduct.get(String(productId));
@@ -1018,9 +1024,28 @@ export const createOrder = asyncHandler(async (req, res) => {
       const product = products.find(p => p.id === item.productId);
       const itemUnitPrice = resolveItemUnitPrice(item, product);
       const itemTotal = Math.round(itemUnitPrice * item.quantity * 100) / 100;
-      const variantDescription = item.variantDescription
+
+      // BUG FIX (Aug 5, 2026 — "bundles only show variants, not which products
+      // are inside the bundle"): a bundle line item only ever stored its own
+      // product_name (e.g. "CLYR Premium Dusch Set") plus the variant
+      // selections. The actual component products that make up the bundle
+      // (from bundle_items) were never written to order_items, so neither
+      // the invoice PDF, the admin billing list, nor the customer's order
+      // history could show what was actually inside a bundle — only which
+      // flavor/color/scent was picked. We now prepend a plain-language
+      // "Enthält: ..." line listing every component product and quantity,
+      // ahead of the existing variant text, so both are visible everywhere
+      // this field is rendered (PDF, admin, customer portal).
+      const bundleComponents = product.is_bundle
+        ? (componentDetailsByBundle.get(String(product.id)) || [])
+        : [];
+      const bundleComponentsText = bundleComponents.length
+        ? `Enthält: ${bundleComponents.map(c => `${c.quantity > 1 ? `${c.quantity}x ` : ''}${c.name}`).join(', ')}`
+        : null;
+      const variantText = item.variantDescription
         || Object.values(item.selectedVariants || {}).map(v => v?.name).filter(Boolean).join(', ')
         || null;
+      const variantDescription = [bundleComponentsText, variantText].filter(Boolean).join(' | ') || null;
       const variantData = item.selectedVariants || null;
 
       const insertColumns = [
