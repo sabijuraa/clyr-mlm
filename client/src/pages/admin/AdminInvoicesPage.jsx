@@ -147,7 +147,9 @@ const AdminInvoicesPage = () => {
   };
 
   const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('de-DE');
+    // BUG FIX: pinned to Europe/Vienna so this always matches the PDF's date,
+    // regardless of which timezone the admin's browser happens to be in.
+    return new Date(date).toLocaleDateString('de-DE', { timeZone: 'Europe/Vienna' });
   };
 
   return (

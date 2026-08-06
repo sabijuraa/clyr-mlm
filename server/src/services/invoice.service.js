@@ -196,7 +196,13 @@ class InvoiceService {
         // Invoice meta
         doc.font('Helvetica').fontSize(9).fillColor(COLORS.text);
         doc.text(`Rechnungsnr.: ${invoiceNumber}`, 350, y, { align: 'right', width: 195 });
-        doc.text(`Datum: ${new Date(invoiceDate).toLocaleDateString('de-DE')}`, 350, y + 13, { align: 'right', width: 195 });
+        // BUG FIX (Aug 6, 2026 — admin list showed 24.6.2026, PDF showed 23.6.2026
+        // for the same invoice): the PDF was formatted using the server's
+        // timezone (UTC) while the admin list was formatted in the browser's
+        // local timezone (Europe/Vienna), so any order placed late in the
+        // evening UTC rolled over to the next calendar day on one side but
+        // not the other. Both are now explicitly pinned to Europe/Vienna.
+        doc.text(`Datum: ${new Date(invoiceDate).toLocaleDateString('de-DE', { timeZone: 'Europe/Vienna' })}`, 350, y + 13, { align: 'right', width: 195 });
         doc.text(`Bestellnr.: ${order.order_number || ''}`, 350, y + 26, { align: 'right', width: 195 });
 
         // Billing address
@@ -437,7 +443,7 @@ class InvoiceService {
         doc.font('Helvetica').fontSize(9).fillColor(COLORS.text);
         doc.text(`Gutschrift-Nr.: ${stmtNr}`,  350, y,      { width: 195, align: 'right' });
         doc.text(`Abrechnungszeitraum: ${periodLabel}`,     350, y + 14, { width: 195, align: 'right' });
-        doc.text(`Auszahlung: ${payoutDate.toLocaleDateString('de-DE')}`, 350, y + 28, { width: 195, align: 'right' });
+        doc.text(`Auszahlung: ${payoutDate.toLocaleDateString('de-DE', { timeZone: 'Europe/Vienna' })}`, 350, y + 28, { width: 195, align: 'right' });
 
         // ── LEFT: PARTNER ADDRESS ──
         doc.font('Helvetica-Bold').fontSize(9).fillColor(COLORS.primary).text('Empfänger:', 50, y);
@@ -476,7 +482,7 @@ class InvoiceService {
           const amt   = parseFloat(comm.amount || 0);
           const basis = comm.base_amount ? parseFloat(comm.base_amount).toFixed(2) : (comm.order_total ? parseFloat(comm.order_total).toFixed(2) : '—');
           const rate  = comm.rate ? `${parseFloat(comm.rate).toFixed(0)}%` : comm.type === 'difference' ? '—' : '—';
-          doc.text(new Date(comm.order_date || comm.created_at).toLocaleDateString('de-DE'), cols.date,  y, { width: 60 });
+          doc.text(new Date(comm.order_date || comm.created_at).toLocaleDateString('de-DE', { timeZone: 'Europe/Vienna' }), cols.date,  y, { width: 60 });
           // Show customer name in the Bestellung column (not order number)
           const customerDisplay = comm.customer_name ||
             (comm.customer_first_name && comm.customer_last_name
@@ -514,7 +520,7 @@ class InvoiceService {
         doc.rect(50, y, 495, boxH).fill('#EEF2FF');
         doc.fillColor(COLORS.primary).font('Helvetica-Bold').fontSize(9).text('Auszahlungsdetails', 62, y + 8);
         doc.font('Helvetica').fontSize(8.5).fillColor('#333');
-        doc.text(`Auszahlungsdatum:   ${payoutDate.toLocaleDateString('de-DE')}`, 62, y + 22);
+        doc.text(`Auszahlungsdatum:   ${payoutDate.toLocaleDateString('de-DE', { timeZone: 'Europe/Vienna' })}`, 62, y + 22);
         doc.text(`Zahlungsmethode:    ${pMethod}`,    62, y + 35);
         doc.text(`Status:             ${pStatus === 'processing' ? 'Übermittelt' : ['paid', 'completed'].includes(pStatus) ? 'Abgeschlossen' : 'Ausstehend'}`, 62, y + 48);
         if (pRef) doc.text(`Referenz:           ${pRef}`, 300, y + 22);
@@ -1050,7 +1056,7 @@ export const generatePartnerFeeInvoicePDF = async (partner, amount, options = {}
       // Invoice meta
       doc.font('Helvetica').fontSize(9).fillColor(COLORS.text);
       doc.text(`Rechnungsnr.: ${invoiceNumber}`, 350, y, { align: 'right', width: 195 });
-      doc.text(`Datum: ${invoiceDate.toLocaleDateString('de-DE')}`, 350, y + 13, { align: 'right', width: 195 });
+      doc.text(`Datum: ${invoiceDate.toLocaleDateString('de-DE', { timeZone: 'Europe/Vienna' })}`, 350, y + 13, { align: 'right', width: 195 });
 
       // Partner address
       doc.font('Helvetica-Bold').fontSize(9).fillColor(COLORS.primary).text('Rechnungsadresse:', 50, y);
