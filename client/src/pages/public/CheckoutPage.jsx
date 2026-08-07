@@ -197,6 +197,29 @@ export default function CheckoutPage() {
   const [customerLoggedIn, setCustomerLoggedIn] = useState(false);
   const [checkingCustomerSession, setCheckingCustomerSession] = useState(true);
 
+  // BUG FIX (Aug 7, 2026 — "affiliate has to sign in / create a customer
+  // account / enter a referral code just to buy for himself at partner
+  // price"): an already-logged-in, active partner is treated exactly like an
+  // anonymous shopper at checkout — forced through customer registration and
+  // a mandatory referral code, even though we already know exactly who they
+  // are. isPartnerSelfCheckout short-circuits both of those requirements
+  // below. It intentionally does NOT set a referral code, which is what
+  // keeps a partner's own purchase from generating a commission to
+  // themselves (see the matching guard in order.controller.js).
+  const isPartnerSelfCheckout = user?.role === 'partner' && user?.status === 'active';
+
+  useEffect(() => {
+    if (isPartnerSelfCheckout) {
+      setFormData((prev) => ({
+        ...prev,
+        firstName: user.first_name || prev.firstName,
+        lastName: user.last_name || prev.lastName,
+        email: user.email || prev.email,
+        phone: user.phone || prev.phone,
+      }));
+    }
+  }, [isPartnerSelfCheckout]); // eslint-disable-line
+
   useEffect(() => {
     const existingToken = localStorage.getItem('customerToken');
     if (!existingToken) {
@@ -352,7 +375,8 @@ export default function CheckoutPage() {
       }
 
       // Referral code is mandatory - every customer must come through a partner
-      if (!referralValid) {
+      // ...except a partner buying for themselves, who isn't referred by anyone.
+      if (!referralValid && !isPartnerSelfCheckout) {
         alert('Bitte geben Sie einen gültigen Empfehlungscode ein. Bestellungen sind nur über einen CLYR Partner möglich.');
         setLoading(false);
         return;
@@ -364,7 +388,7 @@ export default function CheckoutPage() {
         return;
       }
 
-      if (!customerLoggedIn) {
+      if (!customerLoggedIn && !isPartnerSelfCheckout) {
         if (formData.accountPassword.length < 8) {
           alert('Bitte wählen Sie ein Passwort mit mindestens 8 Zeichen für Ihren Kundenbereich.');
           setLoading(false);
@@ -418,7 +442,10 @@ export default function CheckoutPage() {
           country: 'AT'
         } : null,
         items: orderItems,
-        referralCode: referralValid ? referralCode : null,
+        // A partner buying for themselves is never their own referral —
+        // forcing this to null here (in addition to the server-side guard)
+        // keeps the order from generating a self-commission.
+        referralCode: (referralValid && !isPartnerSelfCheckout) ? referralCode : null,
         discountCode: discountApplied ? discountApplied.code : null,
         acceptTerms,
         paymentMethod: 'stripe',
@@ -541,18 +568,24 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                {customerLoggedIn ? (
+                {(customerLoggedIn || isPartnerSelfCheckout) ? (
                   <div className="mt-5 rounded-lg border border-green-200 bg-green-50 p-4">
-                    <h3 className="font-semibold text-green-950">Angemeldet als {formData.email}</h3>
+                    <h3 className="font-semibold text-green-950">
+                      {isPartnerSelfCheckout ? `Angemeldet als Partner (${formData.email})` : `Angemeldet als ${formData.email}`}
+                    </h3>
                     <p className="mt-1 text-sm text-green-800">
-                      Sie sind bereits in Ihrem Kundenbereich angemeldet — diese Bestellung wird direkt Ihrem Konto zugeordnet, kein neues Passwort nötig.{' '}
-                      <button
-                        type="button"
-                        onClick={() => { localStorage.removeItem('customerToken'); setCustomerLoggedIn(false); }}
-                        className="underline hover:text-green-950"
-                      >
-                        Nicht Sie? Abmelden
-                      </button>
+                      {isPartnerSelfCheckout
+                        ? 'Sie kaufen mit Ihrem Partnerkonto zum Partnerpreis — kein separates Kundenkonto und kein Empfehlungscode nötig.'
+                        : (<>
+                            Sie sind bereits in Ihrem Kundenbereich angemeldet — diese Bestellung wird direkt Ihrem Konto zugeordnet, kein neues Passwort nötig.{' '}
+                            <button
+                              type="button"
+                              onClick={() => { localStorage.removeItem('customerToken'); setCustomerLoggedIn(false); }}
+                              className="underline hover:text-green-950"
+                            >
+                              Nicht Sie? Abmelden
+                            </button>
+                          </>)}
                     </p>
                   </div>
                 ) : (
@@ -562,11 +595,11 @@ export default function CheckoutPage() {
                     <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div>
                         <label className="block text-sm font-medium mb-2">Passwort *</label>
-                        <input type="password" name="accountPassword" value={formData.accountPassword} onChange={handleChange} minLength={8} required={!customerLoggedIn} autoComplete="new-password" className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500" />
+                        <input type="password" name="accountPassword" value={formData.accountPassword} onChange={handleChange} minLength={8} required={!customerLoggedIn && !isPartnerSelfCheckout} autoComplete="new-password" className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500" />
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-2">Passwort wiederholen *</label>
-                        <input type="password" name="accountPasswordConfirm" value={formData.accountPasswordConfirm} onChange={handleChange} minLength={8} required={!customerLoggedIn} autoComplete="new-password" className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500" />
+                        <input type="password" name="accountPasswordConfirm" value={formData.accountPasswordConfirm} onChange={handleChange} minLength={8} required={!customerLoggedIn && !isPartnerSelfCheckout} autoComplete="new-password" className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500" />
                       </div>
                     </div>
                   </div>
@@ -737,6 +770,18 @@ export default function CheckoutPage() {
               )}
 
               {/* REFERRAL CODE SECTION */}
+              {/* BUG FIX: a partner buying for themselves has no referrer —
+                  this section (and its mandatory-code requirement) is skipped
+                  entirely for isPartnerSelfCheckout, replaced with a short
+                  confirmation instead. */}
+              {isPartnerSelfCheckout ? (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg shadow border-2 border-green-400">
+                  <h2 className="text-xl font-semibold mb-2 flex items-center">🤝 Partnereinkauf</h2>
+                  <p className="text-sm text-gray-700">
+                    Sie kaufen als CLYR Partner zum Partnerpreis. Für diese Bestellung wird kein Empfehlungscode benötigt und keine Provision berechnet.
+                  </p>
+                </div>
+              ) : (
               <div className={`bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg shadow border-2 ${referralValid ? 'border-green-400' : 'border-red-400'}`}>
                 <h2 className="text-xl font-semibold mb-3 flex items-center">
                   🔑 Empfehlungscode <span className="text-red-500 ml-1">*</span>
@@ -789,6 +834,7 @@ export default function CheckoutPage() {
                   </p>
                 )}
               </div>
+              )}
 
               {/* Bemerkungen / Customer Notes */}
               <div className="bg-white p-6 rounded-lg shadow">

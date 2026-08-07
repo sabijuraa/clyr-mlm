@@ -817,27 +817,37 @@ export const createOrder = asyncHandler(async (req, res) => {
     );
     if (partnerResult.rows.length > 0) {
       const foundPartnerId = partnerResult.rows[0].id;
-      // A signed-in partner may not earn direct commission on their own order.
-      // Attribute that purchase to their active sponsor instead, so the upline
-      // (for example, Theresa for a first-line partner) receives the sale.
       const isSelfReferral = String(req.user?.id || '') === String(foundPartnerId);
       if (isSelfReferral) {
-        const sponsorResult = await query(
-          `SELECT id FROM users WHERE id = $1 AND status = 'active'`,
-          [req.user.upline_id]
-        );
-        if (sponsorResult.rows.length === 0) {
-          throw new AppError('Der eigene Empfehlungscode kann nicht verwendet werden.', 400);
-        }
-        partnerId = sponsorResult.rows[0].id;
+        // BUG FIX (Aug 7, 2026 — "no commissions when affiliate buys
+        // something with partner price"): this used to attribute a partner's
+        // self-purchase to their upline sponsor instead, generating a real
+        // commission for the sponsor. Theresa's explicit instruction is that
+        // a partner buying for themselves generates NO commission for
+        // anyone. Previously, a top-of-tree partner with no sponsor to fall
+        // back to (e.g. Theresa herself) hit a hard error here and couldn't
+        // check out at all — that dead end is what originally forced
+        // affiliates through the "enter someone else's code" workaround.
+        throw new AppError('Der eigene Empfehlungscode kann nicht verwendet werden — für Partnereinkäufe ist ohnehin kein Code nötig.', 400);
       } else {
         partnerId = foundPartnerId;
       }
     }
   }
 
+  // BUG FIX (Aug 7, 2026): a partner checking out with their own account
+  // (the new "buy at partner price" flow, which never sends a referral code)
+  // must never end up commission-attributed to anyone — not themselves, not
+  // their sponsor, and not via the prospect-protection fallback below, which
+  // matches by email and could otherwise still pick up a stale protection
+  // record. This is enforced again, explicitly, right before order creation.
+  const isPartnerOrderer = req.user?.role === 'partner' && req.user?.status === 'active';
+  if (isPartnerOrderer) {
+    partnerId = null;
+  }
+
   // #54: Check prospect protection - if no referral code, check if customer email is protected
-  if (!partnerId && customer.email) {
+  if (!partnerId && customer.email && !isPartnerOrderer) {
     try {
       const { checkProspectProtection } = await import('../controllers/partner-subscription.controller.js');
       const protector = await checkProspectProtection(customer.email);
