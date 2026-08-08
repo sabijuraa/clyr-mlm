@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useLanguage } from '../../context/LanguageContext';
-import { formatCurrency } from '../../config/app.config';
+import { formatCurrency, getDisplayPriceInclVat } from '../../config/app.config';
 
 const ProductDetailPage = () => {
   const { slug } = useParams();
@@ -171,12 +171,13 @@ const ProductDetailPage = () => {
                 )}
               </div>
 
-              {/* Price - Show NET price */}
+              {/* Price - Show price incl. VAT (Austria 20% "sticker price"); */}
+              {/* checkout still recalculates the correct rate per country/VAT-ID. */}
               {totalPrice > 0 ? (
                 <div className="text-2xl sm:text-3xl font-bold text-secondary-700">
-                  {formatCurrency(totalPrice)}
+                  {formatCurrency(getDisplayPriceInclVat(totalPrice))}
                   <span className="text-xs sm:text-sm font-normal text-secondary-500 ml-2">
-                    {lang === 'de' ? 'netto zzgl. MwSt.' : 'net excl. VAT'}
+                    {lang === 'de' ? 'inkl. MwSt.' : 'incl. VAT'}
                   </span>
                 </div>
               ) : (

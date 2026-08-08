@@ -367,6 +367,19 @@ export const calculateOrderTotals = (subtotal, country, hasVatId = false) => {
  * @param {number} amount - Amount to format
  * @returns {string} - Formatted currency string
  */
+/**
+ * Shop/product-listing display price, VAT included.
+ * The browser doesn't know the buyer's country yet at this point (that's
+ * only resolved at checkout), so — like most shops — we show the price
+ * including the home-market (Austria, 20%) VAT rate as the "sticker price".
+ * Checkout continues to recalculate the correct rate per country/VAT-ID
+ * exactly as before; this only changes what's shown while browsing.
+ */
+export const getDisplayPriceInclVat = (netPrice) => {
+  const net = parseFloat(netPrice) || 0;
+  return net + calculateVAT(net, 'AT', false);
+};
+
 export const formatCurrency = (amount) => {
   const num = typeof amount === 'string' ? parseFloat(amount) : amount;
   if (typeof num !== 'number' || isNaN(num)) {

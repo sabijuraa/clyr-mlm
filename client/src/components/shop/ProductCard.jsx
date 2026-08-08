@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { ShoppingBag, Check, Eye, Truck } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useLanguage } from '../../context/LanguageContext';
-import { formatCurrency } from '../../config/app.config';
+import { formatCurrency, getDisplayPriceInclVat } from '../../config/app.config';
 
 const ProductCard = ({ product, index = 0 }) => {
   const { addItem, isInCart } = useCart();
@@ -153,11 +153,15 @@ const ProductCard = ({ product, index = 0 }) => {
               <div>
                 {parseFloat(product.price) > 0 ? (
                   <>
+                    {/* BUG FIX (Aug 8, 2026): shop now shows the VAT-included
+                        "sticker price" (Austria 20%) instead of the net price,
+                        per Theresa's request. Checkout still recalculates the
+                        correct rate per country/VAT-ID as before. */}
                     <p className="text-2xl font-bold text-secondary-700">
-                      {formatCurrency(product.price)}
+                      {formatCurrency(getDisplayPriceInclVat(product.price))}
                     </p>
                     <p className="text-xs text-secondary-500 mt-0.5">
-                      {lang === 'de' ? 'netto zzgl. MwSt.' : 'net excl. VAT'}
+                      {lang === 'de' ? 'inkl. MwSt.' : 'incl. VAT'}
                     </p>
                   </>
                 ) : (

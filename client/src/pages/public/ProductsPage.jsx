@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { Search, SlidersHorizontal, ShoppingBag, Grid3X3, List, ChevronRight, Package, Droplets } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useCart } from '../../context/CartContext';
-import { formatCurrency } from '../../config/app.config';
+import { formatCurrency, getDisplayPriceInclVat } from '../../config/app.config';
 import { productsAPI } from '../../services/api';
 import api from '../../services/api';
 
@@ -398,10 +398,10 @@ export default function ProductsPage() {
                         <div className="flex items-center justify-between">
                           <div>
                             <span className="text-lg font-bold text-secondary-800">
-                              {formatCurrency(product.price)}
+                              {formatCurrency(getDisplayPriceInclVat(product.price))}
                             </span>
                             <span className="text-xs text-secondary-400 ml-1">
-                              {lang === 'de' ? 'netto' : 'net'}
+                              {lang === 'de' ? 'inkl. MwSt.' : 'incl. VAT'}
                             </span>
                           </div>
                           <button
@@ -466,10 +466,10 @@ export default function ProductsPage() {
                         <div className="flex items-center justify-between mt-3">
                           <div>
                             <span className="text-lg font-bold text-secondary-800">
-                              {formatCurrency(product.price)}
+                              {formatCurrency(getDisplayPriceInclVat(product.price))}
                             </span>
                             <span className="text-xs text-secondary-400 ml-1">
-                              {lang === 'de' ? 'netto' : 'net'}
+                              {lang === 'de' ? 'inkl. MwSt.' : 'incl. VAT'}
                             </span>
                           </div>
                           <button
