@@ -841,7 +841,11 @@ export const createOrder = asyncHandler(async (req, res) => {
   // their sponsor, and not via the prospect-protection fallback below, which
   // matches by email and could otherwise still pick up a stale protection
   // record. This is enforced again, explicitly, right before order creation.
-  const isPartnerOrderer = req.user?.role === 'partner' && req.user?.status === 'active';
+  // BUG FIX (Aug 8, 2026): matches the broadened eligibility rule in
+  // partner-pricing.js / CheckoutPage.jsx — any active `users`-table account
+  // (not just role='partner') is an internal CLYR login, not a public
+  // customer, and must never generate a self-commission.
+  const isPartnerOrderer = !!req.user?.role && req.user?.status === 'active';
   if (isPartnerOrderer) {
     partnerId = null;
   }

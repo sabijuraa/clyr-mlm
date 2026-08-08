@@ -206,7 +206,14 @@ export default function CheckoutPage() {
   // below. It intentionally does NOT set a referral code, which is what
   // keeps a partner's own purchase from generating a commission to
   // themselves (see the matching guard in order.controller.js).
-  const isPartnerSelfCheckout = user?.role === 'partner' && user?.status === 'active';
+  // BUG FIX (Aug 8, 2026 — reported still broken after the first fix):
+  // narrowed to role === 'partner' only, which excluded 'admin',
+  // 'team_leader', 'support', and 'accounting' accounts — all of which are
+  // internal CLYR logins (the `users` table has no public self-signup, only
+  // the separate `customers` table does). Theresa's own account is stored as
+  // 'admin', so the original check silently skipped her. Broadened to match
+  // the same rule now used server-side in partner-pricing.js.
+  const isPartnerSelfCheckout = !!user?.role && user?.status === 'active';
 
   useEffect(() => {
     if (isPartnerSelfCheckout) {
