@@ -3,7 +3,7 @@ import * as adminController from '../controllers/admin.controller.js';
 import * as brandingController from '../controllers/branding.controller.js';
 import * as settingsController from '../controllers/settings.controller.js';
 import { authenticate, requireRole } from '../middleware/auth.middleware.js';
-import { upload, uploadSingleToSpaces } from '../middleware/upload.middleware.js';
+import { upload, uploadDocuments, uploadSingleToSpaces } from '../middleware/upload.middleware.js';
 
 const router = Router();
 
@@ -52,7 +52,7 @@ router.post('/settings/branding/logo',       upload.single('logo'),     uploadSi
 router.post('/settings/branding/logo-light', upload.single('logo'),     uploadSingleToSpaces('branding'), brandingController.uploadLogoLight);
 router.post('/settings/branding/logo-dark',  upload.single('logo'),     uploadSingleToSpaces('branding'), brandingController.uploadLogoDark);
 router.post('/settings/branding/favicon',    upload.single('favicon'),  uploadSingleToSpaces('branding'), brandingController.uploadFavicon);
-router.post('/settings/branding/brochure',   upload.single('brochure'), uploadSingleToSpaces('branding'), brandingController.uploadBrochure);
+router.post('/settings/branding/brochure',   uploadDocuments.single('brochure'), uploadSingleToSpaces('branding'), brandingController.uploadBrochure);
 
 // Settings — generic key/value (AFTER branding so /settings/branding is not caught here)
 router.get('/settings',      adminController.getSettings);
