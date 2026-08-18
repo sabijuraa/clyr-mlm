@@ -38,6 +38,7 @@ export default function BrandingPage() {
       linkedin_url:  row.linkedin_url  ?? prev.linkedin_url,
       twitter_url:   row.twitter_url   ?? prev.twitter_url,
     }));
+    if (row.brochure_url) setBrochureUrl(row.brochure_url);
   };
 
   const fetchBranding = async () => {
