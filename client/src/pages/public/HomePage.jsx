@@ -8,6 +8,7 @@ import {
   Zap, Clock, Briefcase, Heart, Sparkles, Quote, Target, Download
 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
+import { useBrand } from '../../context/BrandContext';
 import brandConfig from '../../config/brand.config';
 import toast from 'react-hot-toast';
 
@@ -21,6 +22,7 @@ const fadeUp = {
 
 const HomePage = () => {
   const { lang } = useLanguage();
+  const { brochureUrl } = useBrand();
   const [activeTestimonial, setActiveTestimonial] = useState(0);
 
   useEffect(() => {
@@ -307,7 +309,7 @@ const HomePage = () => {
               <Link to="/products" className="group inline-flex items-center justify-center gap-3 px-8 py-4 bg-secondary-800 text-white font-semibold rounded-xl hover:bg-primary-600 transition-all shadow-lg hover:-translate-y-0.5">
                 <ShoppingBag className="w-5 h-5" />{t('Produkte entdecken', 'Discover Products')}<ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
-              <a href="/api/downloads/CLYR-Broschuere.pdf" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-3 px-8 py-4 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 transition-all shadow-lg hover:-translate-y-0.5">
+              <a href={brochureUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-3 px-8 py-4 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 transition-all shadow-lg hover:-translate-y-0.5">
                 <Download className="w-5 h-5" />{t('Download Broschüre', 'Download Brochure')}
               </a>
               <Link to="/partner/register" className="inline-flex items-center justify-center gap-3 px-8 py-4 border-2 border-secondary-200 text-secondary-700 font-semibold rounded-xl hover:border-primary-400 hover:text-primary-600 transition-all">

@@ -13,7 +13,7 @@ const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const { logoUrl } = useBrand();
+  const { logoUrl, brochureUrl } = useBrand();
   const { user, logout, isAuthenticated } = useAuth();
   const { itemCount } = useCart();
   const { lang, toggle } = useLanguage();
@@ -83,7 +83,7 @@ const Navbar = () => {
               </Link>
             ))}
             <a
-              href="/api/downloads/CLYR-Broschuere.pdf"
+              href={brochureUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 font-medium text-primary-500 hover:text-primary-600 transition-colors"
@@ -220,7 +220,7 @@ const Navbar = () => {
             
             {/* Broschüre Download */}
             <a
-              href="/api/downloads/CLYR-Broschuere.pdf"
+              href={brochureUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-4 py-3 rounded-xl font-medium text-primary-500 hover:bg-primary-50 transition-colors"

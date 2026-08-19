@@ -24,6 +24,7 @@ const defaultBranding = {
   },
   logo: brandConfig.branding?.logo || '/images/clyr-logo.png',
   logoAlt: brandConfig.branding?.logoAlt || 'CLYR Logo',
+  brochureUrl: '/downloads/CLYR-Broschuere.pdf',
   legal: {
     companyName: brandConfig.legal?.companyName || 'CLYR Solutions GmbH',
     street: brandConfig.legal?.address?.street || 'Pappelweg 4b',
@@ -123,6 +124,7 @@ export const BrandProvider = ({ children }) => {
             company: prev.company, // preserve company from brand.config
             legal: prev.legal,
             social: d.social ? { ...prev.social, ...d.social } : prev.social,
+            brochureUrl: d.brochure_url || prev.brochureUrl,
           }));
         }
       } catch (err) {
@@ -305,6 +307,7 @@ export const BrandProvider = ({ children }) => {
           company: prev.company,
           legal: prev.legal,
           social: d.social ? { ...prev.social, ...d.social } : prev.social,
+          brochureUrl: d.brochure_url || prev.brochureUrl,
         }));
       }
     } catch (err) {
@@ -320,6 +323,7 @@ export const BrandProvider = ({ children }) => {
     // Helper getters
     companyName: branding.company.name,
     logoUrl: branding.logo,
+    brochureUrl: branding.brochureUrl,
     primaryColor: branding.colors.primary,
     secondaryColor: branding.colors.secondary,
     // Shipping and VAT helpers
