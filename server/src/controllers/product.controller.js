@@ -12,7 +12,16 @@ export const getAllProducts = async (req, res) => {
     const { category, search, sort } = req.query;
     
     let queryText = `
-      SELECT p.*, c.name as category_name, c.slug as category_slug
+      SELECT p.*, c.name as category_name, c.slug as category_slug,
+        (EXISTS (
+          SELECT 1 FROM product_variants pv
+          WHERE pv.product_id = p.id AND pv.is_active = true
+        ) OR EXISTS (
+          SELECT 1
+          FROM bundle_items bi
+          JOIN product_variants pv ON pv.product_id = bi.product_id AND pv.is_active = true
+          WHERE bi.bundle_id = p.id
+        )) AS requires_variant_selection
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
       WHERE p.is_active = true
@@ -60,7 +69,16 @@ export const getAllProducts = async (req, res) => {
 export const getFeaturedProducts = async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT p.*, c.name as category_name
+      SELECT p.*, c.name as category_name,
+        (EXISTS (
+          SELECT 1 FROM product_variants pv
+          WHERE pv.product_id = p.id AND pv.is_active = true
+        ) OR EXISTS (
+          SELECT 1
+          FROM bundle_items bi
+          JOIN product_variants pv ON pv.product_id = bi.product_id AND pv.is_active = true
+          WHERE bi.bundle_id = p.id
+        )) AS requires_variant_selection
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
       WHERE p.is_active = true AND p.is_featured = true
@@ -78,7 +96,16 @@ export const getFeaturedProducts = async (req, res) => {
 export const getNewProducts = async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT p.*, c.name as category_name
+      SELECT p.*, c.name as category_name,
+        (EXISTS (
+          SELECT 1 FROM product_variants pv
+          WHERE pv.product_id = p.id AND pv.is_active = true
+        ) OR EXISTS (
+          SELECT 1
+          FROM bundle_items bi
+          JOIN product_variants pv ON pv.product_id = bi.product_id AND pv.is_active = true
+          WHERE bi.bundle_id = p.id
+        )) AS requires_variant_selection
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
       WHERE p.is_active = true
@@ -115,7 +142,16 @@ export const getProductsByCategory = async (req, res) => {
     const { slug } = req.params;
     
     const result = await pool.query(`
-      SELECT p.*, c.name as category_name
+      SELECT p.*, c.name as category_name,
+        (EXISTS (
+          SELECT 1 FROM product_variants pv
+          WHERE pv.product_id = p.id AND pv.is_active = true
+        ) OR EXISTS (
+          SELECT 1
+          FROM bundle_items bi
+          JOIN product_variants pv ON pv.product_id = bi.product_id AND pv.is_active = true
+          WHERE bi.bundle_id = p.id
+        )) AS requires_variant_selection
       FROM products p
       JOIN categories c ON p.category_id = c.id
       WHERE p.is_active = true AND c.slug = $1

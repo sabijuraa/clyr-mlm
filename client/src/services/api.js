@@ -263,6 +263,9 @@ export const ordersAPI = {
   getInvoice: (id) => 
     api.get(`/orders/${id}/invoice`, { responseType: 'blob' }),
 
+  repairFinancials: (id) =>
+    api.post(`/orders/${id}/repair-financials`, { regenerateInvoice: true, recalculateCommissions: true }),
+
   validateVoucher: (code, subtotal) =>
     api.post('/vouchers/validate', { code, subtotal }),
 

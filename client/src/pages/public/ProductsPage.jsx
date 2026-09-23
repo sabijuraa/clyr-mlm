@@ -1,6 +1,6 @@
 // client/src/pages/public/ProductsPage.jsx
 import { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, SlidersHorizontal, ShoppingBag, Grid3X3, List, ChevronRight, Package, Droplets } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
@@ -12,6 +12,7 @@ import api from '../../services/api';
 export default function ProductsPage() {
   const { lang } = useLanguage();
   const { addItem, isInCart } = useCart();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [products, setProducts] = useState([]);
@@ -99,6 +100,10 @@ export default function ProductsPage() {
   const handleAddToCart = (e, product) => {
     e.preventDefault();
     e.stopPropagation();
+    if (product.requires_variant_selection) {
+      navigate(`/shop/${product.slug}`);
+      return;
+    }
     addItem(product);
   };
 
@@ -406,7 +411,7 @@ export default function ProductsPage() {
                           </div>
                           <button
                             onClick={(e) => handleAddToCart(e, product)}
-                            disabled={isInCart(product.id)}
+                            disabled={isInCart(product.id) && !product.requires_variant_selection}
                             className={`p-2.5 rounded-lg transition-colors ${
                               isInCart(product.id)
                                 ? 'bg-gray-100 text-secondary-400 cursor-default'
@@ -481,7 +486,9 @@ export default function ProductsPage() {
                                 : 'bg-primary-500 text-white hover:bg-primary-600'
                             }`}
                           >
-                            {isInCart(product.id)
+                            {product.requires_variant_selection
+                              ? (lang === 'de' ? 'Optionen wählen' : 'Choose options')
+                              : isInCart(product.id)
                               ? (lang === 'de' ? 'Im Warenkorb' : 'In Cart')
                               : (lang === 'de' ? 'In den Warenkorb' : 'Add to Cart')}
                           </button>

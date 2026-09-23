@@ -17,7 +17,8 @@ import {
   User,
   MapPin,
   FileText,
-  Trash2
+  Trash2,
+  RefreshCw
 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatCurrency } from '../../config/app.config';
@@ -551,6 +552,27 @@ const AdminOrdersPage = () => {
                     }
                   }}>
                   Als bezahlt markieren
+                </Button>
+              )}
+              {selectedOrder.paymentStatus === 'paid' && (
+                <Button variant="outline" className="flex-1" icon={RefreshCw}
+                  onClick={async () => {
+                    if (!confirm(`Finanzwerte und Provisionen für ${selectedOrder.id} neu berechnen? Bereits ausgezahlte Provisionen bleiben unverändert.`)) return;
+                    try {
+                      const result = await ordersAPI.repairFinancials(selectedOrder.rawId || selectedOrder.id);
+                      const repair = result.data?.commissionRepair;
+                      if (!repair?.recalculated) {
+                        toast.error('Provisionen konnten nicht neu berechnet werden');
+                        return;
+                      }
+                      toast.success('Finanzwerte und Provisionen wurden neu berechnet');
+                      setShowDetailModal(false);
+                      fetchOrders();
+                    } catch (err) {
+                      toast.error(err.response?.data?.error || 'Fehler bei der Neuberechnung');
+                    }
+                  }}>
+                  Provisionen neu berechnen
                 </Button>
               )}
               {selectedOrder.status === 'pending' && selectedOrder.paymentStatus === 'paid' && (

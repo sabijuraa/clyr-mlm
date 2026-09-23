@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ShoppingBag, Check, Eye, Truck } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
@@ -8,6 +8,7 @@ import { formatCurrency, getDisplayPriceInclVat } from '../../config/app.config'
 
 const ProductCard = ({ product, index = 0 }) => {
   const { addItem, isInCart } = useCart();
+  const navigate = useNavigate();
   const { lang } = useLanguage();
   const [isAdding, setIsAdding] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -29,6 +30,11 @@ const ProductCard = ({ product, index = 0 }) => {
   const handleAddToCart = (e) => {
     e.preventDefault();
     e.stopPropagation();
+
+    if (product.requires_variant_selection) {
+      navigate(`/product/${product.slug}`);
+      return;
+    }
     
     if (inCart || isAdding) return;
     
@@ -88,7 +94,7 @@ const ProductCard = ({ product, index = 0 }) => {
               <div className="flex gap-2">
                 <button
                   onClick={handleAddToCart}
-                  disabled={inCart || isAdding || product.stock === 0}
+                  disabled={(inCart && !product.requires_variant_selection) || isAdding || product.stock === 0}
                   className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm
                     transition-all duration-200 shadow-lg
                     ${inCart 
@@ -98,7 +104,12 @@ const ProductCard = ({ product, index = 0 }) => {
                         : 'bg-secondary-700 text-white hover:bg-primary-500'
                     }`}
                 >
-                  {inCart ? (
+                  {product.requires_variant_selection ? (
+                    <>
+                      <Eye className="w-4 h-4" />
+                      <span>{lang === 'de' ? 'Optionen wählen' : 'Choose options'}</span>
+                    </>
+                  ) : inCart ? (
                     <>
                       <Check className="w-4 h-4" />
                       <span>{lang === 'de' ? 'Im Warenkorb' : 'In Cart'}</span>

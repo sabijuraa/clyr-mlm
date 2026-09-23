@@ -163,7 +163,8 @@ export const calculateCommissions = async (client, orderId, partnerId, orderSubt
   // discount they funded. Difference commissions keep the original subtotal.
   // -----------------------------------------------
   const directCommissionBeforeVoucher = roundCurrency(orderSubtotal * (partnerCommissionRate / 100));
-  const directCommission = roundCurrency(directCommissionBeforeVoucher - (Number.parseFloat(voucherDiscount) || 0));
+  const appliedVoucherDiscount = Math.max(0, Number.parseFloat(voucherDiscount) || 0);
+  const directCommission = roundCurrency(directCommissionBeforeVoucher - appliedVoucherDiscount);
 
   const directCommissionResult = await client.query(
     `INSERT INTO commissions (user_id, order_id, type, amount, rate, base_amount, status, held_until, description)
@@ -171,7 +172,7 @@ export const calculateCommissions = async (client, orderId, partnerId, orderSubt
      RETURNING *`,
     [
       partnerId, orderId, directCommission, partnerCommissionRate, orderSubtotal, heldUntil,
-      `Direkt-Provision (${partnerCommissionRate}%)${voucherDiscount ? ` abzüglich Gutschein €${Number.parseFloat(voucherDiscount).toFixed(2)}` : ''}`
+      `Direkt-Provision (${partnerCommissionRate}%)${appliedVoucherDiscount ? ` abzüglich Gutschein €${appliedVoucherDiscount.toFixed(2)}` : ''}`
     ]
   );
   commissions.push(directCommissionResult.rows[0]);
@@ -182,7 +183,13 @@ export const calculateCommissions = async (client, orderId, partnerId, orderSubt
   // Inactive upline → €0, passes to next active upline
   // -----------------------------------------------
   const differenceCommissions = await calculateDifferenceCommissions(
-    client, orderId, partnerId, partnerCommissionRate, orderSubtotal, heldUntil
+    client,
+    orderId,
+    partnerId,
+    partnerCommissionRate,
+    orderSubtotal,
+    heldUntil,
+    roundCurrency(appliedVoucherDiscount + directCommission)
   );
   commissions.push(...differenceCommissions);
 
@@ -233,13 +240,29 @@ export const calculateCommissions = async (client, orderId, partnerId, orderSubt
 // ============================================
 const MACHINE_PURCHASE_THRESHOLD = 2500;
 
-const calculateDifferenceCommissions = async (client, orderId, partnerId, sellerRate, orderSubtotal, heldUntil) => {
+const calculateDifferenceCommissions = async (
+  client,
+  orderId,
+  partnerId,
+  sellerRate,
+  orderSubtotal,
+  heldUntil,
+  initialCommissionPoolCost = 0
+) => {
   let currentUserId = partnerId;
   let previousRate = sellerRate;
   let depth = 0;
   const maxDepth = 10;
   const commissions = [];
   const isMachinePurchase = orderSubtotal >= MACHINE_PURCHASE_THRESHOLD;
+  let maximumCommissionRate = Number(sellerRate) || 0;
+  let allocatedDifferenceCost = 0;
+
+  const availablePoolAmount = () => roundCurrency(Math.max(0,
+    roundCurrency(orderSubtotal * (maximumCommissionRate / 100))
+      - initialCommissionPoolCost
+      - allocatedDifferenceCost
+  ));
 
   while (depth < maxDepth) {
     // Get upline
@@ -255,6 +278,7 @@ const calculateDifferenceCommissions = async (client, orderId, partnerId, seller
     if (uplineResult.rows.length === 0) break;
 
     const upline = uplineResult.rows[0];
+    maximumCommissionRate = Math.max(maximumCommissionRate, Number(upline.commission_rate) || 0);
     // Blocked users — skip but continue chain upward
     if (isCommissionBlockedUser(upline)) {
       currentUserId = upline.id;
@@ -268,7 +292,8 @@ const calculateDifferenceCommissions = async (client, orderId, partnerId, seller
     if (isActive && upline.commission_rate > previousRate) {
       // Upline is active and has higher rate → pays difference
       const differenceRate = upline.commission_rate - previousRate;
-      const differenceCommission = roundCurrency(orderSubtotal * (differenceRate / 100));
+      const calculatedDifference = roundCurrency(orderSubtotal * (differenceRate / 100));
+      const differenceCommission = Math.min(calculatedDifference, availablePoolAmount());
 
       if (differenceCommission > 0) {
         const result = await client.query(
@@ -282,20 +307,25 @@ const calculateDifferenceCommissions = async (client, orderId, partnerId, seller
           ]
         );
         commissions.push(result.rows[0]);
+        allocatedDifferenceCost = roundCurrency(allocatedDifferenceCost + differenceCommission);
 
         // Update previousRate to this upline's rate for next iteration
         previousRate = upline.commission_rate;
       }
     } else if (isActive && upline.commission_rate === previousRate && depth === 0 && isMachinePurchase) {
       // MACHINE BONUS: ONLY triggered by machine purchase (~€3,000), direct upline, active, same rank
+      const machineBonus = Math.min(50, availablePoolAmount());
+      if (machineBonus > 0) {
       const result = await client.query(
         `INSERT INTO commissions (user_id, order_id, type, amount, rate, base_amount, source_user_id, status, held_until, description)
-         VALUES ($1, $2, 'difference', 50, 0, $3, $4, 'held', $5, $6)
+         VALUES ($1, $2, 'difference', $3, 0, $4, $5, 'held', $6, $7)
          RETURNING *`,
-        [upline.id, orderId, orderSubtotal, partnerId, heldUntil,
+        [upline.id, orderId, machineBonus, orderSubtotal, partnerId, heldUntil,
          `Maschinen-Bonus (direkter Partner, €50 Pauschale bei Maschinenverkauf)`]
       );
       commissions.push(result.rows[0]);
+      allocatedDifferenceCost = roundCurrency(allocatedDifferenceCost + machineBonus);
+      }
       previousRate = upline.commission_rate;
     }
     // INACTIVE upline → gets €0, previousRate NOT updated so next active upline
