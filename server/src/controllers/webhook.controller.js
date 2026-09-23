@@ -5,9 +5,7 @@ import { calculateCommissions } from '../services/commission.service.js';
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
 const getOrderCommissionBase = (order) => {
-  const subtotal = parseFloat(order?.subtotal || 0);
-  const discount = parseFloat(order?.discount_amount || 0);
-  return Math.max(0, subtotal - discount);
+  return Math.max(0, parseFloat(order?.subtotal || 0));
 };
 
 /**
@@ -129,7 +127,7 @@ const handleCheckoutSessionCompleted = async (session) => {
     );
 
     if (order.partner_id) {
-      await calculateCommissions(client, order.id, order.partner_id, getOrderCommissionBase(order));
+      await calculateCommissions(client, order.id, order.partner_id, getOrderCommissionBase(order), order.discount_amount);
     }
 
     await client.query(
@@ -212,7 +210,7 @@ const handlePaymentSucceeded = async (paymentIntent) => {
     // Calculate commissions if partner exists
     // NOTE: calculateCommissions already increments own_sales_count internally — do NOT double-increment here
     if (order.partner_id) {
-      await calculateCommissions(client, order.id, order.partner_id, getOrderCommissionBase(order));
+      await calculateCommissions(client, order.id, order.partner_id, getOrderCommissionBase(order), order.discount_amount);
     }
 
     // Log activity

@@ -32,9 +32,9 @@ const generateOrderNumber = async (client) => {
 };
 
 const getOrderCommissionBase = (order) => {
-  const subtotal = parseFloat(order?.subtotal || 0);
-  const discount = parseFloat(order?.discount_amount || 0);
-  return Math.max(0, subtotal - discount);
+  // Rates always use the original net product subtotal. Voucher discounts are
+  // deducted only from the voucher owner's direct commission.
+  return Math.max(0, parseFloat(order?.subtotal || 0));
 };
 
 const roundMoney = (value) => Math.round((parseFloat(value) || 0) * 100) / 100;
@@ -431,7 +431,7 @@ export const verifyPayment = asyncHandler(async (req, res) => {
         if (order.partner_id) {
           try {
             await transaction(async (client) => {
-              await calculateCommissions(client, order.id, order.partner_id, getOrderCommissionBase(order));
+              await calculateCommissions(client, order.id, order.partner_id, getOrderCommissionBase(order), order.discount_amount);
             });
           } catch (e) {
             console.error('Commission calculation failed:', e.message);
@@ -515,7 +515,7 @@ export const paymentSuccessPage = asyncHandler(async (req, res) => {
           if (order.partner_id) {
             try {
               await transaction(async (client) => {
-                await calculateCommissions(client, order.id, order.partner_id, getOrderCommissionBase(order));
+                await calculateCommissions(client, order.id, order.partner_id, getOrderCommissionBase(order), order.discount_amount);
               });
               console.log('Commissions calculated for order', orderId);
             } catch (e) { console.error('Commission error:', e.message); }
@@ -897,7 +897,11 @@ export const createOrder = asyncHandler(async (req, res) => {
   let appliedDiscountCode = null;
   if (discountCode) {
     const discountResult = await query(
-      `SELECT * FROM discount_codes 
+      `SELECT dc.*, u.status AS partner_status, u.referral_code AS partner_referral_code,
+              r.commission_rate AS partner_commission_rate
+       FROM discount_codes dc
+       LEFT JOIN users u ON u.id = dc.partner_id
+       LEFT JOIN ranks r ON r.id = u.rank_id
        WHERE code = $1 
        AND is_active = true 
        AND (starts_at IS NULL OR starts_at <= CURRENT_TIMESTAMP)
@@ -922,13 +926,31 @@ export const createOrder = asyncHandler(async (req, res) => {
         : subtotal;
 
       if (applicableSubtotal > 0 && applicableSubtotal >= discount.min_order_amount) {
+        const partnerCommissionRate = Number.parseFloat(discount.partner_commission_rate);
+        if (discount.partner_id && (
+          discount.partner_status !== 'active' ||
+          !Number.isFinite(partnerCommissionRate) ||
+          partnerCommissionRate <= 0
+        )) {
+          throw new AppError('Dieser Gutschein kann derzeit nicht verwendet werden', 400);
+        }
         if (discount.type === 'percentage') {
           discountAmount = Math.round(applicableSubtotal * (discount.value / 100) * 100) / 100;
         } else {
           discountAmount = Math.min(discount.value, applicableSubtotal);
         }
+        if (discount.partner_id) {
+          const maximumDiscount = Math.round(subtotal * (partnerCommissionRate / 100) * 100) / 100;
+          discountAmount = Math.min(discountAmount, maximumDiscount);
+        }
         appliedDiscountCode = discount;
       }
+    }
+
+    // The partner financing a voucher owns the sale. Voucher ownership takes
+    // precedence over a referral link and prospect-protection assignment.
+    if (!isPartnerOrderer && appliedDiscountCode?.partner_id) {
+      partnerId = appliedDiscountCode.partner_id;
     }
   }
 
@@ -1015,7 +1037,9 @@ export const createOrder = asyncHandler(async (req, res) => {
         isPickup ? pickupAddress.city : (shipping?.city || billing.city),
         isPickup ? pickupAddress.country : (shipping?.country || billing.country),
         subtotal, shippingCost, vatRate, vatAmount, discountAmount, total,
-        partnerId, referralCode?.toUpperCase(), appliedDiscountCode?.code,
+        partnerId,
+        (appliedDiscountCode?.partner_referral_code || referralCode)?.toUpperCase(),
+        appliedDiscountCode?.code,
         paymentMethod, null, 'pending',
         storedCustomerNotes, isReverseCharge
       ]
@@ -1128,9 +1152,10 @@ export const createOrder = asyncHandler(async (req, res) => {
     }
 
     // Calculate and create commissions if partner exists and payment is confirmed
-    // Commission base is net product subtotal after voucher/discount.
+    // Rates use the original net product subtotal. The voucher deduction is
+    // applied solely to the voucher owner's direct commission.
     if (partnerId && newOrder.payment_status === 'paid') {
-      await calculateCommissions(client, newOrder.id, partnerId, getOrderCommissionBase(newOrder));
+      await calculateCommissions(client, newOrder.id, partnerId, getOrderCommissionBase(newOrder), newOrder.discount_amount);
     }
 
     // Log activity
@@ -1462,7 +1487,7 @@ export const markOrderPaid = asyncHandler(async (req, res) => {
         [id, 'direct']
       );
       if (existingCommissions.rows.length === 0) {
-        await calculateCommissions(client, order.id, order.partner_id, getOrderCommissionBase(order));
+        await calculateCommissions(client, order.id, order.partner_id, getOrderCommissionBase(order), order.discount_amount);
       }
     }
 
@@ -1597,7 +1622,8 @@ export const repairOrderFinancials = asyncHandler(async (req, res) => {
             client,
             orderId,
             updatedOrder.partner_id,
-            getOrderCommissionBase(updatedOrder)
+            getOrderCommissionBase(updatedOrder),
+            updatedOrder.discount_amount
           );
           commissionRepair.recalculated = true;
         }

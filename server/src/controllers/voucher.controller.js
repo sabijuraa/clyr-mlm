@@ -46,9 +46,6 @@ export const createVoucher = asyncHandler(async (req, res) => {
   if (req.body.type === 'fixed' && rawValue > 200) {
     return res.status(400).json({ message: 'Maximaler Gutscheinwert ist €200' });
   }
-  if (req.body.type === 'percentage' && rawValue > 100) {
-    return res.status(400).json({ message: 'Maximaler Rabatt ist 100%' });
-  }
   const { code, type, value, maxUses, minOrderAmount, expiresAt, applicableProducts } = req.body;
 
   if (!code || !value) {
@@ -68,8 +65,17 @@ export const createVoucher = asyncHandler(async (req, res) => {
 
   // Validate value
   const numValue = parseFloat(value);
-  if (type === 'percentage' && (numValue < 1 || numValue > 20)) {
-    throw new AppError('Prozent-Rabatt muss zwischen 1% und 20% sein', 400);
+  if (!['percentage', 'fixed'].includes(type)) {
+    throw new AppError('Ungueltiger Rabatt-Typ', 400);
+  }
+  if (type === 'percentage') {
+    const commissionRate = Number.parseFloat(req.user.commission_rate);
+    if (!Number.isFinite(commissionRate) || commissionRate <= 0) {
+      throw new AppError('Ihr aktueller Provisionssatz erlaubt keinen Prozent-Rabatt', 400);
+    }
+    if (numValue < 1 || numValue > commissionRate) {
+      throw new AppError(`Prozent-Rabatt darf Ihren aktuellen Provisionssatz von ${commissionRate}% nicht uebersteigen`, 400);
+    }
   }
   if (type === 'fixed' && (numValue < 1 || numValue > 500)) {
     throw new AppError('Fester Rabatt muss zwischen 1€ und 500€ sein', 400);
@@ -155,9 +161,11 @@ export const validateVoucher = asyncHandler(async (req, res) => {
   }
 
   const result = await query(
-    `SELECT dc.*, u.first_name as partner_first_name, u.last_name as partner_last_name, u.referral_code
+    `SELECT dc.*, u.first_name as partner_first_name, u.last_name as partner_last_name,
+            u.referral_code, u.status as partner_status, r.commission_rate as partner_commission_rate
      FROM discount_codes dc
      LEFT JOIN users u ON dc.partner_id = u.id
+     LEFT JOIN ranks r ON u.rank_id = r.id
      WHERE dc.code = $1`,
     [code.toUpperCase().trim()]
   );
@@ -167,6 +175,10 @@ export const validateVoucher = asyncHandler(async (req, res) => {
   }
 
   const voucher = result.rows[0];
+  const commissionRate = Number.parseFloat(voucher.partner_commission_rate);
+  if (voucher.partner_id && (voucher.partner_status !== 'active' || !Number.isFinite(commissionRate) || commissionRate <= 0)) {
+    throw new AppError('Dieser Gutschein kann derzeit nicht verwendet werden', 400);
+  }
   const applicableProducts = Array.isArray(voucher.applicable_products)
     ? voucher.applicable_products.map((value) => Number.parseInt(value, 10)).filter((value) => Number.isInteger(value) && value > 0)
     : [];
@@ -218,10 +230,19 @@ export const validateVoucher = asyncHandler(async (req, res) => {
     discountAmount = applicableSubtotal ? Math.round(applicableSubtotal * (voucher.value / 100) * 100) / 100 : 0;
   }
 
-  // Cap discount at subtotal
+  // A partner can finance a voucher only up to their direct commission on the
+  // original net product subtotal. Shipping and VAT are excluded.
+  const originalSubtotal = Number.parseFloat(subtotal) || 0;
+  const maxDiscountAmount = voucher.partner_id
+    ? Math.round(originalSubtotal * (commissionRate / 100) * 100) / 100
+    : applicableSubtotal;
+
+  // Cap discount at eligible products and at the partner's commission budget.
   if (applicableSubtotal && discountAmount > applicableSubtotal) {
     discountAmount = applicableSubtotal;
   }
+  const requestedDiscountAmount = discountAmount;
+  discountAmount = Math.min(discountAmount, maxDiscountAmount);
 
   res.json({
     valid: true,
@@ -229,6 +250,8 @@ export const validateVoucher = asyncHandler(async (req, res) => {
     type: voucher.type,
     value: parseFloat(voucher.value),
     discountAmount,
+    maxDiscountAmount,
+    discountCapped: discountAmount < requestedDiscountAmount,
     applicableSubtotal,
     applicableProducts,
     partnerId: voucher.partner_id,

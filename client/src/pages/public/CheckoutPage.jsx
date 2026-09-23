@@ -963,6 +963,9 @@ export default function CheckoutPage() {
                             code: discountCode,
                             applicableProducts: d.applicableProducts || [],
                           });
+                          if (d.discountCapped) {
+                            alert(`Der Gutschein wurde auf €${amt.toFixed(2)} begrenzt, da ein Partner maximal seine direkte Provision für diese Bestellung als Rabatt finanzieren kann.`);
+                          }
                         } else {
                           alert(res.data?.error || 'Ungueltiger Code');
                         }

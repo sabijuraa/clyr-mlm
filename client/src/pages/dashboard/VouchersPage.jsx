@@ -168,12 +168,12 @@ const VouchersPage = () => {
               <label className="block text-sm font-medium text-secondary-600 mb-1">
                 Wert {form.type === 'fixed' ? '(€)' : '(%)'}
               </label>
-              <input type="number" min="1" max={form.type === 'fixed' ? 200 : 20} step="1"
+              <input type="number" min="1" max={form.type === 'fixed' ? 200 : 100} step="1"
                 value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })}
                 placeholder={form.type === 'fixed' ? 'z.B. 100' : 'z.B. 5'}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
               {form.type === 'fixed' && <p className="text-xs text-secondary-400 mt-1">Max. 200€</p>}
-              {form.type === 'percentage' && <p className="text-xs text-secondary-400 mt-1">Max. 20%</p>}
+              {form.type === 'percentage' && <p className="text-xs text-secondary-400 mt-1">Maximal Ihr aktueller Provisionssatz</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-secondary-600 mb-1">Max. Verwendungen</label>

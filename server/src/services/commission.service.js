@@ -101,7 +101,7 @@ export const cleanupDuplicateOrderCommissions = async (db = { query }) => {
 // ============================================
 // MAIN: Calculate all commissions for an order
 // ============================================
-export const calculateCommissions = async (client, orderId, partnerId, orderSubtotal) => {
+export const calculateCommissions = async (client, orderId, partnerId, orderSubtotal, voucherDiscount = 0) => {
   const existingCommissions = await client.query(
     `SELECT *
      FROM commissions
@@ -159,16 +159,20 @@ export const calculateCommissions = async (client, orderId, partnerId, orderSubt
 
   // -----------------------------------------------
   // 1. DIRECT COMMISSION — ALWAYS PAID regardless of activity status
-  // Partner's rank rate × order subtotal
-  // orderSubtotal is already net (after voucher/discount)
+  // Partner's rank rate × original net product subtotal, minus the voucher
+  // discount they funded. Difference commissions keep the original subtotal.
   // -----------------------------------------------
-  let directCommission = roundCurrency(orderSubtotal * (partnerCommissionRate / 100));
+  const directCommissionBeforeVoucher = roundCurrency(orderSubtotal * (partnerCommissionRate / 100));
+  const directCommission = roundCurrency(directCommissionBeforeVoucher - (Number.parseFloat(voucherDiscount) || 0));
 
   const directCommissionResult = await client.query(
     `INSERT INTO commissions (user_id, order_id, type, amount, rate, base_amount, status, held_until, description)
      VALUES ($1, $2, 'direct', $3, $4, $5, 'held', $6, $7)
      RETURNING *`,
-    [partnerId, orderId, directCommission, partnerCommissionRate, orderSubtotal, heldUntil, `Direkt-Provision (${partnerCommissionRate}%)`]
+    [
+      partnerId, orderId, directCommission, partnerCommissionRate, orderSubtotal, heldUntil,
+      `Direkt-Provision (${partnerCommissionRate}%)${voucherDiscount ? ` abzüglich Gutschein €${Number.parseFloat(voucherDiscount).toFixed(2)}` : ''}`
+    ]
   );
   commissions.push(directCommissionResult.rows[0]);
 
