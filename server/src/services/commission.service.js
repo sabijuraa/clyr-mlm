@@ -101,7 +101,14 @@ export const cleanupDuplicateOrderCommissions = async (db = { query }) => {
 // ============================================
 // MAIN: Calculate all commissions for an order
 // ============================================
-export const calculateCommissions = async (client, orderId, partnerId, orderSubtotal, voucherDiscount = 0) => {
+export const calculateCommissions = async (
+  client,
+  orderId,
+  partnerId,
+  orderSubtotal,
+  voucherDiscount = 0,
+  historicalCommissionRateCap = null
+) => {
   const existingCommissions = await client.query(
     `SELECT *
      FROM commissions
@@ -189,7 +196,8 @@ export const calculateCommissions = async (client, orderId, partnerId, orderSubt
     partnerCommissionRate,
     orderSubtotal,
     heldUntil,
-    roundCurrency(appliedVoucherDiscount + directCommission)
+    roundCurrency(appliedVoucherDiscount + directCommission),
+    historicalCommissionRateCap
   );
   commissions.push(...differenceCommissions);
 
@@ -247,7 +255,8 @@ const calculateDifferenceCommissions = async (
   sellerRate,
   orderSubtotal,
   heldUntil,
-  initialCommissionPoolCost = 0
+  initialCommissionPoolCost = 0,
+  historicalCommissionRateCap = null
 ) => {
   let currentUserId = partnerId;
   let previousRate = sellerRate;
@@ -255,6 +264,9 @@ const calculateDifferenceCommissions = async (
   const maxDepth = 10;
   const commissions = [];
   const isMachinePurchase = orderSubtotal >= MACHINE_PURCHASE_THRESHOLD;
+  const rateCap = Number.isFinite(Number(historicalCommissionRateCap))
+    ? Number(historicalCommissionRateCap)
+    : null;
   let maximumCommissionRate = Number(sellerRate) || 0;
   let allocatedDifferenceCost = 0;
 
@@ -278,7 +290,10 @@ const calculateDifferenceCommissions = async (
     if (uplineResult.rows.length === 0) break;
 
     const upline = uplineResult.rows[0];
-    maximumCommissionRate = Math.max(maximumCommissionRate, Number(upline.commission_rate) || 0);
+    const uplineRate = rateCap === null
+      ? Number(upline.commission_rate) || 0
+      : Math.min(Number(upline.commission_rate) || 0, rateCap);
+    maximumCommissionRate = Math.max(maximumCommissionRate, uplineRate);
     // Blocked users — skip but continue chain upward
     if (isCommissionBlockedUser(upline)) {
       currentUserId = upline.id;
@@ -289,9 +304,9 @@ const calculateDifferenceCommissions = async (
     // Check if upline is ACTIVE (2+ sales in current quarter)
     const isActive = await checkPartnerIsActive(client, upline.id);
 
-    if (isActive && upline.commission_rate > previousRate) {
+    if (isActive && uplineRate > previousRate) {
       // Upline is active and has higher rate → pays difference
-      const differenceRate = upline.commission_rate - previousRate;
+      const differenceRate = uplineRate - previousRate;
       const calculatedDifference = roundCurrency(orderSubtotal * (differenceRate / 100));
       const differenceCommission = Math.min(calculatedDifference, availablePoolAmount());
 
@@ -310,9 +325,9 @@ const calculateDifferenceCommissions = async (
         allocatedDifferenceCost = roundCurrency(allocatedDifferenceCost + differenceCommission);
 
         // Update previousRate to this upline's rate for next iteration
-        previousRate = upline.commission_rate;
+        previousRate = uplineRate;
       }
-    } else if (isActive && upline.commission_rate === previousRate && depth === 0 && isMachinePurchase) {
+    } else if (isActive && uplineRate === previousRate && depth === 0 && isMachinePurchase) {
       // MACHINE BONUS: ONLY triggered by machine purchase (~€3,000), direct upline, active, same rank
       const machineBonus = Math.min(50, availablePoolAmount());
       if (machineBonus > 0) {
@@ -326,7 +341,7 @@ const calculateDifferenceCommissions = async (
       commissions.push(result.rows[0]);
       allocatedDifferenceCost = roundCurrency(allocatedDifferenceCost + machineBonus);
       }
-      previousRate = upline.commission_rate;
+      previousRate = uplineRate;
     }
     // INACTIVE upline → gets €0, previousRate NOT updated so next active upline
     // gets the full accumulated difference. Chain CONTINUES UPWARD (never stops).
@@ -335,7 +350,7 @@ const calculateDifferenceCommissions = async (
     depth++;
 
     // If we've reached R7 (34%) = max rate, no more difference possible
-    if (upline.commission_rate >= 34) break;
+    if (uplineRate >= (rateCap ?? 34)) break;
   }
 
   return commissions;

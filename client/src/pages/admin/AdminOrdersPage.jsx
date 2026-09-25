@@ -557,9 +557,21 @@ const AdminOrdersPage = () => {
               {selectedOrder.paymentStatus === 'paid' && (
                 <Button variant="outline" className="flex-1" icon={RefreshCw}
                   onClick={async () => {
+                    const capInput = prompt(
+                      `Historische Provisionsobergrenze für ${selectedOrder.id} in Prozent (optional). Leer lassen, um die aktuellen Ränge zu verwenden.`,
+                      ''
+                    );
+                    if (capInput === null) return;
+                    const historicalCommissionRateCap = capInput.trim() === '' ? null : Number(capInput);
+                    if (historicalCommissionRateCap !== null && (!Number.isFinite(historicalCommissionRateCap) || historicalCommissionRateCap <= 0 || historicalCommissionRateCap > 34)) {
+                      toast.error('Bitte einen Wert zwischen 0 und 34 Prozent eingeben');
+                      return;
+                    }
                     if (!confirm(`Finanzwerte und Provisionen für ${selectedOrder.id} neu berechnen? Bereits ausgezahlte Provisionen bleiben unverändert.`)) return;
                     try {
-                      const result = await ordersAPI.repairFinancials(selectedOrder.rawId || selectedOrder.id);
+                      const result = await ordersAPI.repairFinancials(selectedOrder.rawId || selectedOrder.id, {
+                        historicalCommissionRateCap
+                      });
                       const repair = result.data?.commissionRepair;
                       if (!repair?.recalculated) {
                         toast.error('Provisionen konnten nicht neu berechnet werden');

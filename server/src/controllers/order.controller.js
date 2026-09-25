@@ -1535,7 +1535,22 @@ export const markOrderPaid = asyncHandler(async (req, res) => {
  */
 export const repairOrderFinancials = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { regenerateInvoice = true, recalculateCommissions = true } = req.body || {};
+  const {
+    regenerateInvoice = true,
+    recalculateCommissions = true,
+    historicalCommissionRateCap = null
+  } = req.body || {};
+  const parsedHistoricalCommissionRateCap = historicalCommissionRateCap === null || historicalCommissionRateCap === ''
+    ? null
+    : Number(historicalCommissionRateCap);
+
+  if (parsedHistoricalCommissionRateCap !== null && (
+    !Number.isFinite(parsedHistoricalCommissionRateCap)
+    || parsedHistoricalCommissionRateCap <= 0
+    || parsedHistoricalCommissionRateCap > 34
+  )) {
+    throw new AppError('Die historische Provisionsobergrenze muss zwischen 0 und 34 Prozent liegen', 400);
+  }
 
   const repairResult = await transaction(async (client) => {
     const orderResult = await client.query(
@@ -1623,7 +1638,8 @@ export const repairOrderFinancials = asyncHandler(async (req, res) => {
             orderId,
             updatedOrder.partner_id,
             getOrderCommissionBase(updatedOrder),
-            updatedOrder.discount_amount
+            updatedOrder.discount_amount,
+            parsedHistoricalCommissionRateCap
           );
           commissionRepair.recalculated = true;
         }
@@ -1646,6 +1662,7 @@ export const repairOrderFinancials = asyncHandler(async (req, res) => {
           vatRate,
           vatAmount,
           total,
+          historicalCommissionRateCap: parsedHistoricalCommissionRateCap,
           commissionRepair
         })
       ]
