@@ -36,6 +36,7 @@ const AdminOrdersPage = () => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [historicalCommissionRateCap, setHistoricalCommissionRateCap] = useState('');
 
   useEffect(() => {
     fetchOrders();
@@ -145,6 +146,7 @@ const AdminOrdersPage = () => {
   };
 
   const openOrderDetails = async (order) => {
+    setHistoricalCommissionRateCap('');
     setLoadingDetails(true);
     setShowDetailModal(true);
     try {
@@ -555,37 +557,45 @@ const AdminOrdersPage = () => {
                 </Button>
               )}
               {selectedOrder.paymentStatus === 'paid' && (
-                <Button variant="outline" className="flex-1" icon={RefreshCw}
-                  onClick={async () => {
-                    const capInput = prompt(
-                      `Historische Provisionsobergrenze für ${selectedOrder.id} in Prozent (optional). Leer lassen, um die aktuellen Ränge zu verwenden.`,
-                      ''
-                    );
-                    if (capInput === null) return;
-                    const historicalCommissionRateCap = capInput.trim() === '' ? null : Number(capInput);
-                    if (historicalCommissionRateCap !== null && (!Number.isFinite(historicalCommissionRateCap) || historicalCommissionRateCap <= 0 || historicalCommissionRateCap > 34)) {
-                      toast.error('Bitte einen Wert zwischen 0 und 34 Prozent eingeben');
-                      return;
-                    }
-                    if (!confirm(`Finanzwerte und Provisionen für ${selectedOrder.id} neu berechnen? Bereits ausgezahlte Provisionen bleiben unverändert.`)) return;
-                    try {
-                      const result = await ordersAPI.repairFinancials(selectedOrder.rawId || selectedOrder.id, {
-                        historicalCommissionRateCap
-                      });
-                      const repair = result.data?.commissionRepair;
-                      if (!repair?.recalculated) {
-                        toast.error('Provisionen konnten nicht neu berechnet werden');
+                <div className="flex flex-1 gap-2 min-w-[280px]">
+                  <input
+                    type="number"
+                    min="0.01"
+                    max="34"
+                    step="0.01"
+                    value={historicalCommissionRateCap}
+                    onChange={(event) => setHistoricalCommissionRateCap(event.target.value)}
+                    placeholder="Historische Obergrenze %"
+                    aria-label="Historische Provisionsobergrenze"
+                    className="w-44 rounded-xl border border-secondary-300 px-3 text-sm focus:border-primary-400 focus:outline-none"
+                  />
+                  <Button variant="outline" className="flex-1" icon={RefreshCw}
+                    onClick={async () => {
+                      const rateCap = historicalCommissionRateCap.trim() === '' ? null : Number(historicalCommissionRateCap);
+                      if (rateCap !== null && (!Number.isFinite(rateCap) || rateCap <= 0 || rateCap > 34)) {
+                        toast.error('Bitte einen Wert zwischen 0 und 34 Prozent eingeben');
                         return;
                       }
-                      toast.success('Finanzwerte und Provisionen wurden neu berechnet');
-                      setShowDetailModal(false);
-                      fetchOrders();
-                    } catch (err) {
-                      toast.error(err.response?.data?.error || 'Fehler bei der Neuberechnung');
-                    }
-                  }}>
-                  Provisionen neu berechnen
-                </Button>
+                      if (!confirm(`Finanzwerte und Provisionen für ${selectedOrder.id} neu berechnen? Bereits ausgezahlte Provisionen bleiben unverändert.`)) return;
+                      try {
+                        const result = await ordersAPI.repairFinancials(selectedOrder.rawId || selectedOrder.id, {
+                          historicalCommissionRateCap: rateCap
+                        });
+                        const repair = result.data?.commissionRepair;
+                        if (!repair?.recalculated) {
+                          toast.error('Provisionen konnten nicht neu berechnet werden');
+                          return;
+                        }
+                        toast.success('Finanzwerte und Provisionen wurden neu berechnet');
+                        setShowDetailModal(false);
+                        fetchOrders();
+                      } catch (err) {
+                        toast.error(err.response?.data?.error || 'Fehler bei der Neuberechnung');
+                      }
+                    }}>
+                    Provisionen neu berechnen
+                  </Button>
+                </div>
               )}
               {selectedOrder.status === 'pending' && selectedOrder.paymentStatus === 'paid' && (
                 <Button variant="primary" className="flex-1" icon={CheckCircle}
