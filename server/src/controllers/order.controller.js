@@ -315,6 +315,7 @@ export const createPaymentIntent = asyncHandler(async (req, res) => {
           quantity: 1,
         }],
         metadata: { orderId: orderId || '' },
+        payment_intent_data: { metadata: { orderId: orderId || '' } },
         success_url: `${apiBaseUrl}/api/orders/payment-success?order=${orderId || 'success'}&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${apiBaseUrl}/api/orders/payment-success?status=cancelled`,
       });
@@ -336,6 +337,7 @@ export const createPaymentIntent = asyncHandler(async (req, res) => {
           quantity: 1,
         }],
         metadata: { orderId: orderId || '' },
+        payment_intent_data: { metadata: { orderId: orderId || '' } },
         success_url: `${apiBaseUrl}/api/orders/payment-success?order=${orderId || 'success'}&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${apiBaseUrl}/api/orders/payment-success?status=cancelled`,
       });

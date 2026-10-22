@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import { query, transaction } from '../config/database.js';
 import { calculateCommissions } from '../services/commission.service.js';
+import { findOrderForPaymentIntent, assertOrderPaymentAmount } from '../services/stripe-order.service.js';
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
@@ -115,7 +116,11 @@ const handleCheckoutSessionCompleted = async (session) => {
     return;
   }
 
-  await transaction(async (client) => {
+  assertOrderPaymentAmount(order, session.amount_total, session.currency);
+
+  const processed = await transaction(async (client) => {
+    const locked = await client.query('SELECT payment_status FROM orders WHERE id = $1 FOR UPDATE', [order.id]);
+    if (locked.rows[0]?.payment_status === 'paid') return false;
     await client.query(
       `UPDATE orders SET 
         payment_status = 'paid',
@@ -135,7 +140,9 @@ const handleCheckoutSessionCompleted = async (session) => {
        VALUES ($1, $2, $3, $4)`,
       ['payment_received', 'order', order.id, JSON.stringify({ sessionId: session.id, amount: session.amount_total })]
     );
+    return true;
   });
+  if (!processed) return;
 
   // Auto-generate invoice (with one retry — invoice creation must succeed before
   // the confirmation email goes out, otherwise email and billing numbers diverge)
@@ -178,33 +185,32 @@ const handleCheckoutSessionCompleted = async (session) => {
 const handlePaymentSucceeded = async (paymentIntent) => {
   const { id: paymentIntentId } = paymentIntent;
 
-  // Find order by payment intent
-  const orderResult = await query(
-    'SELECT * FROM orders WHERE stripe_payment_intent_id = $1',
-    [paymentIntentId]
-  );
-
-  if (orderResult.rows.length === 0) {
+  const order = await findOrderForPaymentIntent({ query }, stripe, paymentIntent);
+  if (!order) {
     console.log('No order found for payment intent:', paymentIntentId);
     return;
   }
-
-  const order = orderResult.rows[0];
 
   // Skip if already paid
   if (order.payment_status === 'paid') {
     return;
   }
 
-  await transaction(async (client) => {
+  assertOrderPaymentAmount(order, paymentIntent.amount_received, paymentIntent.currency);
+
+  const processed = await transaction(async (client) => {
+    const locked = await client.query('SELECT payment_status FROM orders WHERE id = $1 FOR UPDATE', [order.id]);
+    if (locked.rows[0]?.payment_status === 'paid') return false;
     // Update order payment status
     await client.query(
       `UPDATE orders SET 
         payment_status = 'paid',
         stripe_charge_id = $1,
+        stripe_payment_intent_id = $3,
+        payment_method = 'stripe',
         updated_at = CURRENT_TIMESTAMP
        WHERE id = $2`,
-      [paymentIntent.latest_charge, order.id]
+      [paymentIntent.latest_charge, order.id, paymentIntentId]
     );
 
     // Calculate commissions if partner exists
@@ -219,7 +225,9 @@ const handlePaymentSucceeded = async (paymentIntent) => {
        VALUES ($1, $2, $3, $4)`,
       ['payment_received', 'order', order.id, JSON.stringify({ paymentIntentId, amount: paymentIntent.amount })]
     );
+    return true;
   });
+  if (!processed) return;
 
   // Auto-generate invoice + send confirmation email — mirrors handleCheckoutSessionCompleted.
   // This was previously missing here, so whenever Stripe delivered 'payment_intent.succeeded'
