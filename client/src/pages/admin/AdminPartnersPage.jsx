@@ -19,6 +19,7 @@ const AdminPartnersPage = () => {
   const [partnerDetail, setPartnerDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [ranks, setRanks] = useState([]);
+  const [rankSaving, setRankSaving] = useState(false);
   const [editingSponsor, setEditingSponsor] = useState(false);
   const [sponsorSearch, setSponsorSearch] = useState('');
   // Sponsor dropdown candidates: partners + admin accounts that are also
@@ -374,14 +375,18 @@ const AdminPartnersPage = () => {
                           <div className="flex-1">
                             <p className="text-xs text-secondary-400 mb-1">Rang aendern</p>
                             <select
+                              aria-label="Rang aendern"
+                              disabled={rankSaving}
                               value={partnerDetail.partner?.rank_id || ''}
                               onChange={async (e) => {
+                                setRankSaving(true);
                                 try {
                                   await adminAPI.updatePartnerRank(partnerDetail.partner.id, parseInt(e.target.value));
                                   toast.success('Rang geaendert!');
-                                  viewPartnerDetail(partnerDetail.partner.id);
-                                  fetchPartners();
+                                  await viewPartnerDetail(partnerDetail.partner.id);
+                                  await fetchPartners();
                                 } catch (err) { toast.error('Fehler beim Ändern des Rangs'); }
+                                finally { setRankSaving(false); }
                               }}
                               className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg"
                             >
@@ -391,6 +396,30 @@ const AdminPartnersPage = () => {
                                 </option>
                               ))}
                             </select>
+                            <p className="text-xs text-secondary-400 mt-2">
+                              {partnerDetail.partner?.manual_rank_override
+                                ? 'Manuell festgelegt. Dieser Rang bleibt bis zur naechsten Admin-Aenderung bestehen.'
+                                : 'Automatische Rangentwicklung aktiv. Eine manuelle Auswahl hat Vorrang.'}
+                            </p>
+                            {partnerDetail.partner?.manual_rank_override && (
+                              <button
+                                type="button"
+                                disabled={rankSaving}
+                                className="text-xs text-primary-600 underline mt-2 disabled:opacity-50"
+                                onClick={async () => {
+                                  setRankSaving(true);
+                                  try {
+                                    await adminAPI.updatePartnerRank(partnerDetail.partner.id, partnerDetail.partner.rank_id, null, false);
+                                    toast.success('Automatische Rangentwicklung aktiviert');
+                                    await viewPartnerDetail(partnerDetail.partner.id);
+                                    await fetchPartners();
+                                  } catch { toast.error('Fehler beim Aktualisieren des Rangs'); }
+                                  finally { setRankSaving(false); }
+                                }}
+                              >
+                                Automatische Rangentwicklung aktivieren
+                              </button>
+                            )}
                           </div>
                         </div>
                         {/* Editable Status */}

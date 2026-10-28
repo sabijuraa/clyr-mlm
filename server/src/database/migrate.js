@@ -24,6 +24,10 @@ async function migrate() {
     `);
     console.log('Tables found:', tablesRes.rows.map(r => r.table_name).join(', '));
 
+    if (tablesRes.rows.some(r => r.table_name === 'users')) {
+      await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS manual_rank_override BOOLEAN NOT NULL DEFAULT false');
+    }
+
     // Check ranks
     const ranksExist = tablesRes.rows.some(r => r.table_name === 'ranks');
     if (!ranksExist) {

@@ -1,4 +1,4 @@
-import { query } from '../config/database.js';
+import { query, transaction } from '../config/database.js';
 import { asyncHandler, AppError } from '../middleware/error.middleware.js';
 import { sendEmail } from '../services/email.service.js';
 import bcrypt from 'bcryptjs';
@@ -435,57 +435,40 @@ export const updatePartnerStatus = asyncHandler(async (req, res) => {
  */
 export const updatePartnerRank = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { rankId, reason } = req.body;
+  const { rankId, reason, manualOverride = true } = req.body;
 
-  const rankResult = await query('SELECT * FROM ranks WHERE id = $1', [rankId]);
-  if (rankResult.rows.length === 0) {
-    throw new AppError('Rang nicht gefunden', 404);
+  if (!Number.isInteger(rankId) || rankId <= 0 || typeof manualOverride !== 'boolean') {
+    throw new AppError('Ungueltige Rang-Einstellung', 400);
   }
 
-  const result = await query(
-    `UPDATE users SET rank_id = $1 WHERE id = $2 
-     RETURNING id, first_name, last_name, rank_id`,
-    [rankId, id]
-  );
-
-  if (result.rows.length === 0) {
-    throw new AppError('Partner nicht gefunden', 404);
-  }
-
-  const partner = result.rows[0];
-  console.log('[ADMIN] Partner status changed:', partner.first_name, partner.last_name, '→', status);
-  try {
-    const { sendEmail } = await import('../services/email.service.js');
-    const adminEmail = process.env.ADMIN_EMAIL || 'service@clyr.shop';
-    const labels = { inactive:'Inaktiv/Gekündigt', suspended:'Gesperrt', active:'Aktiv', pending:'Ausstehend' };
-    await sendEmail({
-      to: adminEmail,
-      subject: `Partner-Status: ${partner.first_name} ${partner.last_name} → ${labels[status]||status}`,
-      html: `<h2>Partner-Status geändert</h2><p><b>${partner.first_name} ${partner.last_name}</b> → ${labels[status]||status}</p>${reason?`<p>Grund: ${reason}</p>`:''}`
-    });
-    if (status === 'inactive' || status === 'suspended') {
-      const pd = await query('SELECT email,first_name FROM users WHERE id=$1',[id]);
-      if (pd.rows[0]) {
-        await sendEmail({
-          to: pd.rows[0].email,
-          subject: status==='inactive'?'Ihre Partnerschaft wurde beendet':'Ihr Partner-Konto wurde gesperrt',
-          html: `<h2>Hallo ${pd.rows[0].first_name},</h2>${status==='inactive'?'<p>Ihre Partnerschaft bei CLYR wurde beendet.</p>':`<p>Ihr Konto wurde gesperrt.${reason?' Grund: '+reason:''}</p><p>Kontakt: service@clyr.shop</p>`}`
-        });
-      }
+  const saved = await transaction(async (client) => {
+    const rankResult = await client.query('SELECT * FROM ranks WHERE id = $1', [rankId]);
+    if (rankResult.rows.length === 0) {
+      throw new AppError('Rang nicht gefunden', 404);
     }
-  } catch(emailErr) { console.error('[ADMIN] Status email error:', emailErr.message); }
 
-  // Log activity
-  await query(
-    `INSERT INTO activity_log (user_id, action, entity_type, entity_id, details)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [req.user.id, 'partner_rank_updated', 'user', id, JSON.stringify({ rankId, reason })]
-  );
+    const result = await client.query(
+      `UPDATE users SET rank_id = $1, manual_rank_override = $3,
+              rank_achieved_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2
+       RETURNING id, first_name, last_name, rank_id, manual_rank_override`,
+      [rankId, id, manualOverride]
+    );
+    if (result.rows.length === 0) {
+      throw new AppError('Partner nicht gefunden', 404);
+    }
+
+    await client.query(
+      `INSERT INTO activity_log (user_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [req.user.id, 'partner_rank_updated', 'user', id, JSON.stringify({ rankId, reason, manualOverride })]
+    );
+    return { partner: result.rows[0], rank: rankResult.rows[0] };
+  });
 
   res.json({
     message: 'Rang aktualisiert',
-    partner: result.rows[0],
-    rank: rankResult.rows[0]
+    ...saved
   });
 });
 

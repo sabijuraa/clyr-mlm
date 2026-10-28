@@ -464,8 +464,8 @@ export const checkAndUpdateRank = async (userId) => {
 
   const user = userResult.rows[0];
 
-  // NEVER auto-change admin ranks (R7 Direktor)
-  if (user.role === 'admin' || user.current_level === 7) return null;
+  // Admin-assigned ranks take precedence over qualification and machine ownership.
+  if (user.role === 'admin' || user.current_level === 7 || user.manual_rank_override) return null;
 
   // Get all ranks (exclude R7 admin-only rank)
   const ranksResult = await query('SELECT * FROM ranks WHERE level <= 6 ORDER BY level ASC');
@@ -478,7 +478,12 @@ export const checkAndUpdateRank = async (userId) => {
   if (user.has_own_machine && user.current_level < 2) {
     const beraterRank = ranks.find(r => r.level === 2);
     if (beraterRank) {
-      await query('UPDATE users SET rank_id = $1, rank_achieved_at = CURRENT_TIMESTAMP WHERE id = $2', [beraterRank.id, userId]);
+      const updated = await query(
+        `UPDATE users SET rank_id = $1, rank_achieved_at = CURRENT_TIMESTAMP
+         WHERE id = $2 AND manual_rank_override = false AND rank_id = $3`,
+        [beraterRank.id, userId, user.rank_id]
+      );
+      if (updated.rowCount === 0) return null;
       await logRankChange(userId, user.current_level, 2, 'machine_owner');
       return { newRankLevel: 2, reason: 'machine_owner' };
     }
@@ -521,10 +526,13 @@ export const checkAndUpdateRank = async (userId) => {
 
   // Only upgrade, never downgrade (rank is maintained for 12 months - decay handled separately)
   if (newRank.level > user.current_level) {
-    await query(
-      'UPDATE users SET rank_id = $1, rank_achieved_at = CURRENT_TIMESTAMP, highest_rank_level = GREATEST(COALESCE(highest_rank_level, 1), $2) WHERE id = $3',
-      [newRank.id, newRank.level, userId]
+    const updated = await query(
+      `UPDATE users SET rank_id = $1, rank_achieved_at = CURRENT_TIMESTAMP,
+       highest_rank_level = GREATEST(COALESCE(highest_rank_level, 1), $2)
+       WHERE id = $3 AND manual_rank_override = false AND rank_id = $4`,
+      [newRank.id, newRank.level, userId, user.rank_id]
     );
+    if (updated.rowCount === 0) return null;
 
     await logRankChange(userId, user.current_level, newRank.level, 'qualification');
 
@@ -894,6 +902,7 @@ export const checkRankDecay = async () => {
      FROM users u
      JOIN ranks r ON u.rank_id = r.id
      WHERE u.role = 'partner'
+     AND u.manual_rank_override = false
      AND r.level > 2
      AND (u.last_sale_at IS NULL OR u.last_sale_at < $1)
      AND u.status = 'active'`,
@@ -907,10 +916,13 @@ export const checkRankDecay = async () => {
   const decayed = [];
 
   for (const partner of result.rows) {
-    await query(
-      'UPDATE users SET rank_id = $1, rank_achieved_at = CURRENT_TIMESTAMP WHERE id = $2',
-      [beraterRankId, partner.id]
+    const updated = await query(
+      `UPDATE users SET rank_id = $1, rank_achieved_at = CURRENT_TIMESTAMP
+       WHERE id = $2 AND manual_rank_override = false
+         AND rank_id = (SELECT id FROM ranks WHERE level = $3)`,
+      [beraterRankId, partner.id, partner.level]
     );
+    if (updated.rowCount === 0) continue;
 
     await logRankChange(partner.id, partner.level, 2, 'decay_12_months');
 

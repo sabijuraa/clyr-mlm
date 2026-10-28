@@ -558,8 +558,8 @@ export const adminAPI = {
   updatePartnerStatus: (id, status, reason = null) => 
     api.patch(`/admin/partners/${id}/status`, { status, reason }),
 
-  updatePartnerRank: (id, rankId, reason = null) => 
-    api.patch(`/admin/partners/${id}/rank`, { rankId, reason }),
+  updatePartnerRank: (id, rankId, reason = null, manualOverride = true) =>
+    api.patch(`/admin/partners/${id}/rank`, { rankId, reason, manualOverride }),
 
   // Full MLM Tree
   getFullTree: () =>

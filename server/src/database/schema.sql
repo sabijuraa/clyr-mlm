@@ -72,6 +72,7 @@ CREATE TABLE users (
     referral_code VARCHAR(20) UNIQUE,
     upline_id UUID REFERENCES users(id) ON DELETE SET NULL,
     rank_id INTEGER REFERENCES ranks(id) DEFAULT 1,
+    manual_rank_override BOOLEAN NOT NULL DEFAULT false,
     
     -- Business info
     company VARCHAR(255),

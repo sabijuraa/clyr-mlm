@@ -604,6 +604,10 @@ cron.schedule('0 4 * * *', async () => {
 // START SERVER
 // ========================================
 
+// This column must exist before requests or rank checks can use the new policy.
+const { query: prepareRankSchema } = await import('./config/database.js');
+await prepareRankSchema('ALTER TABLE users ADD COLUMN IF NOT EXISTS manual_rank_override BOOLEAN NOT NULL DEFAULT false');
+
 app.listen(PORT, '0.0.0.0', async () => {
   console.log('='.repeat(50));
   console.log('CLYR MLM Server Started');
