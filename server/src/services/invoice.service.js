@@ -353,6 +353,49 @@ class InvoiceService {
   // ==========================================
   // PROVISIONSGUTSCHRIFT — proper monthly commission statement
   // ==========================================
+  async generateCommissionPreview(partner, commissions, periodLabel) {
+    const company = await this.getCompanyInfo();
+    const statusLabels = { held: 'Zurueckgehalten', pending: 'Ausstehend', released: 'Freigegeben', paid: 'Ausgezahlt' };
+    return new Promise((resolve, reject) => {
+      const doc = new PDFDocument({ size: 'A4', margin: 50, bufferPages: true });
+      const chunks = [];
+      doc.on('data', chunk => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+      let y = this.drawHeader(doc, company, 'PROVISIONSVORSCHAU');
+      doc.font('Helvetica-Bold').fontSize(11).fillColor(COLORS.primary)
+        .text(`${partner.first_name || ''} ${partner.last_name || ''}`.trim(), 50, y);
+      y = doc.y + 8;
+      doc.font('Helvetica').fontSize(10).fillColor(COLORS.text).text(`Zeitraum: ${periodLabel}`, 50, y);
+      y = doc.y + 12;
+      doc.fontSize(9).text('Vorlaeufige Uebersicht - keine Gutschrift und kein Zahlungsnachweis. Zurueckgehaltene und ausstehende Provisionen sind noch nicht zur Auszahlung freigegeben.', 50, y, { width: 495 });
+      y = doc.y + 20;
+      const header = () => {
+        doc.font('Helvetica-Bold').fontSize(9).fillColor(COLORS.primary);
+        doc.text('Bestellung / Kunde', 50, y, { width: 255 });
+        doc.text('Status', 310, y, { width: 125 });
+        doc.text('Netto (EUR)', 440, y, { width: 105, align: 'right' });
+        y += 22;
+      };
+      header();
+      for (const commission of commissions) {
+        if (y > 650) { doc.addPage(); y = 50; header(); }
+        const customer = commission.customer_name || '';
+        doc.font('Helvetica').fontSize(9).fillColor(COLORS.text);
+        doc.text(`${commission.order_number || '-'}${customer ? ` / ${customer}` : ''}`, 50, y, { width: 250 });
+        const rowBottom = doc.y;
+        doc.text(statusLabels[commission.status] || commission.status, 310, y, { width: 125 });
+        doc.text(Number(commission.amount || 0).toFixed(2), 440, y, { width: 105, align: 'right' });
+        y = Math.max(rowBottom, doc.y, y + 14) + 12;
+      }
+      if (y > 640) { doc.addPage(); y = 50; }
+      const total = commissions.reduce((sum, commission) => sum + Math.round(Number(commission.amount || 0) * 100), 0) / 100;
+      doc.font('Helvetica-Bold').fontSize(11).text(`Vorlaeufige Netto-Summe: ${total.toFixed(2)} EUR`, 50, y + 10, { width: 495, align: 'right' });
+      this.drawFooter(doc, company);
+      doc.end();
+    });
+  }
+
   async generateCommissionStatementBuffer(partner, commissions, periodLabel, payoutRecord = null) {
     const company  = await this.getCompanyInfo();
     const now      = new Date();
@@ -1140,6 +1183,7 @@ export const generatePartnerFeeInvoicePDF = async (partner, amount, options = {}
 export const generateInvoice = (orderId) => invoiceService.generateInvoice(orderId);
 export const generateInvoicePDF = (orderData, invoiceNumber) => invoiceService.generateInvoicePDF(orderData, invoiceNumber);
 export const generateCommissionStatement = (a, b, c, d) => invoiceService.generateCommissionStatement(a, b, c, d);
+export const generateCommissionPreview = (partner, commissions, period) => invoiceService.generateCommissionPreview(partner, commissions, period);
 export const createOrGetPartnerFeeInvoice = (payment) => invoiceService.createOrGetPartnerFeeInvoice(payment);
 export const generateMissingInvoices = () => invoiceService.generateMissingInvoices();
 export const renumberRealInvoicesByDate = () => invoiceService.renumberRealInvoicesByDate();

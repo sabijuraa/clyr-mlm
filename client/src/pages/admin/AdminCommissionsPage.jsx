@@ -15,6 +15,7 @@ import {
   TrendingDown
 } from 'lucide-react';
 import { commissionsAPI, payoutsAPI, downloadBlob } from '../../services/api';
+import { getCommissionStatementRequest } from '../../utils/commissionStatement';
 import api from '../../services/api';
 import { formatDate, formatCurrency, formatCommissionType, formatCommissionStatus, getStatusColor } from '../../utils/formatters';
 import Button from '../../components/common/Button';
@@ -245,21 +246,16 @@ const AdminCommissionsPage = () => {
     }
   };
 
-  const generatePartnerStatement = async (partnerId, partnerName, period = null) => {
-    // Use the commission's own month — not today's month
-    // Find the commission for this partner to get its date
-    const partnerCommission = commissions.find(c => c.user_id === partnerId);
-    const commissionDate = (partnerCommission?.order_date || partnerCommission?.created_at)
-      ? new Date(partnerCommission.order_date || partnerCommission.created_at).toISOString().slice(0, 7)
-      : null;
-    const usePeriod = period || commissionDate || new Date().toISOString().slice(0, 7);
+  const generatePartnerStatement = async (commission) => {
     try {
-      const response = await commissionsAPI.generateStatement(partnerId, usePeriod);
-      downloadBlob(response.data, `Provisionsgutschrift-${partnerName}-${usePeriod}.pdf`);
-      toast.success('Provisionsgutschrift erstellt');
+      const { partnerId, period, preview } = getCommissionStatementRequest(commission);
+      const partnerName = `${commission.first_name}-${commission.last_name}`;
+      const response = await commissionsAPI.generateStatement(partnerId, period, preview);
+      downloadBlob(response.data, `${preview ? 'Provisionsvorschau' : 'Provisionsgutschrift'}-${partnerName}-${period}.pdf`);
+      toast.success(preview ? 'Vorläufige Provisionsübersicht erstellt' : 'Provisionsgutschrift erstellt');
     } catch (error) {
       const msg = error.response?.status === 404 
-        ? 'Keine Provisionen für diesen Zeitraum' 
+        ? 'Keine passenden Provisionen im Monat dieser Bestellung'
         : 'Fehler beim Erstellen der Gutschrift';
       toast.error(msg);
     }
@@ -595,9 +591,9 @@ const AdminCommissionsPage = () => {
                       </td>
                       <td className="px-6 py-4 text-center">
                         <button
-                          onClick={() => generatePartnerStatement(commission.user_id, `${commission.first_name}-${commission.last_name}`)}
+                          onClick={() => generatePartnerStatement(commission)}
                           className="p-2 text-secondary-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-colors"
-                          title="Provisionsgutschrift erstellen"
+                          title={['held', 'pending'].includes(commission.status) ? 'Vorläufige Provisionsübersicht herunterladen' : 'Provisionsgutschrift erstellen'}
                         >
                           <Download className="w-4 h-4" />
                         </button>

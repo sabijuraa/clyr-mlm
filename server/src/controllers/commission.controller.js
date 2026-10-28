@@ -1,7 +1,7 @@
 import { query, transaction } from '../config/database.js';
 import { asyncHandler, AppError } from '../middleware/error.middleware.js';
 import { releaseHeldCommissions, getCommissionSummary as getCommSummary, distributeBonusPool, checkRankDecay, isCommissionBlockedUser, cleanupDuplicateOrderCommissions } from '../services/commission.service.js';
-import { generateCommissionStatement } from '../services/invoice.service.js';
+import { generateCommissionStatement, generateCommissionPreview } from '../services/invoice.service.js';
 import { isVatIdFormatValid } from '../services/tax.service.js';
 
 /**
@@ -533,10 +533,14 @@ export const processPayouts = asyncHandler(async (req, res) => {
  * Generate commission statement for specific partner (Admin)
  */
 export const generateStatementForPartner = asyncHandler(async (req, res) => {
-  const { partnerId, period } = req.body; // period format: YYYY-MM
+  const { partnerId, period, preview = false } = req.body;
 
   if (!partnerId || !period) {
     throw new AppError('Partner-ID und Zeitraum erforderlich', 400);
+  }
+
+  if (typeof period !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(period) || typeof preview !== 'boolean') {
+    throw new AppError('Ungültiger Zeitraum oder Vorschau-Modus', 400);
   }
 
   const [year, month] = period.split('-').map(Number);
@@ -549,14 +553,14 @@ export const generateStatementForPartner = asyncHandler(async (req, res) => {
      FROM commissions c
      LEFT JOIN orders o ON c.order_id = o.id
      WHERE c.user_id = $1 
-       AND c.status IN ('released', 'paid')
+       AND c.status = ANY($4::varchar[])
        AND c.type <> 'bonus_pool'
        AND (
          (o.created_at >= $2 AND o.created_at <= $3)
          OR (o.created_at IS NULL AND c.created_at >= $2 AND c.created_at <= $3)
        )
      ORDER BY COALESCE(o.created_at, c.created_at) ASC`,
-    [partnerId, startDate, endDate]
+    [partnerId, startDate, endDate, preview ? ['held', 'pending', 'released', 'paid'] : ['released', 'paid']]
   );
   
   console.log(`[ADMIN STATEMENT] Found ${commissionsResult.rows.length} commissions for partner ${partnerId} in period ${period}`);
@@ -577,6 +581,13 @@ export const generateStatementForPartner = asyncHandler(async (req, res) => {
 
   const periodFormatted = new Date(year, month - 1).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
   console.log('[ADMIN STATEMENT] Period resolved from request param:', periodFormatted);
+
+  if (preview) {
+    const pdfBuffer = await generateCommissionPreview(userResult.rows[0], commissionsResult.rows, periodFormatted);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="Provisionsvorschau-${period}.pdf"`);
+    return res.send(pdfBuffer);
+  }
 
   // Get payout record for this period
   const payoutResult = await query(
