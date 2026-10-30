@@ -19,7 +19,7 @@ export const getCommissionAuditSnapshot = async (client) => {
     FROM payouts ORDER BY created_at, id`);
   const activities = await client.query(`SELECT id, user_id, action, entity_id, details, created_at
     FROM activity_log WHERE action IN
-    ('partner_rank_updated', 'rank_upgraded', 'rank_downgraded', 'order_financials_repaired')
+    ('partner_rank_updated', 'rank_upgraded', 'rank_downgraded', 'order_financials_repaired', 'difference_commission_restored')
     ORDER BY created_at, id`);
   return {
     exportedAt: new Date().toISOString(), readOnly: true,

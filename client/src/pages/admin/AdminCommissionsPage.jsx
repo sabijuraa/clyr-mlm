@@ -39,6 +39,8 @@ const AdminCommissionsPage = () => {
   const [diagnoseData, setDiagnoseData] = useState(null);
   const [releasingAndPaying, setReleasingAndPaying] = useState(false);
   const [downloadingZip, setDownloadingZip] = useState(false);
+  const [recoveryReview, setRecoveryReview] = useState(null);
+  const [recovering, setRecovering] = useState(false);
   const [zipYear, setZipYear] = useState(new Date().getFullYear());
   const [zipMonth, setZipMonth] = useState(new Date().getMonth() + 1);
   const [manualPayouts, setManualPayouts] = useState([]);
@@ -256,6 +258,30 @@ const AdminCommissionsPage = () => {
     }
   };
 
+  const reviewDifferenceRecovery = async () => {
+    setRecovering(true);
+    try {
+      setRecoveryReview((await commissionsAPI.reviewDifferenceRecovery()).data);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Korrekturplan konnte nicht geprüft werden');
+    } finally { setRecovering(false); }
+  };
+
+  const applyDifferenceRecovery = async () => {
+    const missing = recoveryReview.entries.filter(entry => !entry.existingId && !entry.restoredId);
+    const amount = missing.reduce((sum, entry) => sum + entry.amount, 0);
+    if (!window.confirm(`${missing.length} genehmigte Differenzprovisionen (${formatCurrency(amount)} netto) eintragen? Keine Auszahlung wird ausgelöst. Die regulären Freigabe- und Auszahlungstermine gelten weiterhin.`)) return;
+    setRecovering(true);
+    try {
+      const result = (await commissionsAPI.applyDifferenceRecovery(recoveryReview.planId)).data;
+      setRecoveryReview(result);
+      toast.success(`${formatCurrency(result.addedNet)} netto eingetragen. Keine Auszahlung ausgelöst.`);
+      fetchCommissions();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Korrektur fehlgeschlagen');
+    } finally { setRecovering(false); }
+  };
+
   const generatePartnerStatement = async (commission) => {
     try {
       const { partnerId, period, preview } = getCommissionStatementRequest(commission);
@@ -343,6 +369,9 @@ const AdminCommissionsPage = () => {
           <Button variant="outline" onClick={handleAuditExport} icon={Download}>
             Prüfdaten exportieren
           </Button>
+          <Button variant="outline" onClick={reviewDifferenceRecovery} isLoading={recovering}>
+            Differenz-Korrektur prüfen
+          </Button>
           <Button variant="outline" onClick={handleDistributeBonusPool} isLoading={distributingPool} icon={Gift}>
             Bonus Pool
           </Button>
@@ -420,6 +449,22 @@ const AdminCommissionsPage = () => {
             <p className="text-sm text-secondary-500">Ausstehend</p>
             <p className="text-xl font-bold text-secondary-700">{formatCurrency(totals.total_pending || 0)}</p>
           </div>
+        </div>
+      )}
+
+      {recoveryReview && (
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 space-y-3">
+          <h2 className="font-semibold">Genehmigte Differenz-Korrektur für Theresa: 135,15 € netto</h2>
+          <p className="text-sm">Nur die vier geprüften Buchungen werden ergänzt. Bestehende Provisionen und abgeschlossene Auszahlungen bleiben erhalten. Keine Auszahlung wird ausgelöst; die regulären Freigabe- und Auszahlungstermine gelten weiterhin.</p>
+          {recoveryReview.entries.map(entry => (
+            <div key={entry.order} className="flex flex-wrap gap-3 text-sm">
+              <span>{entry.order}</span><span>{formatCurrency(entry.amount)}</span>
+              <span>{entry.existingId || entry.restoredId ? 'Bereits eingetragen' : 'Fehlt - wird zurückgehalten eingetragen'}</span>
+            </div>
+          ))}
+          {recoveryReview.entries.some(entry => !entry.existingId && !entry.restoredId) ? (
+            <Button onClick={applyDifferenceRecovery} isLoading={recovering}>Fehlende Einträge eintragen</Button>
+          ) : <p className="font-semibold">Alle vier Einträge sind vorhanden. Keine Auszahlung ausgelöst.</p>}
         </div>
       )}
 

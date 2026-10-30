@@ -397,6 +397,8 @@ export const commissionsAPI = {
     api.post('/commissions/rank-decay'),
 
   exportAudit: () => api.get('/commissions/audit-export', { responseType: 'blob' }),
+  reviewDifferenceRecovery: () => api.get('/commissions/difference-recovery'),
+  applyDifferenceRecovery: (planId) => api.post('/commissions/difference-recovery', { planId, approvedNet: 135.15 }),
 
   generateStatement: (partnerId, period, preview = false) =>
     api.post('/commissions/generate-statement', { partnerId, period, preview }, { responseType: 'blob' })

@@ -4,6 +4,19 @@ import { releaseHeldCommissions, getCommissionSummary as getCommSummary, distrib
 import { generateCommissionStatement, generateCommissionPreview } from '../services/invoice.service.js';
 import { isVatIdFormatValid } from '../services/tax.service.js';
 import { getCommissionAuditSnapshot } from '../services/commission-audit.service.js';
+import { recoverApprovedDifferences, DIFFERENCE_RECOVERY_PLAN } from '../services/difference-recovery.service.js';
+
+export const reviewDifferenceRecovery = asyncHandler(async (req, res) => {
+  const review = await transaction(client => recoverApprovedDifferences(client, req.user.id, DIFFERENCE_RECOVERY_PLAN));
+  res.setHeader('Cache-Control', 'no-store');
+  res.json(review);
+});
+
+export const applyDifferenceRecovery = asyncHandler(async (req, res) => {
+  if (req.body?.approvedNet !== 135.15) throw new AppError('Bestätigter Betrag stimmt nicht überein', 400);
+  const result = await transaction(client => recoverApprovedDifferences(client, req.user.id, req.body.planId, true));
+  res.json(result);
+});
 
 export const exportCommissionAudit = asyncHandler(async (req, res) => {
   const snapshot = await transaction(getCommissionAuditSnapshot);
