@@ -3,6 +3,14 @@ import { asyncHandler, AppError } from '../middleware/error.middleware.js';
 import { releaseHeldCommissions, getCommissionSummary as getCommSummary, distributeBonusPool, checkRankDecay, isCommissionBlockedUser, cleanupDuplicateOrderCommissions } from '../services/commission.service.js';
 import { generateCommissionStatement, generateCommissionPreview } from '../services/invoice.service.js';
 import { isVatIdFormatValid } from '../services/tax.service.js';
+import { getCommissionAuditSnapshot } from '../services/commission-audit.service.js';
+
+export const exportCommissionAudit = asyncHandler(async (req, res) => {
+  const snapshot = await transaction(getCommissionAuditSnapshot);
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Content-Disposition', 'attachment; filename="commission-audit.json"');
+  res.json(snapshot);
+});
 
 /**
  * Get my commissions

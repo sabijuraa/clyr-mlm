@@ -246,6 +246,16 @@ const AdminCommissionsPage = () => {
     }
   };
 
+  const handleAuditExport = async () => {
+    try {
+      const response = await commissionsAPI.exportAudit();
+      downloadBlob(response.data, `Provisionspruefung-${new Date().toISOString().slice(0, 10)}.json`);
+      toast.success('Prüfdaten exportiert. Keine Finanzdaten wurden geändert.');
+    } catch {
+      toast.error('Prüfdaten konnten nicht exportiert werden');
+    }
+  };
+
   const generatePartnerStatement = async (commission) => {
     try {
       const { partnerId, period, preview } = getCommissionStatementRequest(commission);
@@ -329,6 +339,9 @@ const AdminCommissionsPage = () => {
           </div>
           <Button variant="outline" onClick={handleExport} icon={Download}>
             Export
+          </Button>
+          <Button variant="outline" onClick={handleAuditExport} icon={Download}>
+            Prüfdaten exportieren
           </Button>
           <Button variant="outline" onClick={handleDistributeBonusPool} isLoading={distributingPool} icon={Gift}>
             Bonus Pool

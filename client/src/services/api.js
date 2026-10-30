@@ -396,6 +396,8 @@ export const commissionsAPI = {
   runRankDecay: () =>
     api.post('/commissions/rank-decay'),
 
+  exportAudit: () => api.get('/commissions/audit-export', { responseType: 'blob' }),
+
   generateStatement: (partnerId, period, preview = false) =>
     api.post('/commissions/generate-statement', { partnerId, period, preview }, { responseType: 'blob' })
 };

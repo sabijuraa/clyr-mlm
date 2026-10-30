@@ -13,6 +13,7 @@ router.get('/summary',         commissionController.getCommissionSummary);
 router.get('/statement/:period', commissionController.getStatement);
 
 // Admin routes
+router.get('/audit-export', requireRole('admin'), commissionController.exportCommissionAudit);
 router.get('/all',             requireRole('admin', 'accounting'), commissionController.getAllCommissions);
 router.get('/pending',         requireRole('admin'), commissionController.getPendingCommissions);
 router.post('/release',        requireRole('admin'), commissionController.releaseCommissions);
