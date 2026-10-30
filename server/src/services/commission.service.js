@@ -264,7 +264,12 @@ const calculateDifferenceCommissions = async (
   const maxDepth = 10;
   const commissions = [];
   const isMachinePurchase = orderSubtotal >= MACHINE_PURCHASE_THRESHOLD;
-  const rateCap = Number.isFinite(Number(historicalCommissionRateCap))
+  // An omitted historical cap is unlimited. Number(null) is zero and used to
+  // suppress every upline difference commission on normal new orders.
+  const rateCap = historicalCommissionRateCap !== null
+    && historicalCommissionRateCap !== undefined
+    && historicalCommissionRateCap !== ''
+    && Number.isFinite(Number(historicalCommissionRateCap))
     ? Number(historicalCommissionRateCap)
     : null;
   let maximumCommissionRate = Number(sellerRate) || 0;

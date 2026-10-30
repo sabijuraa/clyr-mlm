@@ -138,7 +138,7 @@ export const getTeam = asyncHandler(async (req, res) => {
   if (level === 'direct' || level === '1') {
     teamQuery = `
       SELECT u.id, u.first_name, u.last_name, u.email, u.phone, u.status, u.created_at,
-             u.street, u.zip, u.city, u.country, u.birth_date, u.company, u.vat_id,
+             u.street, u.zip, u.city, u.country, to_jsonb(u)->>'birth_date' as birth_date, u.company, u.vat_id,
              u.own_sales_count, u.direct_partners_count, 1 as level,
              r.name as rank_name, r.color as rank_color, r.commission_rate,
              (SELECT COALESCE(SUM(amount), 0) FROM commissions WHERE user_id = u.id AND status IN ('released', 'paid')) as total_earned
@@ -155,12 +155,12 @@ export const getTeam = asyncHandler(async (req, res) => {
     teamQuery = `
       WITH RECURSIVE team AS (
         SELECT id, first_name, last_name, email, phone, status, created_at,
-               street, zip, city, country, birth_date, company, vat_id,
+               street, zip, city, country, to_jsonb(u)->>'birth_date' as birth_date, company, vat_id,
                own_sales_count, direct_partners_count, rank_id, 1 as level
-        FROM users WHERE upline_id = $1
+        FROM users u WHERE upline_id = $1
         UNION ALL
         SELECT u.id, u.first_name, u.last_name, u.email, u.phone, u.status, u.created_at,
-               u.street, u.zip, u.city, u.country, u.birth_date, u.company, u.vat_id,
+               u.street, u.zip, u.city, u.country, to_jsonb(u)->>'birth_date' as birth_date, u.company, u.vat_id,
                u.own_sales_count, u.direct_partners_count, u.rank_id, t.level + 1
         FROM users u JOIN team t ON u.upline_id = t.id
         WHERE t.level < 10

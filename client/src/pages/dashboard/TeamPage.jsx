@@ -11,6 +11,7 @@ import StatCard from '../../components/dashboard/StatCard';
 import Button from '../../components/common/Button';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
+import { loadAllTeamMembers } from '../../utils/teamData';
 
 const TeamPage = () => {
   const { t } = useLanguage();
@@ -19,6 +20,7 @@ const TeamPage = () => {
   const [teamTree, setTeamTree] = useState([]);
   const [teamList, setTeamList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState('tree');
   const [expandedId, setExpandedId] = useState(null);
@@ -29,28 +31,35 @@ const TeamPage = () => {
 
   const loadTeamData = async () => {
     setIsLoading(true);
+    setLoadError('');
     try {
-      // Load tree data
-      const treeRes = await partnerAPI.getTeamTree(5).catch(() => null);
-      if (treeRes?.data) {
+      const [treeResult, teamResult] = await Promise.allSettled([
+        partnerAPI.getTeamTree(10),
+        loadAllTeamMembers(params => partnerAPI.getTeam(params)),
+      ]);
+      if (treeResult.status === 'fulfilled') {
+        const treeRes = treeResult.value;
         const tree = treeRes.data.tree || treeRes.data || [];
         setTeamTree(Array.isArray(tree) ? tree : []);
       }
 
       // Load flat list + stats
-      const teamRes = await partnerAPI.getTeam().catch(() => null);
-      if (teamRes?.data) {
-        const data = teamRes.data;
+      if (teamResult.status === 'fulfilled') {
+        const data = teamResult.value;
         setTeamList(data.members || data.team || []);
         setTeamStats({
-          directPartners: data.stats?.directPartners || data.directCount || 0,
-          totalTeam: data.stats?.totalTeam || data.totalCount || (data.members || data.team || []).length,
-          activePartners: data.stats?.activePartners || (data.members || data.team || []).filter(m => m.status === 'active' || m.isActive).length,
-          inactivePartners: data.stats?.inactivePartners || (data.members || data.team || []).filter(m => m.status !== 'active' && !m.isActive).length,
+          directPartners: data.stats?.directPartners ?? data.directCount ?? 0,
+          totalTeam: data.stats?.totalTeam ?? data.totalCount ?? data.members.length,
+          activePartners: data.stats?.activePartners ?? data.members.filter(m => m.status === 'active' || m.isActive).length,
+          inactivePartners: data.stats?.inactivePartners ?? data.members.filter(m => m.status !== 'active' && !m.isActive).length,
         });
+      }
+      if (treeResult.status === 'rejected' || teamResult.status === 'rejected') {
+        setLoadError('Teamdaten konnten nicht vollständig geladen werden. Bitte erneut aktualisieren.');
       }
     } catch (err) {
       console.error('Failed to load team data:', err);
+      setLoadError('Teamdaten konnten nicht geladen werden. Bitte erneut aktualisieren.');
     } finally {
       setIsLoading(false);
     }
@@ -95,6 +104,8 @@ const TeamPage = () => {
           </Button>
         </div>
       </div>
+
+      {loadError && <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">{loadError}</div>}
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -147,6 +158,8 @@ const TeamPage = () => {
               <div className="space-y-3">
                 {[...Array(3)].map((_, i) => (<div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />))}
               </div>
+            ) : loadError && filteredList.length === 0 ? (
+              <p className="py-8 text-center text-secondary-500">Team-Liste derzeit nicht verfügbar. Bitte erneut aktualisieren.</p>
             ) : filteredList.length === 0 ? (
               <div className="text-center py-12">
                 <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
