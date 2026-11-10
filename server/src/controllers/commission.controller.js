@@ -568,23 +568,63 @@ export const generateStatementForPartner = asyncHandler(async (req, res) => {
   const startDate = new Date(year, month - 1, 1);
   const endDate = new Date(year, month, 0, 23, 59, 59);
   
-  const commissionsResult = await query(
-    `SELECT c.*, o.order_number, o.subtotal as order_total, o.created_at as order_date,
-            NULLIF(TRIM(CONCAT(COALESCE(o.customer_first_name, ''), ' ', COALESCE(o.customer_last_name, ''))), '') as customer_name
-     FROM commissions c
-     LEFT JOIN orders o ON c.order_id = o.id
-     WHERE c.user_id = $1 
-       AND c.status = ANY($4::varchar[])
-       AND c.type <> 'bonus_pool'
-       AND (
-         (o.created_at >= $2 AND o.created_at <= $3)
-         OR (o.created_at IS NULL AND c.created_at >= $2 AND c.created_at <= $3)
-       )
-     ORDER BY COALESCE(o.created_at, c.created_at) ASC`,
-    [partnerId, startDate, endDate, preview ? ['held', 'pending', 'released', 'paid'] : ['released', 'paid']]
-  );
-  
-  console.log(`[ADMIN STATEMENT] Found ${commissionsResult.rows.length} commissions for partner ${partnerId} in period ${period}`);
+  // A final statement must contain the exact rows paid in its payout.  A
+  // calendar-date query is unsafe here: a payout can legitimately contain
+  // commissions from more than one order-date window (for example, delayed
+  // difference commissions).  That was why an Admin download could disagree
+  // with the affiliate's statement for the same statement number.
+  let payoutRecord = null;
+  if (!preview) {
+    const payoutResult = await query(
+      `SELECT *
+       FROM payouts
+       WHERE user_id = $1
+         AND status = 'completed'
+         AND (
+           (period_start <= $3 AND period_end >= $2)
+           OR (period_start IS NULL AND period_end IS NULL AND created_at >= $4 AND created_at <= $5)
+         )
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [
+        partnerId,
+        startDate,
+        endDate,
+        new Date(year, month, 1),
+        new Date(year, month + 1, 0, 23, 59, 59)
+      ]
+    );
+    payoutRecord = payoutResult.rows[0] || null;
+  }
+
+  const commissionsResult = payoutRecord
+    ? await query(
+      `SELECT c.*, o.order_number, o.subtotal as order_total, o.created_at as order_date,
+              NULLIF(TRIM(CONCAT(COALESCE(o.customer_first_name, ''), ' ', COALESCE(o.customer_last_name, ''))), '') as customer_name
+       FROM commissions c
+       LEFT JOIN orders o ON c.order_id = o.id
+       WHERE c.payout_id = $1
+         AND c.type <> 'bonus_pool'
+       ORDER BY COALESCE(o.created_at, c.created_at) ASC`,
+      [payoutRecord.id]
+    )
+    : await query(
+      `SELECT c.*, o.order_number, o.subtotal as order_total, o.created_at as order_date,
+              NULLIF(TRIM(CONCAT(COALESCE(o.customer_first_name, ''), ' ', COALESCE(o.customer_last_name, ''))), '') as customer_name
+       FROM commissions c
+       LEFT JOIN orders o ON c.order_id = o.id
+       WHERE c.user_id = $1
+         AND c.status = ANY($4::varchar[])
+         AND c.type <> 'bonus_pool'
+         AND (
+           (o.created_at >= $2 AND o.created_at <= $3)
+           OR (o.created_at IS NULL AND c.created_at >= $2 AND c.created_at <= $3)
+         )
+       ORDER BY COALESCE(o.created_at, c.created_at) ASC`,
+      [partnerId, startDate, endDate, preview ? ['held', 'pending', 'released', 'paid'] : ['released', 'paid']]
+    );
+
+  console.log(`[ADMIN STATEMENT] Found ${commissionsResult.rows.length} commissions for partner ${partnerId} in period ${period}${payoutRecord ? ` via payout ${payoutRecord.id}` : ''}`);
 
   if (commissionsResult.rows.length === 0) {
     throw new AppError('Keine Provisionen für diesen Zeitraum', 404);
@@ -610,32 +650,11 @@ export const generateStatementForPartner = asyncHandler(async (req, res) => {
     return res.send(pdfBuffer);
   }
 
-  // Get payout record for this period
-  const payoutResult = await query(
-    `SELECT *
-     FROM payouts
-     WHERE user_id = $1
-       AND status <> 'cancelled'
-       AND (
-         (period_start <= $3 AND period_end >= $2)
-         OR (period_start IS NULL AND period_end IS NULL AND created_at >= $4 AND created_at <= $5)
-       )
-     ORDER BY created_at DESC
-     LIMIT 1`,
-    [
-      partnerId,
-      startDate,
-      endDate,
-      new Date(year, month, 1),
-      new Date(year, month + 1, 0, 23, 59, 59)
-    ]
-  );
-
   const pdfBuffer = await generateCommissionStatement(
     userResult.rows[0],
     commissionsResult.rows,
     periodFormatted,
-    payoutResult.rows[0] || null
+    payoutRecord
   );
 
   res.setHeader('Content-Type', 'application/pdf');

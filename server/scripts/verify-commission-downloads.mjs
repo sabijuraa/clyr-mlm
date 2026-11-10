@@ -2,13 +2,13 @@ import assert from 'node:assert/strict';
 import { beforeEach, mock, test } from 'node:test';
 import { getCommissionStatementRequest } from '../../client/src/utils/commissionStatement.js';
 
-let queries, rendered, rows;
+let queries, rendered, rows, payoutRows;
 const query = async (sql, params) => {
   queries.push({ sql, params });
   assert.ok(!/\b(INSERT|UPDATE|DELETE)\b/.test(sql), 'Downloads must not change financial records');
+  if (sql.includes('FROM payouts')) return { rows: payoutRows };
   if (sql.includes('FROM commissions c')) return { rows };
   if (sql.includes('FROM users')) return { rows: [{ id: 'partner', last_name: 'Example' }] };
-  if (sql.includes('FROM payouts')) return { rows: [] };
   throw new Error('Unexpected query');
 };
 mock.module(new URL('../src/config/database.js', import.meta.url).href, { defaultExport: { query }, namedExports: { query, transaction: () => { throw new Error('No writes expected'); } } });
@@ -21,7 +21,12 @@ const download = body => new Promise((resolve, reject) => {
   const headers = {};
   generateStatementForPartner({ body }, { setHeader: (key, value) => { headers[key] = value; }, send: buffer => resolve({ headers, buffer }) }, reject);
 });
-beforeEach(() => { queries = []; rendered = null; rows = [{ order_number: 'TEST', amount: '9.00', status: 'held' }]; });
+beforeEach(() => {
+  queries = [];
+  rendered = null;
+  rows = [{ order_number: 'TEST', amount: '9.00', status: 'held' }];
+  payoutRows = [];
+});
 
 test('clicked row selects its own month even when another row belongs to the same partner', () => {
   const september = { user_id: 'partner', order_date: '2026-09-01T00:00:00+02:00', created_at: '2026-10-29', status: 'paid' };
@@ -43,8 +48,22 @@ test('held preview downloads include all non-cancelled statuses without payout q
 });
 test('regular statements remain restricted to released and paid commissions', async () => {
   await download({ partnerId: 'partner', period: '2026-09' });
-  assert.deepEqual(queries[0].params[3], ['released', 'paid']);
+  assert.equal(queries[0].sql.includes('FROM payouts'), true);
+  assert.deepEqual(queries[1].params[3], ['released', 'paid']);
   assert.equal(rendered.mode, 'statement');
+});
+test('paid Admin statements use the payout-linked rows, not a calendar date range', async () => {
+  payoutRows = [{ id: 'payout-july', statement_number: 'CS26070003' }];
+  rows = [
+    { order_number: 'JUNE-DIRECT', amount: '9.61', status: 'paid' },
+    { order_number: 'JUNE-DIFFERENCE', amount: '33.40', status: 'paid' },
+  ];
+  await download({ partnerId: 'partner', period: '2026-06' });
+  assert.equal(queries[0].sql.includes('FROM payouts'), true);
+  assert.match(queries[1].sql, /c\.payout_id = \$1/);
+  assert.deepEqual(queries[1].params, ['payout-july']);
+  assert.equal(rendered.args[1].length, 2);
+  assert.equal(rendered.args[3].statement_number, 'CS26070003');
 });
 test('invalid month or preview value fails before any database access', async () => {
   for (const body of [{ period: '2026-13' }, { period: '2026-00' }, { period: '2026-10', preview: 'true' }]) {
