@@ -386,7 +386,7 @@ export const createProduct = async (req, res) => {
       product_type, is_featured, is_new, is_active,
       meta_title, meta_description,
       partner_price, exclude_from_partner_discount,
-      is_bundle, bundle_items: bundleItemsRaw
+      is_bundle, bundle_items: bundleItemsRaw, pickup_stock
     } = req.body;
 
     // Helper: parse FormData booleans
@@ -424,8 +424,8 @@ export const createProduct = async (req, res) => {
         category_id, product_type, stock, images,
         is_active, is_new, is_featured,
         meta_title, meta_description,
-        partner_price, exclude_from_partner_discount, is_bundle
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+        partner_price, exclude_from_partner_discount, is_bundle, pickup_stock
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
       RETURNING *
     `, [
       name, name_en || null, slug, sku || null,
@@ -434,7 +434,8 @@ export const createProduct = async (req, res) => {
       parseNum(category_id), product_type || 'physical', parseNum(stock) || 0, JSON.stringify(images),
       parseBool(is_active, true), parseBool(is_new, false), parseBool(is_featured, false),
       meta_title || name, meta_description || '',
-      parseNum(partner_price), parseBool(exclude_from_partner_discount, false), isBundleFlag
+      parseNum(partner_price), parseBool(exclude_from_partner_discount, false), isBundleFlag,
+      Math.max(0, parseNum(pickup_stock) || 0)
     ]);
 
     const newProduct = result.rows[0];
@@ -470,7 +471,7 @@ export const updateProduct = async (req, res) => {
       product_type, is_featured, is_new, is_active,
       meta_title, meta_description, sort_order,
       partner_price, exclude_from_partner_discount,
-      is_bundle, bundle_items: bundleItemsRaw
+      is_bundle, bundle_items: bundleItemsRaw, pickup_stock
     } = req.body;
 
     const checkResult = await pool.query('SELECT * FROM products WHERE id = $1', [id]);
@@ -545,8 +546,9 @@ export const updateProduct = async (req, res) => {
         partner_price = $20,
         exclude_from_partner_discount = $21,
         is_bundle = $22,
+        pickup_stock = COALESCE($23, pickup_stock),
         updated_at = NOW()
-      WHERE id = $23
+      WHERE id = $24
       RETURNING *
     `, [
       name || null,
@@ -571,6 +573,7 @@ export const updateProduct = async (req, res) => {
       parseNum(partner_price),
       parseBool(exclude_from_partner_discount, existing.exclude_from_partner_discount || false),
       parseBool(is_bundle, existing.is_bundle || false),
+      Math.max(0, parseNum(pickup_stock) ?? Number(existing.pickup_stock || 0)),
       id
     ]);
 

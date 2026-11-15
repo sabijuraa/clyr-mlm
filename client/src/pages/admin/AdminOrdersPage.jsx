@@ -37,6 +37,11 @@ const AdminOrdersPage = () => {
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [historicalCommissionRateCap, setHistoricalCommissionRateCap] = useState('');
+  const [orderReturns, setOrderReturns] = useState([]);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnReason, setReturnReason] = useState('');
+  const [returnQuantities, setReturnQuantities] = useState({});
+  const [returnSaving, setReturnSaving] = useState(false);
 
   useEffect(() => {
     fetchOrders();
@@ -150,8 +155,12 @@ const AdminOrdersPage = () => {
     setLoadingDetails(true);
     setShowDetailModal(true);
     try {
-      const res = await ordersAPI.getById(order.rawId || order.id);
+      const [res, returnsRes] = await Promise.all([
+        ordersAPI.getById(order.rawId || order.id),
+        ordersAPI.getReturns(order.rawId || order.id)
+      ]);
       const fullOrder = res.data?.order || {};
+      setOrderReturns(returnsRes.data?.returns || []);
       setSelectedOrder({
         ...order,
         items: fullOrder.items || [],
@@ -174,9 +183,58 @@ const AdminOrdersPage = () => {
       });
     } catch (e) {
       setSelectedOrder(order);
+      setOrderReturns([]);
       toast.error('Bestelldetails konnten nicht vollständig geladen werden');
     } finally {
       setLoadingDetails(false);
+    }
+  };
+
+  const openReturnModal = () => {
+    setReturnReason('');
+    setReturnQuantities({});
+    setShowReturnModal(true);
+  };
+
+  const returnedQuantityFor = (orderItemId) => orderReturns.reduce((sum, record) => {
+    if (record.status === 'cancelled') return sum;
+    const item = (record.items || []).find(entry => String(entry.orderItemId) === String(orderItemId));
+    return sum + Number(item?.quantity || 0);
+  }, 0);
+
+  const receiveReturn = async () => {
+    const items = Object.entries(returnQuantities)
+      .map(([orderItemId, quantity]) => ({ orderItemId: Number(orderItemId), quantity: Number(quantity) }))
+      .filter(item => Number.isInteger(item.quantity) && item.quantity > 0);
+    if (!items.length || !returnReason.trim()) {
+      toast.error('Bitte wählen Sie Artikel und geben Sie einen Rückgabegrund an.');
+      return;
+    }
+    setReturnSaving(true);
+    try {
+      const result = await ordersAPI.receiveReturn(selectedOrder.rawId, { items, reason: returnReason.trim() });
+      toast.success(`Rückgabe erfasst. €${Number(result.data.refundAmount).toFixed(2)} wartet auf die separate Erstattung.`);
+      setShowReturnModal(false);
+      const returnsRes = await ordersAPI.getReturns(selectedOrder.rawId);
+      setOrderReturns(returnsRes.data?.returns || []);
+      fetchOrders();
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Rückgabe konnte nicht erfasst werden.');
+    } finally {
+      setReturnSaving(false);
+    }
+  };
+
+  const refundReturn = async (returnRecord) => {
+    if (!confirm(`€${Number(returnRecord.refund_amount).toFixed(2)} über Stripe an den Kunden erstatten? Dieser Schritt löst die Zahlung aus.`)) return;
+    try {
+      await ordersAPI.refundReturn(selectedOrder.rawId, returnRecord.id);
+      toast.success('Erstattung wurde ausgeführt.');
+      const returnsRes = await ordersAPI.getReturns(selectedOrder.rawId);
+      setOrderReturns(returnsRes.data?.returns || []);
+      fetchOrders();
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Erstattung konnte nicht ausgeführt werden.');
     }
   };
 
@@ -497,6 +555,22 @@ const AdminOrdersPage = () => {
               </div>
             )}
 
+            {orderReturns.length > 0 && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <h4 className="font-semibold text-secondary-700 mb-2">Rückgaben</h4>
+                <div className="space-y-2 text-sm">
+                  {orderReturns.map(record => (
+                    <div key={record.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white p-3">
+                      <span>{record.credit_note_number || 'Gutschrift'} · €{Number(record.refund_amount).toFixed(2)} · {record.status === 'refunded' ? 'erstattet' : 'Wartet auf Erstattung'}</span>
+                      {record.status === 'received' && (
+                        <Button variant="primary" onClick={() => refundReturn(record)}>Erstattung bestätigen</Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Ordered Items */}
             <div>
               <h4 className="font-semibold text-secondary-700 mb-3 flex items-center gap-2">
@@ -609,6 +683,11 @@ const AdminOrdersPage = () => {
                   Als versendet markieren
                 </Button>
               )}
+              {['paid', 'partially_refunded'].includes(selectedOrder.paymentStatus) && !['refunded', 'cancelled'].includes(selectedOrder.status) && (
+                <Button variant="outline" className="flex-1" icon={XCircle} onClick={openReturnModal}>
+                  Rückgabe / Storno
+                </Button>
+              )}
               <Button 
                 variant="outline" 
                 className="flex-1" 
@@ -632,6 +711,33 @@ const AdminOrdersPage = () => {
               >
                 Rechnung
               </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+      <Modal isOpen={showReturnModal} onClose={() => setShowReturnModal(false)} title="Rückgabe erhalten & Storno erstellen">
+        {selectedOrder && (
+          <div className="space-y-4">
+            <p className="text-sm text-secondary-600">Die Ware ist eingegangen. Dieser Schritt erstellt die negative Gutschrift, korrigiert Provisionen und stellt Lagerbestand wieder her. Es wird noch kein Geld erstattet.</p>
+            <div className="space-y-2">
+              {selectedOrder.items?.map(item => {
+                const available = Math.max(0, Number(item.quantity || 0) - returnedQuantityFor(item.id));
+                return (
+                  <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 p-3">
+                    <span className="text-sm text-secondary-700">{item.product_name} <span className="text-secondary-400">(noch {available} verfügbar)</span></span>
+                    <input type="number" min="0" max={available} value={returnQuantities[item.id] || ''}
+                      disabled={available === 0}
+                      onChange={event => setReturnQuantities({...returnQuantities, [item.id]: Math.min(available, Math.max(0, Number(event.target.value || 0)))})}
+                      className="w-20 rounded-lg border border-gray-300 px-2 py-1" aria-label={`Rückgabemenge ${item.product_name}`} />
+                  </div>
+                );
+              })}
+            </div>
+            <textarea value={returnReason} onChange={event => setReturnReason(event.target.value)} rows={3}
+              placeholder="Rückgabegrund" className="w-full rounded-lg border border-gray-300 p-3" />
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setShowReturnModal(false)}>Abbrechen</Button>
+              <Button variant="primary" disabled={returnSaving} onClick={receiveReturn}>{returnSaving ? 'Wird erfasst…' : 'Ware erhalten & Gutschrift erstellen'}</Button>
             </div>
           </div>
         )}

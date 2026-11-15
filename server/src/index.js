@@ -812,6 +812,9 @@ app.listen(PORT, '0.0.0.0', async () => {
       `ALTER TABLE commissions ADD COLUMN IF NOT EXISTS rate NUMERIC(5,2)`,
       `ALTER TABLE commissions ADD COLUMN IF NOT EXISTS description TEXT`,
       `ALTER TABLE commissions ADD COLUMN IF NOT EXISTS held_until TIMESTAMP`,
+      // Product-local inventory, used exclusively to decide whether a customer
+      // can choose Selbstabholung at checkout.
+      `ALTER TABLE products ADD COLUMN IF NOT EXISTS pickup_stock INTEGER NOT NULL DEFAULT 0`,
       // orders table
       `ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_first_name VARCHAR(100)`,
       `ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_last_name VARCHAR(100)`,
@@ -847,6 +850,42 @@ app.listen(PORT, '0.0.0.0', async () => {
       try { await dbQuery(sql); } catch(e) { /* ignore if already exists */ }
     }
     console.log('Column migrations complete.');
+
+    // Return records deliberately live separately from orders: an order can
+    // have several partial returns and a customer refund is confirmed only
+    // after the returned goods and credit note have been recorded.
+    await dbQuery(`
+      CREATE TABLE IF NOT EXISTS order_returns (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        order_id UUID NOT NULL REFERENCES orders(id) ON DELETE RESTRICT,
+        credit_note_id INTEGER REFERENCES credit_notes(id) ON DELETE RESTRICT,
+        reason TEXT NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'received'
+          CHECK (status IN ('received', 'refunded', 'cancelled')),
+        net_amount NUMERIC(10,2) NOT NULL,
+        vat_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+        refund_amount NUMERIC(10,2) NOT NULL,
+        received_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        refunded_at TIMESTAMP,
+        received_by UUID REFERENCES users(id) ON DELETE SET NULL,
+        refunded_by UUID REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await dbQuery(`
+      CREATE TABLE IF NOT EXISTS order_return_items (
+        id BIGSERIAL PRIMARY KEY,
+        return_id UUID NOT NULL REFERENCES order_returns(id) ON DELETE CASCADE,
+        order_item_id INTEGER NOT NULL REFERENCES order_items(id) ON DELETE RESTRICT,
+        product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
+        product_name VARCHAR(255) NOT NULL,
+        quantity INTEGER NOT NULL CHECK (quantity > 0),
+        net_amount NUMERIC(10,2) NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(return_id, order_item_id)
+      )
+    `);
+    console.log('Return workflow tables verified.');
 
     // CLEANUP: Remove duplicate invoices - keep only the FIRST invoice per order
     try {

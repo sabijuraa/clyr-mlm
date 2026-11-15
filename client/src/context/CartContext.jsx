@@ -244,6 +244,7 @@ export const CartProvider = ({ children }) => {
         variantDescription: product.variantDescription || '',
         is_large_item: product.is_large_item || false,
         is_service: product.is_service || false,
+        pickup_stock: Number(product.pickup_stock || 0),
         isSubscription: product.is_subscription_eligible || product.isSubscription || false
       }];
     });

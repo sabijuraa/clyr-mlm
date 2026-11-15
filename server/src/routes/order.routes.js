@@ -93,6 +93,29 @@ router.post(
   orderController.refundOrder
 );
 
+// Two-step product return process: receiving the goods records the negative
+// credit note; the separate endpoint is the explicit money-refund confirmation.
+router.get(
+  '/:id/returns',
+  authenticate,
+  requireRole('admin'),
+  orderController.getOrderReturns
+);
+
+router.post(
+  '/:id/returns',
+  authenticate,
+  requireRole('admin'),
+  orderController.receiveOrderReturn
+);
+
+router.post(
+  '/:id/returns/:returnId/refund',
+  authenticate,
+  requireRole('admin'),
+  orderController.refundReceivedReturn
+);
+
 router.get(
   '/:id/invoice',
   authenticate,

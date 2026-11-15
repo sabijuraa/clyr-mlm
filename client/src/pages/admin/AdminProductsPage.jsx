@@ -28,7 +28,7 @@ const AdminProductsPage = () => {
   const [form, setForm] = useState({
     name: '', name_en: '', description: '', description_en: '',
     short_description: '', price: '', original_price: '', cost_price: '',
-    category_id: '', stock: '0', sku: '',
+    category_id: '', stock: '0', pickup_stock: '0', sku: '',
     product_type: 'physical', is_featured: false, is_new: false, is_active: true, sort_order: null,
     partner_price: '', exclude_from_partner_discount: false,
     is_bundle: false
@@ -77,7 +77,7 @@ const AdminProductsPage = () => {
       short_description: product.short_description || '',
       price: product.price || '', original_price: product.original_price || '',
       cost_price: product.cost_price || '',
-      category_id: product.category_id || '', stock: product.stock || 0,
+      category_id: product.category_id || '', stock: product.stock || 0, pickup_stock: product.pickup_stock ?? 0,
       sku: product.sku || '', product_type: product.product_type || 'physical',
       is_featured: product.is_featured || false, is_new: product.is_new || false,
       sort_order: product.sort_order || null,
@@ -99,7 +99,7 @@ const AdminProductsPage = () => {
     setForm({
       name: '', name_en: '', description: '', description_en: '',
       short_description: '', price: '', original_price: '', cost_price: '',
-      category_id: '', stock: '0', sku: '',
+      category_id: '', stock: '0', pickup_stock: '0', sku: '',
       product_type: 'physical', is_featured: false, is_new: false, is_active: true, sort_order: null,
       partner_price: '', exclude_from_partner_discount: false, is_bundle: false
     });
@@ -434,6 +434,12 @@ const AdminProductsPage = () => {
               <label className="block text-sm font-medium text-secondary-700 mb-1">Lagerbestand</label>
               <input type="number" value={form.stock} onChange={e => setForm({...form, stock: e.target.value})}
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-secondary-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-secondary-700 mb-1">Abholbestand vor Ort</label>
+              <input type="number" min="0" value={form.pickup_stock} onChange={e => setForm({...form, pickup_stock: e.target.value})}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-secondary-500" />
+              <p className="text-xs text-secondary-500 mt-1">Nur diese Menge ist zur Selbstabholung verfügbar.</p>
             </div>
           </div>
 

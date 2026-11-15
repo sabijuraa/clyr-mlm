@@ -211,6 +211,9 @@ CREATE TABLE products (
     weight DECIMAL(10,2),
     dimensions JSONB, -- {length, width, height}
     is_large_item BOOLEAN DEFAULT false,
+    -- Stock available specifically for local customer pickup.  It is kept
+    -- separate from normal warehouse stock so shipping remains available.
+    pickup_stock INTEGER NOT NULL DEFAULT 0,
     
     -- Subscription specific
     subscription_interval_months INTEGER, -- For subscription products
@@ -1072,6 +1075,37 @@ CREATE TABLE credit_notes (
 
 CREATE INDEX idx_credit_notes_order ON credit_notes(order_id);
 CREATE INDEX idx_credit_notes_customer ON credit_notes(customer_id);
+
+-- ============================================
+-- PARTIAL RETURNS
+-- ============================================
+CREATE TABLE order_returns (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    order_id UUID NOT NULL REFERENCES orders(id) ON DELETE RESTRICT,
+    credit_note_id INTEGER REFERENCES credit_notes(id) ON DELETE RESTRICT,
+    reason TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'received' CHECK (status IN ('received', 'refunded', 'cancelled')),
+    net_amount DECIMAL(10,2) NOT NULL,
+    vat_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+    refund_amount DECIMAL(10,2) NOT NULL,
+    received_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    refunded_at TIMESTAMP,
+    received_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    refunded_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE order_return_items (
+    id SERIAL PRIMARY KEY,
+    return_id UUID NOT NULL REFERENCES order_returns(id) ON DELETE CASCADE,
+    order_item_id INTEGER NOT NULL REFERENCES order_items(id) ON DELETE RESTRICT,
+    product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
+    product_name VARCHAR(255) NOT NULL,
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    net_amount DECIMAL(10,2) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(return_id, order_item_id)
+);
 
 -- ============================================
 -- CUSTOMER ACCOUNTS TABLE (for customer portal login)

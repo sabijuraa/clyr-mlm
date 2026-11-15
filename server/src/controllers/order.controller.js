@@ -795,6 +795,9 @@ export const createOrder = asyncHandler(async (req, res) => {
   // Check stock
   for (const item of items) {
     const product = products.find(p => p.id === item.productId);
+    if (deliveryMethod === 'pickup' && Number(product.pickup_stock || 0) < item.quantity) {
+      throw new AppError(`${product.name} ist nicht in ausreichender Menge zur Selbstabholung verfügbar`, 400);
+    }
     if (product.is_bundle) {
       const componentsResult = await query(
         'SELECT bi.product_id, bi.quantity, p.name, p.stock, p.track_stock FROM bundle_items bi JOIN products p ON p.id = bi.product_id WHERE bi.bundle_id = $1',
@@ -1140,6 +1143,15 @@ export const createOrder = asyncHandler(async (req, res) => {
       } else if (product.track_stock) {
         await client.query(
           'UPDATE products SET stock = stock - $1 WHERE id = $2',
+          [item.quantity, product.id]
+        );
+      }
+
+      // Pickup stock is a separate local allocation.  Shipping stock is not
+      // affected by this counter, while a pickup order consumes both counts.
+      if (isPickup) {
+        await client.query(
+          'UPDATE products SET pickup_stock = GREATEST(pickup_stock - $1, 0) WHERE id = $2',
           [item.quantity, product.id]
         );
       }
@@ -1800,6 +1812,282 @@ export const refundOrder = asyncHandler(async (req, res) => {
   });
 
   res.json({ message: 'Erstattung erfolgreich' });
+});
+
+// ---------------------------------------------------------------------------
+// RETURN / STORNO WORKFLOW
+// A return is deliberately two-step.  The first action records goods received,
+// creates the negative credit note, restores stock and corrects commissions.
+// The second, explicit action sends money through Stripe.  This prevents a
+// refund from being issued before CLYR has received the goods back.
+// ---------------------------------------------------------------------------
+const roundReturnMoney = (value) => Math.round((Number(value) || 0) * 100) / 100;
+
+const nextCreditNoteNumber = async (client) => {
+  const prefix = `GS-${new Date().getFullYear()}-`;
+  await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [prefix]);
+  const result = await client.query(
+    `SELECT credit_note_number FROM credit_notes
+     WHERE credit_note_number LIKE $1
+     ORDER BY credit_note_number DESC LIMIT 1`,
+    [`${prefix}%`]
+  );
+  const last = result.rows[0]?.credit_note_number;
+  const sequence = last ? Number(last.split('-').pop()) + 1 : 1;
+  return `${prefix}${String(sequence).padStart(4, '0')}`;
+};
+
+export const getOrderReturns = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const result = await query(
+    `SELECT r.*, cn.credit_note_number,
+            COALESCE(json_agg(json_build_object(
+              'orderItemId', ri.order_item_id, 'productName', ri.product_name,
+              'quantity', ri.quantity, 'netAmount', ri.net_amount
+            ) ORDER BY ri.id) FILTER (WHERE ri.id IS NOT NULL), '[]') AS items
+     FROM order_returns r
+     LEFT JOIN credit_notes cn ON cn.id = r.credit_note_id
+     LEFT JOIN order_return_items ri ON ri.return_id = r.id
+     WHERE r.order_id = $1
+     GROUP BY r.id, cn.credit_note_number
+     ORDER BY r.created_at DESC`,
+    [id]
+  );
+  res.json({ returns: result.rows });
+});
+
+export const receiveOrderReturn = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { items, reason } = req.body || {};
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new AppError('Mindestens ein Rückgabeartikel ist erforderlich.', 400);
+  }
+  if (!String(reason || '').trim()) {
+    throw new AppError('Bitte geben Sie einen Rückgabegrund an.', 400);
+  }
+
+  const receivedReturn = await transaction(async (client) => {
+    const orderResult = await client.query('SELECT * FROM orders WHERE id = $1 FOR UPDATE', [id]);
+    if (orderResult.rows.length === 0) throw new AppError('Bestellung nicht gefunden', 404);
+    const order = orderResult.rows[0];
+    if (!['paid', 'partially_refunded'].includes(order.payment_status) || ['refunded', 'cancelled'].includes(order.status)) {
+      throw new AppError('Nur bezahlte, nicht vollständig erstattete Bestellungen können retourniert werden.', 400);
+    }
+
+    // The return window runs from delivery where available, otherwise order date.
+    const windowStart = new Date(order.delivered_at || order.created_at);
+    if (Date.now() - windowStart.getTime() > 14 * 24 * 60 * 60 * 1000) {
+      throw new AppError('Die 14-tägige Rückgabefrist ist für diese Bestellung abgelaufen.', 400);
+    }
+
+    const orderItemsResult = await client.query(
+      `SELECT oi.*, p.track_stock, p.is_bundle
+       FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id
+       WHERE oi.order_id = $1 FOR UPDATE`,
+      [id]
+    );
+    const orderItems = new Map(orderItemsResult.rows.map((item) => [String(item.id), item]));
+    const requested = new Map();
+    for (const entry of items) {
+      const itemId = String(entry?.orderItemId || '');
+      const quantity = Number(entry?.quantity);
+      if (!orderItems.has(itemId) || !Number.isInteger(quantity) || quantity <= 0 || requested.has(itemId)) {
+        throw new AppError('Ungültige Rückgabeartikel oder Mengen.', 400);
+      }
+      requested.set(itemId, quantity);
+    }
+
+    const priorResult = await client.query(
+      `SELECT ri.order_item_id, COALESCE(SUM(ri.quantity), 0) AS returned_quantity
+       FROM order_return_items ri
+       JOIN order_returns r ON r.id = ri.return_id
+       WHERE r.order_id = $1 AND r.status <> 'cancelled'
+       GROUP BY ri.order_item_id`,
+      [id]
+    );
+    const alreadyReturned = new Map(priorResult.rows.map((row) => [String(row.order_item_id), Number(row.returned_quantity)]));
+
+    let rawNet = 0;
+    const returnItems = [];
+    for (const [itemId, quantity] of requested) {
+      const orderItem = orderItems.get(itemId);
+      if (quantity + (alreadyReturned.get(itemId) || 0) > Number(orderItem.quantity)) {
+        throw new AppError(`${orderItem.product_name} wurde bereits teilweise oder vollständig retourniert.`, 400);
+      }
+      const lineNet = roundReturnMoney(Number(orderItem.product_price) * quantity);
+      rawNet = roundReturnMoney(rawNet + lineNet);
+      returnItems.push({ orderItem, quantity, rawNet: lineNet });
+    }
+
+    // Discounts are allocated proportionally over returned product value.  No
+    // shipping cost enters this calculation, exactly as agreed with Theresa.
+    const orderSubtotal = Number(order.subtotal || 0);
+    const allocatedDiscount = orderSubtotal > 0
+      ? roundReturnMoney(Number(order.discount_amount || 0) * (rawNet / orderSubtotal))
+      : 0;
+    const refundNet = Math.max(0, roundReturnMoney(rawNet - allocatedDiscount));
+    const vatRate = Number(order.vat_rate || 0);
+    const vatAmount = order.is_reverse_charge ? 0 : roundReturnMoney(refundNet * (vatRate / 100));
+    const refundAmount = roundReturnMoney(refundNet + vatAmount);
+    if (refundAmount <= 0) throw new AppError('Für diese Auswahl ergibt sich kein erstattbarer Betrag.', 400);
+
+    const creditNoteNumber = await nextCreditNoteNumber(client);
+    const creditLines = returnItems.map((entry, index) => {
+      // Put the whole proportional discount on the final row so rounded rows
+      // always reconcile exactly with the credit note total.
+      const allocated = index === returnItems.length - 1
+        ? roundReturnMoney(allocatedDiscount - returnItems.slice(0, index).reduce((sum, row) => sum + (row.discount || 0), 0))
+        : roundReturnMoney(allocatedDiscount * (entry.rawNet / rawNet));
+      entry.discount = allocated;
+      entry.netAmount = Math.max(0, roundReturnMoney(entry.rawNet - allocated));
+      return {
+        name: `Rückgabe: ${entry.orderItem.product_name}`,
+        quantity: entry.quantity,
+        price: -(entry.netAmount / entry.quantity)
+      };
+    });
+
+    const customerName = [order.customer_first_name, order.customer_last_name].filter(Boolean).join(' ') || order.customer_email;
+    const customerAddress = [order.billing_street, [order.billing_zip, order.billing_city].filter(Boolean).join(' '), order.billing_country]
+      .filter(Boolean).join('\n');
+    const creditNoteResult = await client.query(
+      `INSERT INTO credit_notes (
+        credit_note_number, order_id, customer_id, subtotal, vat_rate, vat_amount, total,
+        reason, line_items, customer_name, customer_address, customer_vat_id,
+        customer_country, is_reverse_charge, is_export, created_by
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+      RETURNING *`,
+      [
+        creditNoteNumber, order.id, order.customer_id, -refundNet, vatRate, -vatAmount, -refundAmount,
+        String(reason).trim(), JSON.stringify(creditLines), customerName, customerAddress,
+        order.customer_vat_id, order.billing_country, Boolean(order.is_reverse_charge),
+        order.billing_country === 'CH', req.user.id
+      ]
+    );
+    const creditNote = creditNoteResult.rows[0];
+
+    const returnResult = await client.query(
+      `INSERT INTO order_returns (
+        order_id, credit_note_id, reason, net_amount, vat_amount, refund_amount, received_by
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [order.id, creditNote.id, String(reason).trim(), refundNet, vatAmount, refundAmount, req.user.id]
+    );
+    const returnRecord = returnResult.rows[0];
+
+    for (const entry of returnItems) {
+      await client.query(
+        `INSERT INTO order_return_items (return_id, order_item_id, product_id, product_name, quantity, net_amount)
+         VALUES ($1,$2,$3,$4,$5,$6)`,
+        [returnRecord.id, entry.orderItem.id, entry.orderItem.product_id, entry.orderItem.product_name, entry.quantity, entry.netAmount]
+      );
+      if (entry.orderItem.product_id && entry.orderItem.is_bundle) {
+        const components = await client.query(
+          'SELECT product_id, quantity FROM bundle_items WHERE bundle_id = $1',
+          [entry.orderItem.product_id]
+        );
+        for (const component of components.rows) {
+          await client.query(
+            'UPDATE products SET stock = stock + $1 WHERE id = $2 AND track_stock = true',
+            [entry.quantity * Number(component.quantity), component.product_id]
+          );
+        }
+        // Bundle pickup availability is managed at the bundle level.
+        await client.query('UPDATE products SET pickup_stock = pickup_stock + $1 WHERE id = $2', [entry.quantity, entry.orderItem.product_id]);
+      } else if (entry.orderItem.product_id && entry.orderItem.track_stock) {
+        await client.query('UPDATE products SET stock = stock + $1, pickup_stock = pickup_stock + $1 WHERE id = $2', [entry.quantity, entry.orderItem.product_id]);
+      }
+    }
+
+    const fraction = orderSubtotal > 0 ? rawNet / orderSubtotal : 0;
+    const commissions = await client.query(
+      `SELECT * FROM commissions
+       WHERE order_id = $1
+         AND status NOT IN ('cancelled', 'reversed')
+         AND COALESCE(description, '') NOT LIKE 'Rückgabe-Korrektur%'
+       FOR UPDATE`,
+      [order.id]
+    );
+    for (const commission of commissions.rows) {
+      const correction = roundReturnMoney(Number(commission.amount) * fraction);
+      if (correction <= 0) continue;
+      // A negative correction preserves a complete, immutable audit trail and
+      // works for held, released and already-paid commissions alike. It also
+      // makes several partial returns add up correctly without mutating an
+      // earlier return correction.
+      await client.query(
+        `INSERT INTO commissions (user_id, order_id, type, amount, rate, base_amount, source_user_id, status, held_until, description)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'held',CURRENT_TIMESTAMP,$8)`,
+        [commission.user_id, order.id, commission.type, -correction, commission.rate,
+          roundReturnMoney(Number(commission.base_amount || 0) * fraction), commission.source_user_id,
+          `Rückgabe-Korrektur zu ${order.order_number} (${creditNoteNumber})`]
+      );
+    }
+
+    await client.query(
+      `UPDATE orders SET admin_notes = CONCAT(COALESCE(admin_notes, ''), $1), updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+      [`\nRückgabe ${creditNoteNumber} erhalten; Erstattung ${refundAmount.toFixed(2)} EUR wartet auf Bestätigung.`, order.id]
+    );
+    await client.query(
+      `INSERT INTO activity_log (user_id, action, entity_type, entity_id, details)
+       VALUES ($1,'order_return_received','order',$2,$3)`,
+      [req.user.id, order.id, JSON.stringify({ returnId: returnRecord.id, creditNoteNumber, refundAmount, itemCount: returnItems.length })]
+    );
+    return { returnRecord, creditNote, refundAmount };
+  });
+
+  res.status(201).json({
+    message: 'Rückgabe erfasst. Die Erstattung muss separat bestätigt werden.',
+    return: receivedReturn.returnRecord,
+    creditNote: receivedReturn.creditNote,
+    refundAmount: receivedReturn.refundAmount
+  });
+});
+
+export const refundReceivedReturn = asyncHandler(async (req, res) => {
+  const { id, returnId } = req.params;
+  const result = await transaction(async (client) => {
+    const returnResult = await client.query(
+      `SELECT r.*, o.stripe_payment_intent_id, o.total, o.payment_status, o.status AS order_status, o.order_number
+       FROM order_returns r JOIN orders o ON o.id = r.order_id
+       WHERE r.id = $1 AND r.order_id = $2 FOR UPDATE`, [returnId, id]
+    );
+    if (returnResult.rows.length === 0) throw new AppError('Rückgabe nicht gefunden.', 404);
+    const record = returnResult.rows[0];
+    if (record.status !== 'received') throw new AppError('Diese Rückgabe wurde bereits verarbeitet.', 400);
+
+    // Stripe's idempotency key makes a retry safe if the request is interrupted.
+    if (record.stripe_payment_intent_id && stripe) {
+      await stripe.refunds.create({
+        payment_intent: record.stripe_payment_intent_id,
+        amount: Math.round(Number(record.refund_amount) * 100),
+        reason: 'requested_by_customer'
+      }, { idempotencyKey: `clyr-return-${record.id}` });
+    }
+
+    const previousRefunds = await client.query(
+      `SELECT COALESCE(SUM(refund_amount), 0) AS refunded FROM order_returns
+       WHERE order_id = $1 AND status = 'refunded'`, [id]
+    );
+    const refundedTotal = roundReturnMoney(Number(previousRefunds.rows[0].refunded) + Number(record.refund_amount));
+    const isFullRefund = refundedTotal >= roundReturnMoney(Number(record.total));
+    await client.query(
+      `UPDATE order_returns SET status = 'refunded', refunded_at = CURRENT_TIMESTAMP, refunded_by = $1 WHERE id = $2`,
+      [req.user.id, record.id]
+    );
+    await client.query(
+      `UPDATE orders SET status = $1, payment_status = $2,
+       admin_notes = CONCAT(COALESCE(admin_notes, ''), $3), updated_at = CURRENT_TIMESTAMP WHERE id = $4`,
+      [isFullRefund ? 'refunded' : record.order_status, isFullRefund ? 'refunded' : 'partially_refunded',
+        `\nErstattung ${Number(record.refund_amount).toFixed(2)} EUR für Rückgabe ausgeführt.`, id]
+    );
+    await client.query(
+      `INSERT INTO activity_log (user_id, action, entity_type, entity_id, details)
+       VALUES ($1,'order_return_refunded','order',$2,$3)`,
+      [req.user.id, id, JSON.stringify({ returnId: record.id, refundAmount: record.refund_amount })]
+    );
+    return { refundAmount: Number(record.refund_amount), isFullRefund };
+  });
+  res.json({ message: 'Erstattung erfolgreich ausgeführt.', ...result });
 });
 
 /**

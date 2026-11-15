@@ -287,8 +287,11 @@ export default function CheckoutPage() {
   // Mixed order: large rate only (not both added)
   // Fallback: price > 500 = large item, name contains montage/installation = service
   const normalizedCountry = normalizeCountryCode(formData.country);
+  const pickupStockAvailable = effectiveCartItems.length > 0 && effectiveCartItems.every(item =>
+    Number(item.pickup_stock || 0) >= Number(item.quantity || 0)
+  );
   const isPickup = deliveryMethod === 'pickup';
-  const pickupAvailable = normalizedCountry === 'AT';
+  const pickupAvailable = normalizedCountry === 'AT' && pickupStockAvailable;
   const effectiveShipping = isPickup ? 0 : calculateShipping(normalizedCountry, effectiveCartItems);
   
   // EU countries eligible for reverse charge (not AT = home country)
@@ -320,6 +323,10 @@ export default function CheckoutPage() {
     if (e.target.name === 'country' && value !== 'AT') setDeliveryMethod('shipping');
     setFormData({ ...formData, [e.target.name]: value });
   };
+
+  useEffect(() => {
+    if (!pickupAvailable && deliveryMethod === 'pickup') setDeliveryMethod('shipping');
+  }, [pickupAvailable, deliveryMethod]);
 
   const verifyReferralCodeFn = async (code) => {
     const codeToCheck = code || referralCode;
@@ -773,6 +780,11 @@ export default function CheckoutPage() {
                       <span><strong>Selbstabholung / Keine Lieferung</strong><br /><span className="text-sm text-gray-600">Kostenlos abholen bei Pappelweg 4b, 9524 St. Magdalen, Österreich.</span></span>
                     </label>
                   </div>
+                </div>
+              )}
+              {normalizedCountry === 'AT' && !pickupAvailable && effectiveCartItems.length > 0 && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                  Selbstabholung ist für diese Warenkorbmenge derzeit nicht verfügbar. Bitte wählen Sie Lieferung.
                 </div>
               )}
 

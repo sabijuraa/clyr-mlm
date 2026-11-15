@@ -260,6 +260,15 @@ export const ordersAPI = {
   refund: (id, reason, amount = null) => 
     api.post(`/orders/${id}/refund`, { reason, amount }),
 
+  getReturns: (id) =>
+    api.get(`/orders/${id}/returns`),
+
+  receiveReturn: (id, payload) =>
+    api.post(`/orders/${id}/returns`, payload),
+
+  refundReturn: (id, returnId) =>
+    api.post(`/orders/${id}/returns/${returnId}/refund`),
+
   getInvoice: (id) => 
     api.get(`/orders/${id}/invoice`, { responseType: 'blob' }),
 
