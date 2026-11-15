@@ -887,6 +887,26 @@ app.listen(PORT, '0.0.0.0', async () => {
     `);
     console.log('Return workflow tables verified.');
 
+    // First rollout only: existing non-large physical products were already
+    // held locally by CLYR, while Soda is shipped by Wolfgang. Seed their
+    // pickup allocation once from the current warehouse count.  The marker
+    // prevents later deploys from overwriting Theresa's Admin adjustments.
+    const pickupSeeded = await dbQuery("SELECT 1 FROM settings WHERE key = 'pickup_stock_initialized' LIMIT 1");
+    if (pickupSeeded.rowCount === 0) {
+      await dbQuery(`
+        UPDATE products
+        SET pickup_stock = GREATEST(COALESCE(stock, 0), 0)
+        WHERE is_active = true
+          AND COALESCE(product_type, 'physical') = 'physical'
+          AND COALESCE(is_large_item, false) = false
+      `);
+      await dbQuery(`
+        INSERT INTO settings (key, value, description)
+        VALUES ('pickup_stock_initialized', 'true', 'Initial local pickup stock allocation')
+      `);
+      console.log('Initial local pickup stock allocated for small products.');
+    }
+
     // CLEANUP: Remove duplicate invoices - keep only the FIRST invoice per order
     try {
       const dupResult = await dbQuery(`
