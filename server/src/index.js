@@ -856,7 +856,7 @@ app.listen(PORT, '0.0.0.0', async () => {
     // after the returned goods and credit note have been recorded.
     await dbQuery(`
       CREATE TABLE IF NOT EXISTS order_returns (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
         order_id UUID NOT NULL REFERENCES orders(id) ON DELETE RESTRICT,
         credit_note_id INTEGER REFERENCES credit_notes(id) ON DELETE RESTRICT,
         reason TEXT NOT NULL,
@@ -871,6 +871,13 @@ app.listen(PORT, '0.0.0.0', async () => {
         refunded_by UUID REFERENCES users(id) ON DELETE SET NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+    // The existing schema uses uuid-ossp.  Keep the return table aligned with
+    // it as well: PostgreSQL installations without pgcrypto accept the table
+    // definition but fail only when the first return is inserted.
+    await dbQuery(`
+      ALTER TABLE order_returns
+      ALTER COLUMN id SET DEFAULT uuid_generate_v4()
     `);
     await dbQuery(`
       CREATE TABLE IF NOT EXISTS order_return_items (
