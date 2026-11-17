@@ -247,7 +247,7 @@ export const getProductBySlug = async (req, res) => {
     if (product.is_bundle) {
       try {
         const bundleResult = await pool.query(`
-          SELECT bi.product_id, bi.quantity, p.name, p.name_en, p.images, p.stock
+          SELECT bi.product_id, bi.quantity, p.name, p.name_en, p.images, p.stock, p.pickup_stock, p.is_large_item
           FROM bundle_items bi
           JOIN products p ON p.id = bi.product_id
           WHERE bi.bundle_id = $1
@@ -321,7 +321,17 @@ export const getProduct = async (req, res) => {
       return res.status(404).json({ error: 'Product not found' });
     }
     
-    res.json(applyPartnerPricing(result.rows[0], req.user));
+    const product = result.rows[0];
+    if (product.is_bundle) {
+      const bundleResult = await pool.query(
+        `SELECT bi.product_id, bi.quantity, p.name, p.pickup_stock, p.is_large_item
+         FROM bundle_items bi JOIN products p ON p.id = bi.product_id
+         WHERE bi.bundle_id = $1`,
+        [product.id]
+      );
+      product.bundle_items = bundleResult.rows;
+    }
+    res.json(applyPartnerPricing(product, req.user));
   } catch (error) {
     console.error('Get product error:', error);
     res.status(500).json({ error: 'Failed to fetch product' });

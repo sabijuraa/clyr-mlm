@@ -755,14 +755,12 @@ export const createOrder = asyncHandler(async (req, res) => {
   }
   const componentsByBundle = new Map();
   const componentDetailsByBundle = new Map();
-  const bundleHasLargeComponent = new Set();
   for (const component of componentResult.rows) {
     const bundleKey = String(component.bundle_id);
     if (!componentsByBundle.has(bundleKey)) componentsByBundle.set(bundleKey, []);
     componentsByBundle.get(bundleKey).push(component.product_id);
     if (!componentDetailsByBundle.has(bundleKey)) componentDetailsByBundle.set(bundleKey, []);
     componentDetailsByBundle.get(bundleKey).push({ name: component.name, quantity: component.quantity });
-    if (component.is_large_item) bundleHasLargeComponent.add(bundleKey);
   }
   const requireValidVariantSelection = (selectedVariants, productId, prefix = '') => {
     const optionsByType = variantOptionsByProduct.get(String(productId));
@@ -834,20 +832,20 @@ export const createOrder = asyncHandler(async (req, res) => {
   // Check stock
   for (const item of items) {
     const product = products.find(p => p.id === item.productId);
-    if (deliveryMethod === 'pickup' && (product.is_large_item || bundleHasLargeComponent.has(String(product.id)))) {
-      throw new AppError(`${product.name} enthält ein System, das nur per Versand geliefert werden kann.`, 400);
-    }
-    if (deliveryMethod === 'pickup' && Number(product.pickup_stock || 0) < item.quantity) {
+    if (deliveryMethod === 'pickup' && !product.is_bundle && Number(product.pickup_stock || 0) < item.quantity) {
       throw new AppError(`${product.name} ist nicht in ausreichender Menge zur Selbstabholung verfügbar`, 400);
     }
     if (product.is_bundle) {
       const componentsResult = await query(
-        'SELECT bi.product_id, bi.quantity, p.name, p.stock, p.track_stock FROM bundle_items bi JOIN products p ON p.id = bi.product_id WHERE bi.bundle_id = $1',
+        'SELECT bi.product_id, bi.quantity, p.name, p.stock, p.pickup_stock, p.track_stock FROM bundle_items bi JOIN products p ON p.id = bi.product_id WHERE bi.bundle_id = $1',
         [product.id]
       );
       for (const component of componentsResult.rows) {
         if (component.track_stock && component.stock < component.quantity * item.quantity) {
           throw new AppError(`${product.name} ist nicht in ausreichender Menge verfügbar (${component.name} fehlt)`, 400);
+        }
+        if (deliveryMethod === 'pickup' && Number(component.pickup_stock || 0) < component.quantity * item.quantity) {
+          throw new AppError(`${product.name} ist nicht vollständig zur Selbstabholung verfügbar (${component.name} fehlt).`, 400);
         }
       }
     } else if (product.track_stock && product.stock < item.quantity) {
@@ -1189,13 +1187,26 @@ export const createOrder = asyncHandler(async (req, res) => {
         );
       }
 
-      // Pickup stock is a separate local allocation.  Shipping stock is not
+      // Pickup stock is a separate local allocation. Shipping stock is not
       // affected by this counter, while a pickup order consumes both counts.
       if (isPickup) {
-        await client.query(
-          'UPDATE products SET pickup_stock = GREATEST(pickup_stock - $1, 0) WHERE id = $2',
-          [item.quantity, product.id]
-        );
+        if (product.is_bundle) {
+          const pickupComponents = await client.query(
+            'SELECT product_id, quantity FROM bundle_items WHERE bundle_id = $1',
+            [product.id]
+          );
+          for (const component of pickupComponents.rows) {
+            await client.query(
+              'UPDATE products SET pickup_stock = GREATEST(pickup_stock - $1, 0) WHERE id = $2',
+              [Number(component.quantity) * item.quantity, component.product_id]
+            );
+          }
+        } else {
+          await client.query(
+            'UPDATE products SET pickup_stock = GREATEST(pickup_stock - $1, 0) WHERE id = $2',
+            [item.quantity, product.id]
+          );
+        }
       }
     }
 
@@ -2029,12 +2040,10 @@ export const receiveOrderReturn = asyncHandler(async (req, res) => {
         );
         for (const component of components.rows) {
           await client.query(
-            'UPDATE products SET stock = stock + $1 WHERE id = $2 AND track_stock = true',
+            'UPDATE products SET stock = stock + $1, pickup_stock = pickup_stock + $1 WHERE id = $2 AND track_stock = true',
             [entry.quantity * Number(component.quantity), component.product_id]
           );
         }
-        // Bundle pickup availability is managed at the bundle level.
-        await client.query('UPDATE products SET pickup_stock = pickup_stock + $1 WHERE id = $2', [entry.quantity, entry.orderItem.product_id]);
       } else if (entry.orderItem.product_id && entry.orderItem.track_stock) {
         await client.query('UPDATE products SET stock = stock + $1, pickup_stock = pickup_stock + $1 WHERE id = $2', [entry.quantity, entry.orderItem.product_id]);
       }

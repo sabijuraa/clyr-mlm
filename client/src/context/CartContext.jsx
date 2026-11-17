@@ -16,6 +16,15 @@ const hasLargeShippingItem = (product) => Boolean(
   ))
 );
 
+const getLocalPickupStock = (product) => {
+  if (!Array.isArray(product?.bundle_items) || product.bundle_items.length === 0) {
+    return Number(product?.pickup_stock || 0);
+  }
+  return Math.max(0, Math.min(...product.bundle_items.map((item) =>
+    Math.floor(Number(item.pickup_stock || 0) / Math.max(1, Number(item.quantity || 1)))
+  )));
+};
+
 const CartContext = createContext(null);
 
 export const useCart = () => {
@@ -113,7 +122,7 @@ export const CartProvider = ({ children }) => {
             .reduce((sum, variant) => sum + (Number.parseFloat(variant?.priceModifier) || 0), 0);
           const price = Math.round((basePrice + variantModifier) * 100) / 100;
           const isLargeItem = hasLargeShippingItem(product);
-          const pickupStock = Number(product?.pickup_stock || 0);
+          const pickupStock = getLocalPickupStock(product);
           if (Number(item.price) === price && Boolean(item.is_large_item) === isLargeItem && Number(item.pickup_stock || 0) === pickupStock) return item;
           changed = true;
           return { ...item, price, is_large_item: isLargeItem, pickup_stock: pickupStock };
@@ -253,7 +262,7 @@ export const CartProvider = ({ children }) => {
         variantDescription: product.variantDescription || '',
         is_large_item: hasLargeShippingItem(product),
         is_service: product.is_service || false,
-        pickup_stock: Number(product.pickup_stock || 0),
+        pickup_stock: getLocalPickupStock(product),
         isSubscription: product.is_subscription_eligible || product.isSubscription || false
       }];
     });
