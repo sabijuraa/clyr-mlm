@@ -13,6 +13,11 @@ export const getAllProducts = async (req, res) => {
     
     let queryText = `
       SELECT p.*, c.name as category_name, c.slug as category_slug,
+        EXISTS (
+          SELECT 1 FROM bundle_items bi
+          JOIN products component ON component.id = bi.product_id
+          WHERE bi.bundle_id = p.id AND component.is_large_item = true
+        ) AS contains_large_item,
         (EXISTS (
           SELECT 1 FROM product_variants pv
           WHERE pv.product_id = p.id AND pv.is_active = true
@@ -70,6 +75,11 @@ export const getFeaturedProducts = async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT p.*, c.name as category_name,
+        EXISTS (
+          SELECT 1 FROM bundle_items bi
+          JOIN products component ON component.id = bi.product_id
+          WHERE bi.bundle_id = p.id AND component.is_large_item = true
+        ) AS contains_large_item,
         (EXISTS (
           SELECT 1 FROM product_variants pv
           WHERE pv.product_id = p.id AND pv.is_active = true
@@ -97,6 +107,11 @@ export const getNewProducts = async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT p.*, c.name as category_name,
+        EXISTS (
+          SELECT 1 FROM bundle_items bi
+          JOIN products component ON component.id = bi.product_id
+          WHERE bi.bundle_id = p.id AND component.is_large_item = true
+        ) AS contains_large_item,
         (EXISTS (
           SELECT 1 FROM product_variants pv
           WHERE pv.product_id = p.id AND pv.is_active = true
@@ -143,6 +158,11 @@ export const getProductsByCategory = async (req, res) => {
     
     const result = await pool.query(`
       SELECT p.*, c.name as category_name,
+        EXISTS (
+          SELECT 1 FROM bundle_items bi
+          JOIN products component ON component.id = bi.product_id
+          WHERE bi.bundle_id = p.id AND component.is_large_item = true
+        ) AS contains_large_item,
         (EXISTS (
           SELECT 1 FROM product_variants pv
           WHERE pv.product_id = p.id AND pv.is_active = true
@@ -171,7 +191,12 @@ export const getProductBySlug = async (req, res) => {
     const { slug } = req.params;
     
     const result = await pool.query(`
-      SELECT p.*, c.name as category_name
+      SELECT p.*, c.name as category_name,
+        EXISTS (
+          SELECT 1 FROM bundle_items bi
+          JOIN products component ON component.id = bi.product_id
+          WHERE bi.bundle_id = p.id AND component.is_large_item = true
+        ) AS contains_large_item
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
       WHERE p.slug = $1
@@ -281,7 +306,12 @@ export const getProduct = async (req, res) => {
     const { id } = req.params;
     
     const result = await pool.query(`
-      SELECT p.*, c.name as category_name
+      SELECT p.*, c.name as category_name,
+        EXISTS (
+          SELECT 1 FROM bundle_items bi
+          JOIN products component ON component.id = bi.product_id
+          WHERE bi.bundle_id = p.id AND component.is_large_item = true
+        ) AS contains_large_item
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
       WHERE p.id = $1

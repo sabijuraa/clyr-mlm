@@ -9,6 +9,13 @@ const EU_RC_COUNTRIES = new Set([
   'HU','IE','IT','LT','LU','LV','MT','NL','PL','PT','RO','SE','SI','SK'
 ]);
 
+const hasLargeShippingItem = (product) => Boolean(
+  product?.is_large_item || product?.isLargeItem || product?.contains_large_item ||
+  (Array.isArray(product?.bundle_items) && product.bundle_items.some((item) =>
+    item?.is_large_item || item?.isLargeItem
+  ))
+);
+
 const CartContext = createContext(null);
 
 export const useCart = () => {
@@ -105,9 +112,11 @@ export const CartProvider = ({ children }) => {
             .filter((variant) => !variant?.bundleComponent)
             .reduce((sum, variant) => sum + (Number.parseFloat(variant?.priceModifier) || 0), 0);
           const price = Math.round((basePrice + variantModifier) * 100) / 100;
-          if (Number(item.price) === price) return item;
+          const isLargeItem = hasLargeShippingItem(product);
+          const pickupStock = Number(product?.pickup_stock || 0);
+          if (Number(item.price) === price && Boolean(item.is_large_item) === isLargeItem && Number(item.pickup_stock || 0) === pickupStock) return item;
           changed = true;
-          return { ...item, price };
+          return { ...item, price, is_large_item: isLargeItem, pickup_stock: pickupStock };
         });
         return changed ? refreshed : currentItems;
       });
@@ -242,7 +251,7 @@ export const CartProvider = ({ children }) => {
         quantity,
         selectedVariants: product.selectedVariants || {},
         variantDescription: product.variantDescription || '',
-        is_large_item: product.is_large_item || false,
+        is_large_item: hasLargeShippingItem(product),
         is_service: product.is_service || false,
         pickup_stock: Number(product.pickup_stock || 0),
         isSubscription: product.is_subscription_eligible || product.isSubscription || false

@@ -288,7 +288,7 @@ export default function CheckoutPage() {
   // Fallback: price > 500 = large item, name contains montage/installation = service
   const normalizedCountry = normalizeCountryCode(formData.country);
   const pickupStockAvailable = effectiveCartItems.length > 0 && effectiveCartItems.every(item =>
-    Number(item.pickup_stock || 0) >= Number(item.quantity || 0)
+    !item.is_large_item && Number(item.pickup_stock || 0) >= Number(item.quantity || 0)
   );
   const isPickup = deliveryMethod === 'pickup';
   const pickupAvailable = normalizedCountry === 'AT' && pickupStockAvailable;

@@ -83,10 +83,25 @@ const getShippingCost = async (country, items, products) => {
   }
 
   // Check what types of items are in the order
-  const hasLargeItem = items.some(item => {
+  const directLargeItem = items.some(item => {
     const product = products.find(p => p.id === item.productId);
     return product?.is_large_item;
   });
+  // A bundle can contain the Soda system even when its own Admin flag was
+  // not set. Resolve components here so its freight tier is always safe.
+  const bundleIds = items
+    .map(item => products.find(product => product.id === item.productId))
+    .filter(product => product?.is_bundle)
+    .map(product => product.id);
+  const bundleLargeItem = bundleIds.length > 0 && (await query(
+    `SELECT 1
+     FROM bundle_items bi
+     JOIN products component ON component.id = bi.product_id
+     WHERE bi.bundle_id = ANY($1) AND component.is_large_item = true
+     LIMIT 1`,
+    [bundleIds]
+  )).rowCount > 0;
+  const hasLargeItem = directLargeItem || bundleLargeItem;
 
   // Check if order is ONLY services (Montage etc.) — no shipping
   const hasPhysicalItem = items.some(item => {
@@ -706,7 +721,7 @@ export const createOrder = asyncHandler(async (req, res) => {
   // Enforce the selection here as well so a handcrafted API request cannot
   // create an ambiguous faucet, colour, or aroma order.
   const componentResult = await query(
-    `SELECT bi.bundle_id, bi.product_id, bi.quantity, p.name
+    `SELECT bi.bundle_id, bi.product_id, bi.quantity, p.name, p.is_large_item
      FROM bundle_items bi
      JOIN products p ON p.id = bi.product_id
      WHERE bi.bundle_id = ANY($1)`,
@@ -740,12 +755,14 @@ export const createOrder = asyncHandler(async (req, res) => {
   }
   const componentsByBundle = new Map();
   const componentDetailsByBundle = new Map();
+  const bundleHasLargeComponent = new Set();
   for (const component of componentResult.rows) {
     const bundleKey = String(component.bundle_id);
     if (!componentsByBundle.has(bundleKey)) componentsByBundle.set(bundleKey, []);
     componentsByBundle.get(bundleKey).push(component.product_id);
     if (!componentDetailsByBundle.has(bundleKey)) componentDetailsByBundle.set(bundleKey, []);
     componentDetailsByBundle.get(bundleKey).push({ name: component.name, quantity: component.quantity });
+    if (component.is_large_item) bundleHasLargeComponent.add(bundleKey);
   }
   const requireValidVariantSelection = (selectedVariants, productId, prefix = '') => {
     const optionsByType = variantOptionsByProduct.get(String(productId));
@@ -817,6 +834,9 @@ export const createOrder = asyncHandler(async (req, res) => {
   // Check stock
   for (const item of items) {
     const product = products.find(p => p.id === item.productId);
+    if (deliveryMethod === 'pickup' && (product.is_large_item || bundleHasLargeComponent.has(String(product.id)))) {
+      throw new AppError(`${product.name} enthält ein System, das nur per Versand geliefert werden kann.`, 400);
+    }
     if (deliveryMethod === 'pickup' && Number(product.pickup_stock || 0) < item.quantity) {
       throw new AppError(`${product.name} ist nicht in ausreichender Menge zur Selbstabholung verfügbar`, 400);
     }
