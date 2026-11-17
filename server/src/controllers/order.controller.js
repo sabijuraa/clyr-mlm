@@ -264,17 +264,39 @@ export const calculateOrderTotals = asyncHandler(async (req, res) => {
  */
 export const createPaymentIntent = asyncHandler(async (req, res) => {
   const { amount, currency = 'eur', metadata = {} } = req.body;
-
-  if (!amount || amount < 0.50) {
-    throw new AppError('Betrag muss mindestens 0,50 EUR sein', 400);
-  }
+  const orderId = metadata.orderId;
+  let checkoutAmount = Number(amount);
 
   if (!process.env.STRIPE_SECRET_KEY || !stripe) {
     throw new AppError('Stripe ist nicht konfiguriert. Bitte STRIPE_SECRET_KEY in den Umgebungsvariablen setzen.', 500);
   }
 
   const apiBaseUrl = getPublicApiUrl(req);
-  const orderId = metadata.orderId;
+
+  // Never trust an amount supplied by the browser.  Once an order exists,
+  // Stripe must receive the total calculated and stored by the server, not a
+  // cart total that could be stale, malformed, or deliberately altered.
+  if (orderId) {
+    const orderResult = await query(
+      'SELECT id, order_number, total, payment_status FROM orders WHERE id = $1',
+      [orderId]
+    );
+    if (orderResult.rows.length === 0) {
+      throw new AppError('Bestellung nicht gefunden', 404);
+    }
+    const order = orderResult.rows[0];
+    if (order.payment_status === 'paid') {
+      throw new AppError('Diese Bestellung ist bereits bezahlt.', 400);
+    }
+    checkoutAmount = Number(order.total);
+    if (Number(amount) !== checkoutAmount) {
+      console.warn(`Checkout amount corrected for ${order.order_number}: requested ${amount}, using stored ${checkoutAmount}`);
+    }
+  }
+
+  if (!Number.isFinite(checkoutAmount) || checkoutAmount < 0.50) {
+    throw new AppError('Betrag muss mindestens 0,50 EUR sein', 400);
+  }
 
   console.log('=== STRIPE CHECKOUT SESSION ===');
   console.log('apiBaseUrl:', apiBaseUrl);
@@ -310,7 +332,7 @@ export const createPaymentIntent = asyncHandler(async (req, res) => {
               name: `CLYR Bestellung${orderId ? ' #' + orderId : ''}`,
               description: 'CLYR Solutions GmbH',
             },
-            unit_amount: Math.round(amount * 100),
+            unit_amount: Math.round(checkoutAmount * 100),
           },
           quantity: 1,
         }],
@@ -332,7 +354,7 @@ export const createPaymentIntent = asyncHandler(async (req, res) => {
               name: `CLYR Bestellung${orderId ? ' #' + orderId : ''}`,
               description: 'CLYR Solutions GmbH',
             },
-            unit_amount: Math.round(amount * 100),
+            unit_amount: Math.round(checkoutAmount * 100),
           },
           quantity: 1,
         }],
